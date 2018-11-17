@@ -1,0 +1,53 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
+
+template<class T>
+OPtr<T>::OPtr(void * ahh)
+{
+	_unk_obj = ahh;
+}
+
+template<class T>
+OPtr<T>::OPtr(T * ahh)
+{
+    _object = ahh;
+}
+
+template<class T>
+OPtr<T>::OPtr()
+{
+    _object = nullptr;
+}
+
+template<class T>
+T * OPtr<T>::GetTypedObject()
+{
+	return this->_object;
+}
+
+template<class T>
+OObject * OPtr<T>::GetObject()
+{
+	return this->_os_obj;
+}
+
+template<class T>
+void *	OPtr<T>::SetObject(void * obj)
+{
+	return this->_unk_obj = obj;
+}
+
+template<class T>
+T * OPtr<T>::SetObject(T * obj)
+{
+	return this->_object = obj;
+}
+
+template<class T>
+T * OPtr<T>::operator->()
+{
+	return this->_object;
+}

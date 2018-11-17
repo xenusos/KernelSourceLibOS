@@ -1,0 +1,20 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
+
+OReferenceCounter::OReferenceCounter()
+{
+	_count = 0;
+}
+
+uint_t OReferenceCounter::Reference()
+{
+	return ++_count;
+}
+
+uint_t OReferenceCounter::Deference()
+{
+	return --_count;
+}

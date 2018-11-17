@@ -1,0 +1,33 @@
+/*
+    Purpose: 
+    Author: Reece W. 
+    License: All Rights Reserved J. Reece Wilson
+*/  
+#pragma once
+#include <Core\FIO\OPath.hpp>
+#include <ITypes\IVFSMount.hpp> //private header; i don't care
+#include <ITypes\IDEntry.hpp>
+#include <ITypes\IPath.hpp>
+
+class OLinuxPathImpl : public OPath
+{
+public:
+	OLinuxPathImpl(vfsmount_k mnt, dentry_k dentry);
+	dentry_k	GetDEntry();
+	vfsmount_k	GetMount();
+	inode_k		ToINode();
+	bool		IsEqualTo(const OPath * path)		override;
+	uint_t		ToString(char * str, uint_t length) override;
+	void		ToPathPtr(path_k path);
+	error_t		GetParent_1(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with files -> dirs
+	error_t		GetParent_2(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with dirs  -> dirs
+protected:
+	void		InvaildateImp()	override;
+private:
+	vfsmount_k _mnt;
+	dentry_k _dentry;
+};
+
+
+error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, path_k path);
+error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, vfsmount_k mnt, dentry_k entry);

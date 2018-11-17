@@ -1,0 +1,37 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
+
+template<class T>
+void * OOutlivableRef<T>::PassOwnership(void * obj) const
+{
+	return PassOwnership((T *)obj);
+}
+
+template<class T>
+T * OOutlivableRef<T>::PassOwnership(T * obj) const
+{
+    bool found = false;
+	if (this->_has_retard)
+	{
+		this->_retard_ptr.SwapValue(ORetardPtr<T>(obj));
+		found = true;
+	}
+	if (this->_has_optr)
+	{
+		this->_optr.SetObject(obj);
+		found = true;
+	}
+	if (this->_has_generic)
+	{
+		this->_generic_ptr = obj;
+		found = true;
+	}
+	if (!found)
+	{
+	    obj->Destory();
+	}
+	return obj;
+}

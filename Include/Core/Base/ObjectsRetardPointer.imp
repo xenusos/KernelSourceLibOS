@@ -1,0 +1,87 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
+
+template<class T>
+ORetardPtr<T>::ORetardPtr(T * object)
+{
+	_object			= object;
+	_ref_counter	= new OReferenceCounter();
+	_ref_counter->Reference();
+}
+
+template<class T>
+ORetardPtr<T>::ORetardPtr()
+{
+	// what type of retard thinks "we should never have any medium of object referencing", and that if you want an object variable, it must always be defined. 
+	// how about: "no, fuck you"?
+	// this is just a forward decleration
+	_object			= nullptr;
+	_ref_counter	= nullptr;
+}
+
+template<class T>
+ORetardPtr<T>::~ORetardPtr()
+{
+	if (_ref_counter == nullptr) return;
+	Collect();
+}
+
+template<class T>
+T* ORetardPtr<T>::operator->()
+{
+	return _object;
+}
+
+template<class T>
+ORetardPtr<T>& ORetardPtr<T>::operator=(const ORetardPtr<T>& predecessor)
+{
+	return this->SwapValue(predecessor);
+}
+
+template<class T>
+ORetardPtr<T>& ORetardPtr<T>::SwapValue(const ORetardPtr<T>& predecessor)
+{
+	if (this == &predecessor) return *this; //more c++ bullshit
+	Collect();
+	this->_ref_counter	= predecessor._ref_counter;
+	this->_os_obj		= predecessor._os_obj;
+	this->_object		= predecessor._object;
+	this->_ref_counter->Reference();
+	return *this;
+}
+
+// HURRDURR REFERENCES BECAUSE FUCK NORMS RIGHT?!?1?
+class CPPIsFuckingRetarded : public OObject
+{
+	void InvaildateImp() override
+	{	}
+};
+
+template<class T>
+T& ORetardPtr<T>::operator*()
+{
+	panic("Learn to program like a real glowing cia man. Fuck Bjarne Stroustrup and fuck derefencing OS Objects. UPDATE 2018-08-29: Oh, and fuck trains. :'(");
+	return (T&)CPPIsFuckingRetarded();
+}
+
+template<class T>
+void ORetardPtr<T>::Collect()
+{
+	if (!_ref_counter)
+		return;
+	
+	if (_ref_counter->Deference())
+		return;
+	
+	_os_obj->Destory();
+	delete _ref_counter;
+}
+
+template<class T>
+bool ORetardPtr<T>::IsValid()
+{ 
+	return _object ? true : false;
+}

@@ -1,0 +1,3 @@
+https://docs.microsoft.com/en-us/windows-hardware/drivers/network/creating-sockets
+
+https://github.com/abysamross/simple-linux-kernel-tcp-client-server/blob/master/network_server.c

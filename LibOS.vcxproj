@@ -1,0 +1,175 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Development|x64">
+      <Configuration>Development</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Include\Core\CPU\OMutex.hpp" />
+    <ClInclude Include="Include\Core\CPU\OSemaphore.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_CPU.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_Linux.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_Nice.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_Preemption.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_Spinlocks.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_Timing.hpp" />
+    <ClInclude Include="Include\Core\Memory\Linux\OLinuxMemory.hpp" />
+    <ClInclude Include="Include\Core\Memory\Linux\OLinuxStack.hpp" />
+    <ClInclude Include="Include\Core\Net\_NetCommon.hpp" />
+    <ClInclude Include="Include\Core\Processes\OProcesses.hpp" />
+    <ClInclude Include="Include\Core\UserSpace\ODelegatedCalls.hpp" />
+    <ClInclude Include="Include\Core\UserSpace\OPseudoFile.hpp" />
+    <ClInclude Include="Include\libos.hpp" />
+    <ClInclude Include="Include\Core\Base\Objects.hpp" />
+    <ClInclude Include="Include\Core\CPU\OCpuMask.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread.hpp" />
+    <ClInclude Include="Include\Core\FIO\ODirectory.hpp" />
+    <ClInclude Include="Include\Core\FIO\OFile.hpp" />
+    <ClInclude Include="Include\Core\FIO\OFileStat.hpp" />
+    <ClInclude Include="Include\Core\FIO\OPath.hpp" />
+    <ClInclude Include="Include\Logging\Logging.hpp" />
+    <ClInclude Include="Include\Utils\DateHelper.hpp" />
+    <ClInclude Include="Include\Utils\FileIOHelper.hpp" />
+    <ClInclude Include="Include\Utils\ThreadHelper.hpp" />
+    <ClInclude Include="Include\XType\XArray.hpp" />
+    <ClInclude Include="Include\XType\XChain.h" />
+    <ClInclude Include="src\Core\CPU\OMutex.hpp" />
+    <ClInclude Include="src\Core\CPU\OSemaphore.hpp" />
+    <ClInclude Include="src\Core\CPU\OSimpleSemaphore.hpp" />
+    <ClInclude Include="src\Core\CPU\OThread.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_Spawning.hpp" />
+    <ClInclude Include="src\Core\CPU\OWorkQueue.hpp" />
+    <ClInclude Include="src\Core\FIO\ODirectory.hpp" />
+    <ClInclude Include="src\Core\FIO\OFile.hpp" />
+    <ClInclude Include="src\Core\FIO\OFileStat.hpp" />
+    <ClInclude Include="src\Core\FIO\OPath.hpp" />
+    <ClInclude Include="src\Core\Memory\Linux\OLinuxMemory.hpp" />
+    <ClInclude Include="src\Core\Net\OTCPNetworking.hpp" />
+    <ClInclude Include="src\Core\Processes\OProcesses.hpp" />
+    <ClInclude Include="src\Core\UserSpace\ODelegtedCalls.hpp" />
+    <ClInclude Include="src\Core\UserSpace\OPseudoFile.hpp" />
+    <ClInclude Include="src\UserSpace\ODelegtedCalls.hpp" />
+    <ClInclude Include="src\UserSpace\OPseudoFile.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Include\Core\Net\OTCPNetworking.hpp" />
+    <ClCompile Include="src\Core\CPU\CPU_Mem.cpp" />
+    <ClCompile Include="src\Core\CPU\CPU_Preemption.cpp" />
+    <ClCompile Include="src\Core\CPU\CPU_Spinlocks.cpp" />
+    <ClCompile Include="src\Core\CPU\OMutex.cpp" />
+    <ClCompile Include="src\Core\CPU\OSemaphore.cpp" />
+    <ClCompile Include="src\Core\CPU\OSimpleSemaphore.cpp" />
+    <ClCompile Include="src\Core\CPU\OWorkQueue.cpp" />
+    <ClCompile Include="src\Core\Memory\Linux\OLinuxMemory.cpp" />
+    <ClCompile Include="src\Core\Memory\Linux\OLinuxStack.cpp" />
+    <ClCompile Include="src\Core\Net\OTCPNetworking.cpp" />
+    <ClCompile Include="src\Core\Processes\OProcesses.cpp" />
+    <ClCompile Include="src\Core\Processes\OProcessTracking.cpp" />
+    <ClCompile Include="src\Entrypoint.cpp" />
+    <ClCompile Include="src\Core\FIO\ODirectory.cpp" />
+    <ClCompile Include="src\Core\FIO\OFile.cpp" />
+    <ClCompile Include="src\Core\FIO\OFileStat.cpp" />
+    <ClCompile Include="src\Core\FIO\OPath.cpp" />
+    <ClCompile Include="src\Core\CPU\OThread.cpp" />
+    <ClCompile Include="src\Core\UserSpace\ODelegtedCalls.cpp" />
+    <ClCompile Include="src\Core\UserSpace\OPseudoFile.cpp" />
+    <ClCompile Include="src\Logging\Logging.cpp" />
+    <ClCompile Include="src\Utils\DateHelper.cpp" />
+    <ClCompile Include="src\Utils\FileIOHelper.cpp" />
+    <ClCompile Include="src\Utils\MemoryHelper.cpp" />
+    <ClCompile Include="src\Utils\ThreadHelper.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="src\Utils\ThreadHelper_IP.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
+    <None Include="Include\Core\Base\ObjectsObject.imp" />
+    <None Include="Include\Core\Base\ObjectsOPtr.imp" />
+    <None Include="Include\Core\Base\ObjectsOutlivableRef.imp" />
+    <None Include="Include\Core\Base\ObjectsRef.imp" />
+    <None Include="Include\Core\Base\ObjectsReferenceCounter.imp" />
+    <None Include="Include\Core\Base\ObjectsRetardPointer.imp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Include\Core\Net\Text.txt" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{E2103EDB-133A-42AD-BE85-94C8F2B670AC}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>LibOS</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'" Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>..\..\Binaries\</OutDir>
+    <TargetName>LibOS</TargetName>
+    <EnableInf2cat>false</EnableInf2cat>
+    <IntDir>..\..\Objects\LibOS\</IntDir>
+    <TargetExt>.XSYS</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Full</Optimization>
+      <SDLCheck>
+      </SDLCheck>
+      <PreprocessorDefinitions>LIBLINUX_EXPORTS;%(PreprocessorDefinitions);XENUS_BUILD</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>..\CommonKernel\Headers\;Include\;..\LibOSTypes\Include\</AdditionalIncludeDirectories>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <ControlFlowGuard>false</ControlFlowGuard>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <AdditionalOptions>/MP2 /kernel %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ProgramDataBaseFileName>../../Symbols/$(ProjectName).pdb</ProgramDataBaseFileName>
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>Kernel.lib;LibCompiler.lib;LibOSTypes.lib</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <ProgramDatabaseFile>..\..\Debug\$(TargetName).pdb</ProgramDatabaseFile>
+      <ImportLibrary>..\..\Linking\$(TargetName).lib</ImportLibrary>
+      <AdditionalLibraryDirectories>../../Linking/</AdditionalLibraryDirectories>
+      <Driver>Driver</Driver>
+      <NoEntryPoint>false</NoEntryPoint>
+      <EntryPointSymbol>entrypoint</EntryPointSymbol>
+    </Link>
+    <Lib>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories>..\..\Linking\</AdditionalLibraryDirectories>
+    </Lib>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
