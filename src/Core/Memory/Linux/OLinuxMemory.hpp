@@ -7,9 +7,9 @@ class OLKernelMappedBufferImpl : public OLGenericMappedBuffer
 public:
     OLKernelMappedBufferImpl();
 
-    size_t GetVAStart() override;
-    size_t GetVAEnd() override;
-    size_t GetLength() override;
+    error_t GetVAStart(size_t&) override;
+    error_t GetVAEnd(size_t&) override;
+    error_t GetLength(size_t&) override;
 
     error_t Unmap() override;
 
@@ -26,9 +26,9 @@ class OLUserMappedBufferImpl : public OLGenericMappedBuffer
 public:
     OLUserMappedBufferImpl();
 
-    size_t GetVAStart() override;
-    size_t GetVAEnd() override;
-    size_t GetLength() override;
+    error_t GetVAStart(size_t&) override;
+    error_t GetVAEnd(size_t&) override;
+    error_t GetLength(size_t&) override;
 
     error_t Unmap() override;
     error_t Map(dyn_list_head_p pages, task_k task, pgprot_t prot);
@@ -52,20 +52,14 @@ public:
     error_t PageMap(int idx, void * & addr) override;
     void PageUnmap(void * addr) override;
 
-    bool IsVoid() override;
-    error_t HasError() override;
-    bool IsHandled() override;
-
     error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) override;
     error_t MapUser(const OUncontrollableRef<OLGenericMappedBuffer> kernel, task_k task, pgprot_t prot) override;
-
-    void SignalUnmapped();
-
 protected:
     void InvaildateImp()  override;
     
     dyn_list_head_p _pages;
-    OLGenericMappedBuffer * _mapped;
+    OLGenericMappedBuffer * _mapped_user;
+    OLGenericMappedBuffer * _mapped_kernel;
     bool _user_mapped;
 };
 

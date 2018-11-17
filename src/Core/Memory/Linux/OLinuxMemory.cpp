@@ -40,34 +40,37 @@ OLKernelMappedBufferImpl::OLKernelMappedBufferImpl()
     _map = nullptr;
 }
 
-size_t OLKernelMappedBufferImpl::GetVAStart()
+error_t OLKernelMappedBufferImpl::GetVAStart(size_t& start)
 {
-    return size_t(_map);
+    CHK_DEAD;
+    start = size_t(_map);
+    return kStatusOkay;
 }
 
-size_t OLKernelMappedBufferImpl::GetVAEnd()
+error_t OLKernelMappedBufferImpl::GetVAEnd(size_t& end)
 {
-    return GetVAStart() + GetLength();
+    CHK_DEAD;
+    end = size_t(_map) + _length;
+    return kStatusOkay;
 }
 
-size_t OLKernelMappedBufferImpl::GetLength()
+error_t OLKernelMappedBufferImpl::GetLength(size_t& length)
 {
-    return _length;
+    CHK_DEAD;
+    length = _length;
+    return kStatusOkay;
 }
 
 error_t OLKernelMappedBufferImpl::Unmap()
 {
-    if (_map)
-    {
-        vunmap(_map);
-        _map = nullptr;
-    }
-
+    CHK_DEAD;
+    Invaildate();
     return kStatusOkay;
 }
 
 error_t OLKernelMappedBufferImpl::Map(dyn_list_head_p pages, pgprot_t prot)
 {
+    CHK_DEAD;
     page_k *entry;
     size_t cnt;
     error_t ret;
@@ -101,7 +104,11 @@ error_t OLKernelMappedBufferImpl::Map(dyn_list_head_p pages, pgprot_t prot)
 
 void OLKernelMappedBufferImpl::InvaildateImp()
 {
-    Unmap();
+    if (_map)
+    {
+        vunmap(_map);
+        _map = nullptr;
+    }
 }
 
 OLUserMappedBufferImpl::OLUserMappedBufferImpl()
@@ -111,29 +118,39 @@ OLUserMappedBufferImpl::OLUserMappedBufferImpl()
     _mm = nullptr;
 }
 
-size_t OLUserMappedBufferImpl::GetVAStart()
+error_t OLUserMappedBufferImpl::GetVAStart(size_t& end)
 {
-    return _map;
+    CHK_DEAD;
+    end =  _map;
+    return kStatusOkay;
 }
 
-size_t OLUserMappedBufferImpl::GetVAEnd()
+error_t OLUserMappedBufferImpl::GetVAEnd(size_t& end)
 {
-    return GetVAStart() + GetLength();
+    CHK_DEAD;
+    end = _map + _length;
+    return kStatusOkay;
 }
 
-size_t OLUserMappedBufferImpl::GetLength()
+error_t OLUserMappedBufferImpl::GetLength(size_t& length)
 {
-    return _length;
+    CHK_DEAD;
+    length = _length;
+    return kStatusOkay;
 }
 
 error_t OLUserMappedBufferImpl::Map(dyn_list_head_p pages, task_k task, pgprot_t prot)
 {
+    CHK_DEAD;
     page_k *entry;
     size_t cnt;
     error_t ret;
     size_t map;
     mm_struct_k mm;
     vm_area_struct_k area;
+
+    if (_map)
+        return kErrorAlreadyMapped;
 
     if (ERROR(ret = dyn_list_entries(pages, &cnt)))
         return ret;
@@ -206,6 +223,12 @@ error_t OLUserMappedBufferImpl::Map(dyn_list_head_p pages, task_k task, pgprot_t
 
 error_t OLUserMappedBufferImpl::Unmap()
 {
+    Invaildate();
+    return kStatusOkay;
+}
+
+void OLUserMappedBufferImpl::InvaildateImp()
+{
     if (_map && _mm)
     {
         vm_munmap_ex(_mm, _map, _length);
@@ -213,17 +236,12 @@ error_t OLUserMappedBufferImpl::Unmap()
         _map = 0;
         _mm = nullptr;
     }
-    return kStatusOkay;
-}
-
-void OLUserMappedBufferImpl::InvaildateImp()
-{
-    Unmap();
 }
 
 OLBufferDescriptionImpl::OLBufferDescriptionImpl()
 {
-    _mapped = nullptr;
+    _mapped_user = nullptr;
+    _mapped_kernel = nullptr;
 }
 
 error_t OLBufferDescriptionImpl::Construct() //we can't allocate memory in a constructor... shit
@@ -257,9 +275,6 @@ error_t OLBufferDescriptionImpl::PageInsert(int idx, page_k page)
 
     if (!_pages)
         return kErrorOutOfMemory;
-
-    if (_mapped)
-        return kErrorAlreadyMapped;
 
     if (ERROR(ret = dyn_list_entries(_pages, &cnt)))
         return ret;
@@ -321,21 +336,6 @@ void OLBufferDescriptionImpl::PageUnmap(void * addr)
     return linux_memory->UnmapPage(addr);
 }
 
-bool OLBufferDescriptionImpl::IsVoid()
-{
-    return false;
-}
-
-error_t OLBufferDescriptionImpl::HasError()
-{
-    return kFuckMe; //formerly XENUS_STATUS_NOT_ACCURATE_ASSUME_OKAY
-}
-
-bool OLBufferDescriptionImpl::IsHandled()
-{
-    return _mapped ? true : false;
-}
-
 error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)
 {
     error_t er;
@@ -344,7 +344,7 @@ error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMap
     if (!_pages)
         return kErrorOutOfMemory;
 
-    if (_mapped)
+    if (_mapped_kernel)
         return kErrorAlreadyMapped;
 
     if (!(instance = new OLKernelMappedBufferImpl()))
@@ -356,7 +356,7 @@ error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMap
         return er;
     }
 
-    _mapped = instance;
+    _mapped_kernel = instance;
     _user_mapped = false;
     kernel.SetObject(instance);
     
@@ -371,7 +371,7 @@ error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappe
     if (!_pages)
         return kErrorOutOfMemory;
 
-    if (_mapped)
+    if (_mapped_user)
         return kErrorAlreadyMapped;
 
     if (!(instance = new OLUserMappedBufferImpl()))
@@ -383,23 +383,19 @@ error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappe
         return er;
     }
 
-    _mapped = instance;
+    _mapped_user = instance;
     _user_mapped = true;
     kernel.SetObject(instance);
 
     return kStatusOkay;
 }
 
-void OLBufferDescriptionImpl::SignalUnmapped()
-{
-    _mapped = nullptr;
-    _user_mapped = false; // could be an enum... don't really care... fuck it
-}
-
 void OLBufferDescriptionImpl::InvaildateImp()
 {
-    if (!_mapped)
-        _mapped->Destory();
+    if (_mapped_kernel)
+        _mapped_kernel->Destory();
+    if (_mapped_user)
+        _mapped_user->Destory();
 }
 
 OLPageLocation OLMemoryInterfaceImpl::GetPageLocation(size_t max)
@@ -504,9 +500,15 @@ error_t GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> inte
 
 void InitMemmory()
 {
+    error_t err;
+
     linux_memory = nullptr;
+    
     page_offset_base = *(l_unsigned_long*)kallsyms_lookup_name("page_offset_base");
     special_map = zalloc(vm_special_mapping_size());
+    err = dyncb_allocate_stub(SYSV_FN(special_map_fault), 4, NULL, &special_map_fault, &special_map_handle);
 
-    ASSERT(NO_ERROR(dyncb_allocate_stub(SYSV_FN(special_map_fault), 4, NULL, &special_map_fault, &special_map_handle)), "couldn't create Xenus memory map area handler");
+    ASSERT(NO_ERROR(err), "couldn't create Xenus memory map area handler");
+    ASSERT(special_map, "couldn't allocate special mapping struct");
+    ASSERT(page_offset_base, "couldn't get page offset base symbol");
 }

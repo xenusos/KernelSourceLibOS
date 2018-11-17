@@ -9,9 +9,9 @@
 class OLGenericMappedBuffer : public OObject
 {
 public:
-    virtual size_t GetVAStart()           = 0;
-    virtual size_t GetVAEnd()             = 0;
-    virtual size_t GetLength()            = 0;
+    virtual error_t GetVAStart(size_t &)           = 0;
+    virtual error_t GetVAEnd(size_t &)             = 0;
+    virtual error_t GetLength(size_t &)            = 0;
 
     virtual error_t Unmap()               = 0;
 };
@@ -25,10 +25,6 @@ public:
     virtual error_t PagePhysAddr(int idx, phys_addr_t & addr)                         = 0;
     virtual error_t PageMap(int idx, void * & addr)                                   = 0;
     virtual void    PageUnmap(void * addr)                                            = 0;
-
-    virtual bool    IsVoid()                                                          = 0;
-    virtual error_t HasError()                                                        = 0;
-    virtual bool    IsHandled()                                                       = 0;
 
     virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)              = 0;
     virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, task_k task, pgprot_t prot) = 0;
