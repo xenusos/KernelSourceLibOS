@@ -101,9 +101,7 @@ error_t OCountingSemaphoreImpl::GoToSleep()
     ustate = tsk.GetVarState().GetUInt();
 
     if (ERROR(err = dyn_list_append_ex(_list, (void **)&entry, &idx)))
-    {
         return err;
-    }
 
     entry->thread = OSThread;
     entry->signal = false;
@@ -125,7 +123,7 @@ error_t OCountingSemaphoreImpl::GoToSleep()
 
     tsk.GetVarState().Set(ustate);
 
-    return err;
+    return kStatusOkay;
 }
 
 error_t OCountingSemaphoreImpl::ContExecution(uint32_t count)
