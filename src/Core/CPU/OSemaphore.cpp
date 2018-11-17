@@ -92,7 +92,8 @@ error_t OCountingSemaphoreImpl::Wait()
 error_t OCountingSemaphoreImpl::GoToSleep()
 {
     CHK_DEAD;
-    SemaWaitingThreading *entry;
+    SemaWaitingThreading entry;
+    SemaWaitingThreading **lentry;
     uint_t ustate;
     error_t err;
     ITask tsk(OSThread);
@@ -100,16 +101,18 @@ error_t OCountingSemaphoreImpl::GoToSleep()
 
     ustate = tsk.GetVarState().GetUInt();
 
-    if (ERROR(err = dyn_list_append_ex(_list, (void **)&entry, &idx)))
+    if (ERROR(err = dyn_list_append_ex(_list, (void **)&lentry, &idx)))
         return err;
 
-    entry->thread = OSThread;
-    entry->signal = false;
+    *lentry = &entry;
+
+    entry.thread = OSThread;
+    entry.signal = false;
 
     while (1)
     {
         // Check if semaphore unlocked
-        if (entry->signal)
+        if (entry.signal)
             break;
 
         // Sleep
@@ -129,7 +132,7 @@ error_t OCountingSemaphoreImpl::GoToSleep()
 error_t OCountingSemaphoreImpl::ContExecution(uint32_t count)
 {
     error_t err;
-    SemaWaitingThreading *entry;
+    SemaWaitingThreading **entry;
     size_t entries;
     size_t threads;
 
@@ -146,8 +149,8 @@ error_t OCountingSemaphoreImpl::ContExecution(uint32_t count)
             return err;
         }
 
-        entry->signal = true;
-        wake_up_process(entry->thread);
+        (*entry)->signal = true;
+        wake_up_process((*entry)->thread);
 
         if (ERROR(err = dyn_list_remove(_list, 0)))
         {
@@ -200,7 +203,7 @@ error_t CreateCountingSemaphore(size_t count, size_t limit, const OOutlivableRef
     if (limit > UINT32_MAX)
         return kErrorIllegalSize;
 
-    list = DYN_LIST_CREATE(SemaWaitingThreading);
+    list = DYN_LIST_CREATE(SemaWaitingThreading*);
 
     if (!list)
         return kErrorOutOfMemory;
