@@ -56,5 +56,6 @@ namespace DateHelpers
     LIBLINUX_SYM int64_t  GetTimeZoneOffset();
     LIBLINUX_SYM void     ParseTime(uint64_t ms, time_info & timeinfo);
     LIBLINUX_SYM size_t   FormatISO8601(char * str, size_t length, uint64_t ms);
-    LIBLINUX_SYM size_t   FormatISO8601(char * str, size_t length, time_info & timeinfo, int64_t tz = 0, bool illegalms = false);
+    LIBLINUX_SYM size_t   FormatISO8601(char * str, size_t length, time_info & timeinfo, int64_t tz = 0);
+    LIBLINUX_SYM size_t   FormatNonStd(char * str, size_t length, time_info & timeinfo, int64_t tz = 0);
 }

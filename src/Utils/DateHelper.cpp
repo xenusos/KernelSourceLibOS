@@ -72,7 +72,19 @@ void DateHelpers::ParseTime(uint64_t ms, time_info & timeinfo)
 	timeinfo.time.milliseconds	= (ms % 1000);
 }
 
-size_t DateHelpers::FormatISO8601(char * str, size_t length, time_info & time, int64_t tz, bool illegalms)
+static size_t FormatSharedISO8601(char * str, size_t length, time_info & time, int64_t tz, bool illegalms);
+
+size_t DateHelpers::FormatISO8601(char * str, size_t length, time_info & time, int64_t tz)
+{
+    return FormatSharedISO8601(str, length, time, tz, false);
+}
+
+size_t DateHelpers::FormatNonStd(char * str, size_t length, time_info & timeinfo, int64_t tz)
+{
+    return FormatSharedISO8601(str, length, timeinfo, tz, true);
+}
+
+size_t FormatSharedISO8601(char * str, size_t length, time_info & time, int64_t tz, bool illegalms)
 {
 	char timezone[sizeof("+??:??.")];
 
@@ -105,8 +117,7 @@ size_t DateHelpers::FormatISO8601(char * str, size_t length, time_info & time, i
     else
     {
         return snprintf(str, length,
-            "%04d-%02d-%02dT%02d:%02d:%02d.%04d%s",
-            time.year,
+            "%02d-%02d %02d:%02d:%02d.%04d%s",
             time.month.month,
             time.day.day_of_month,
 
@@ -115,7 +126,7 @@ size_t DateHelpers::FormatISO8601(char * str, size_t length, time_info & time, i
             time.time.seconds,
             time.time.milliseconds,
 
-            "MS");
+            tz == 0 ? "" : timezone);
     }
 }
 

@@ -88,7 +88,7 @@ void LoggingGetTs(char * ts)
 {
     time_info now;
     DateHelpers::ParseTime(GET_LOCAL_TIME, now);
-    DateHelpers::FormatISO8601(ts, TS_LENGTH, now, DateHelpers::GetTimeZoneOffset(), true);
+    DateHelpers::FormatNonStd(ts, TS_LENGTH, now, DateHelpers::GetTimeZoneOffset());
 }
 
 void LoggingGetFilename(char * fn)
