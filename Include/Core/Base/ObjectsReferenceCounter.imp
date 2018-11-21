@@ -6,15 +6,15 @@
 
 OReferenceCounter::OReferenceCounter()
 {
-	_count = 0;
+    _count = 0;
 }
 
-uint_t OReferenceCounter::Reference()
+long OReferenceCounter::Reference()
 {
-	return ++_count;
+    return _InterlockedIncrement(&_count);
 }
 
-uint_t OReferenceCounter::Deference()
+long OReferenceCounter::Deference()
 {
-	return --_count;
+    return _InterlockedDecrement(&_count);
 }

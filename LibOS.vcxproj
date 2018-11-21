@@ -15,6 +15,7 @@
     <ClInclude Include="Include\Core\CPU\OThread_Preemption.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Spinlocks.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Timing.hpp" />
+    <ClInclude Include="Include\Core\CPU\OWorkQueue.hpp" />
     <ClInclude Include="Include\Core\Memory\Linux\OLinuxMemory.hpp" />
     <ClInclude Include="Include\Core\Memory\Linux\OLinuxStack.hpp" />
     <ClInclude Include="Include\Core\Net\_NetCommon.hpp" />
@@ -35,54 +36,53 @@
     <ClInclude Include="Include\Utils\ThreadHelper.hpp" />
     <ClInclude Include="Include\XType\XArray.hpp" />
     <ClInclude Include="Include\XType\XChain.h" />
-    <ClInclude Include="src\Core\CPU\OMutex.hpp" />
-    <ClInclude Include="src\Core\CPU\OSemaphore.hpp" />
-    <ClInclude Include="src\Core\CPU\OSimpleSemaphore.hpp" />
-    <ClInclude Include="src\Core\CPU\OThread.hpp" />
+    <ClInclude Include="Source\Core\CPU\OMutex.hpp" />
+    <ClInclude Include="Source\Core\CPU\OSemaphore.hpp" />
+    <ClInclude Include="Source\Core\CPU\OThread.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Spawning.hpp" />
-    <ClInclude Include="src\Core\CPU\OWorkQueue.hpp" />
-    <ClInclude Include="src\Core\FIO\ODirectory.hpp" />
-    <ClInclude Include="src\Core\FIO\OFile.hpp" />
-    <ClInclude Include="src\Core\FIO\OFileStat.hpp" />
-    <ClInclude Include="src\Core\FIO\OPath.hpp" />
-    <ClInclude Include="src\Core\Memory\Linux\OLinuxMemory.hpp" />
-    <ClInclude Include="src\Core\Net\OTCPNetworking.hpp" />
-    <ClInclude Include="src\Core\Processes\OProcesses.hpp" />
-    <ClInclude Include="src\Core\UserSpace\ODelegtedCalls.hpp" />
-    <ClInclude Include="src\Core\UserSpace\OPseudoFile.hpp" />
+    <ClInclude Include="Source\Core\CPU\OWorkQueue.hpp" />
+    <ClInclude Include="Source\Core\FIO\ODirectory.hpp" />
+    <ClInclude Include="Source\Core\FIO\OFile.hpp" />
+    <ClInclude Include="Source\Core\FIO\OFileStat.hpp" />
+    <ClInclude Include="Source\Core\FIO\OPath.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemory.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\OLinuxStack.hpp" />
+    <ClInclude Include="Source\Core\Net\OTCPNetworking.hpp" />
+    <ClInclude Include="Source\Core\Processes\OProcesses.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\ODelegtedCalls.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\OPseudoFile.hpp" />
     <ClInclude Include="src\UserSpace\ODelegtedCalls.hpp" />
     <ClInclude Include="src\UserSpace\OPseudoFile.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\Core\Net\OTCPNetworking.hpp" />
-    <ClCompile Include="src\Core\CPU\CPU_Mem.cpp" />
-    <ClCompile Include="src\Core\CPU\CPU_Preemption.cpp" />
-    <ClCompile Include="src\Core\CPU\CPU_Spinlocks.cpp" />
-    <ClCompile Include="src\Core\CPU\OMutex.cpp" />
-    <ClCompile Include="src\Core\CPU\OSemaphore.cpp" />
-    <ClCompile Include="src\Core\CPU\OSimpleSemaphore.cpp" />
-    <ClCompile Include="src\Core\CPU\OWorkQueue.cpp" />
-    <ClCompile Include="src\Core\Memory\Linux\OLinuxMemory.cpp" />
-    <ClCompile Include="src\Core\Memory\Linux\OLinuxStack.cpp" />
-    <ClCompile Include="src\Core\Net\OTCPNetworking.cpp" />
-    <ClCompile Include="src\Core\Processes\OProcesses.cpp" />
-    <ClCompile Include="src\Core\Processes\OProcessTracking.cpp" />
-    <ClCompile Include="src\Entrypoint.cpp" />
-    <ClCompile Include="src\Core\FIO\ODirectory.cpp" />
-    <ClCompile Include="src\Core\FIO\OFile.cpp" />
-    <ClCompile Include="src\Core\FIO\OFileStat.cpp" />
-    <ClCompile Include="src\Core\FIO\OPath.cpp" />
-    <ClCompile Include="src\Core\CPU\OThread.cpp" />
-    <ClCompile Include="src\Core\UserSpace\ODelegtedCalls.cpp" />
-    <ClCompile Include="src\Core\UserSpace\OPseudoFile.cpp" />
-    <ClCompile Include="src\Logging\Logging.cpp" />
-    <ClCompile Include="src\Utils\DateHelper.cpp" />
-    <ClCompile Include="src\Utils\FileIOHelper.cpp" />
-    <ClCompile Include="src\Utils\MemoryHelper.cpp" />
-    <ClCompile Include="src\Utils\ThreadHelper.cpp" />
+    <ClCompile Include="Source\Core\CPU\CPU_Mem.cpp" />
+    <ClCompile Include="Source\Core\CPU\CPU_Preemption.cpp" />
+    <ClCompile Include="Source\Core\CPU\CPU_Spinlocks.cpp" />
+    <ClCompile Include="Source\Core\CPU\OMutex.cpp" />
+    <ClCompile Include="Source\Core\CPU\OSemaphore.cpp" />
+    <ClCompile Include="Source\Core\CPU\OWorkQueue.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemory.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\OLinuxStack.cpp" />
+    <ClCompile Include="Source\Core\Net\OTCPNetworking.cpp" />
+    <ClCompile Include="Source\Core\Processes\OProcesses.cpp" />
+    <ClCompile Include="Source\Core\Processes\OProcessTracking.cpp" />
+    <ClCompile Include="Source\Entrypoint.cpp" />
+    <ClCompile Include="Source\Core\FIO\ODirectory.cpp" />
+    <ClCompile Include="Source\Core\FIO\OFile.cpp" />
+    <ClCompile Include="Source\Core\FIO\OFileStat.cpp" />
+    <ClCompile Include="Source\Core\FIO\OPath.cpp" />
+    <ClCompile Include="Source\Core\CPU\OThread.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\ODelegtedCalls.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\OPseudoFile.cpp" />
+    <ClCompile Include="Source\Logging\Logging.cpp" />
+    <ClCompile Include="Source\Utils\DateHelper.cpp" />
+    <ClCompile Include="Source\Utils\FileIOHelper.cpp" />
+    <ClCompile Include="Source\Utils\MemoryHelper.cpp" />
+    <ClCompile Include="Source\Utils\ThreadHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="src\Utils\ThreadHelper_IP.asm" />
+    <MASM Include="Source\Utils\ThreadHelper_IP.asm" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
@@ -136,9 +136,9 @@
       <Optimization>Full</Optimization>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>LIBLINUX_EXPORTS;%(PreprocessorDefinitions);XENUS_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>LIBLINUX_BUILDING;%(PreprocessorDefinitions);XENUS_BUILD</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\CommonKernel\Headers\;Include\;..\LibOSTypes\Include\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\CommonKernel\Headers\;Include\;..\LibOSTypes\Include\;..\LibCompiler\Include\</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <TreatWarningAsError>false</TreatWarningAsError>
       <ControlFlowGuard>false</ControlFlowGuard>

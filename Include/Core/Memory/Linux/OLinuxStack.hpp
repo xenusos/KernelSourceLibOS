@@ -5,8 +5,6 @@
 */
 #pragma once
 
-
-
 LIBLINUX_SYM void * SafeStackGetEnd        (task_k tsk);
 LIBLINUX_SYM void * SafeStackGetStart      (task_k tsk);
 LIBLINUX_SYM bool   SafeStackIsInRangeEx   (task_k task, void * address, ssize_t length);

@@ -1,3 +1,8 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
 #pragma once
 
 enum ThreadMessageType_e
@@ -20,7 +25,8 @@ typedef struct ThreadMsg_s
         struct
         {
             void *    data;	        // IN: "void * data" argument as presented to SpawnOThread 
-            OThread * thread;       // IN: life span = whenever the SpawnOThreads callee causes the OOutlivableRefs internal reference counter to hit zero. guaranteed to outlive this thread message
+            OThread * thread;       // IN: life span = whenever the SpawnOThreads callee causes the OOutlivableRefs internal reference counter to hit zero; the container backing OOutlivableRef<OThread> has not obtained control yet.
+            uint32_t  thread_id;
         } create;
         struct
         {

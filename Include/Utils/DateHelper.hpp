@@ -23,31 +23,31 @@
 
 struct time_info
 {
-	int year;
-	
-	struct
-	{
-		int index;
-		int month;
-		const char * name;
-	} month;
+    int year;
+    
+    struct
+    {
+        int index;
+        int month;
+        const char * name;
+    } month;
 
-	struct
-	{
-		const char * name;
-		int index;
-		int day_of_week;
-		int day_of_month;
-		int day_of_year;
-	} day;
+    struct
+    {
+        const char * name;
+        int index;
+        int day_of_week;
+        int day_of_month;
+        int day_of_year;
+    } day;
 
-	struct
-	{
-		int hours;
-		int minutes;
-		int seconds;
-		int milliseconds;
-	} time;
+    struct
+    {
+        int hours;
+        int minutes;
+        int seconds;
+        int milliseconds;
+    } time;
 };
 
 namespace DateHelpers

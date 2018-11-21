@@ -1,6 +1,11 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
 #pragma once
 
-typedef uint64_t los_spinlock_t;
+typedef uint32_t los_spinlock_t;
 
 #define SPINLOOP_BLOCK() {thread_pause();            }
 #define SPINLOOP_SLEEP() {thread_pause(); msleep(1); }

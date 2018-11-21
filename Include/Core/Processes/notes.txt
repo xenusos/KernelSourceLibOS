@@ -1,8 +1,7 @@
 windows
  PsSetCreateProcessNotifyRoutine(ProcessCallback, TRUE);
-PsLookupProcessByProcessId
-
-PsGetProcessId
+ PsLookupProcessByProcessId
+  PsGetProcessId
 
 
 enum: 

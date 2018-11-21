@@ -8,8 +8,8 @@
 class OPath : public OObject
 {
 public:
-	/* This is too OS dependent. We'll keep this mostly empty for now. */
+    /* This is too OS dependent. We'll keep this mostly empty for now. */
 
-	virtual bool IsEqualTo(const OPath * path) = 0;
-	virtual uint_t ToString(char * str, uint_t length) = 0;
+    virtual bool IsEqualTo(const OPath * path)         = 0;
+    virtual uint_t ToString(char * str, uint_t length) = 0;
 };

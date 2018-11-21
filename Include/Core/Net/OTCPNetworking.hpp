@@ -18,7 +18,6 @@ enum OTCPError
     kTcpErrorSendSocketClose
 };
 
-
 struct OTCPBaseCallback_s
 {
     struct
@@ -56,7 +55,7 @@ class OTCPClient : public OObject
     typedef void(*OTCPRecvCb_p)(OTCPRecvInfo_t &, OPtr<OTCPClient>);
     typedef void(*OTCPSendCb_p)(OTCPSendInfo_t &, OPtr<OTCPClient>);
 
-    virtual error_t TryOpen(OTransportAddress_t & address)                             = 0;
+    virtual error_t TryOpen(OTransportAddress_t & address)                                = 0;
     virtual error_t TryClose()                                                            = 0;
     virtual error_t TryTransmit(const void * buffer, size_t length, const void * priv)    = 0;
 

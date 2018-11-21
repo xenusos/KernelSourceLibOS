@@ -6,25 +6,25 @@
 
 OObject::OObject()
 {
-	_is_dead = false;
+    _is_dead = false;
 }
 
-void OObject::Invaildate()
+void OObject::Invalidate()
 {
-	if (_is_dead) return;
-	InvaildateImp();
-	_is_dead = true;
+    if (_is_dead) return;
+    InvalidateImp();
+    _is_dead = true;
 }
 
 void OObject::Destory() 
 {
-	Invaildate();
-	delete this;
+    Invalidate();
+    delete this;
 }
 
 bool OObject::IsDead() 
 {
-	return _is_dead;
+    return _is_dead;
 }
 
 // W-why don't you just use destructors and arbitrarily call delete, ya fucking retard?

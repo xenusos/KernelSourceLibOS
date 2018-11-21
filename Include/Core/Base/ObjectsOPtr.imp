@@ -7,47 +7,52 @@
 template<class T>
 OPtr<T>::OPtr(void * ahh)
 {
-	_unk_obj = ahh;
+    _unk_obj = ahh;
+    _allow_destory = false;
 }
 
 template<class T>
 OPtr<T>::OPtr(T * ahh)
 {
     _object = ahh;
+    _allow_destory = false;
 }
 
 template<class T>
 OPtr<T>::OPtr()
 {
     _object = nullptr;
+    _allow_destory = false;
 }
 
 template<class T>
 T * OPtr<T>::GetTypedObject()
 {
-	return this->_object;
+    return this->_object;
 }
 
 template<class T>
 OObject * OPtr<T>::GetObject()
 {
-	return this->_os_obj;
+    return this->_os_obj;
 }
 
 template<class T>
-void *	OPtr<T>::SetObject(void * obj)
+void *	OPtr<T>::SetObject(void * obj, bool allow_destory)
 {
-	return this->_unk_obj = obj;
+    _allow_destory = allow_destory;
+    return this->_unk_obj = obj;
 }
 
 template<class T>
-T * OPtr<T>::SetObject(T * obj)
+T * OPtr<T>::SetObject(T * obj, bool allow_destory)
 {
-	return this->_object = obj;
+    _allow_destory = allow_destory;
+    return this->_object = obj;
 }
 
 template<class T>
 T * OPtr<T>::operator->()
 {
-	return this->_object;
+    return this->_object;
 }

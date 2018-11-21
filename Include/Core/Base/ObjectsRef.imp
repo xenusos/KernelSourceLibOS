@@ -7,21 +7,21 @@
 template<class T>
 void * OUncontrollableRef<T>::SetObject(void * obj) const
 {
-	if (this->_generic_ptr)
-		*_generic_ptr = (T *)obj;
+    if (this->_generic_ptr)
+        *_generic_ptr = (T *)obj;
 
-	if (this->_optr)
-		this->_optr->SetObject(obj);
-	return obj;
+    if (this->_optr)
+        this->_optr->SetObject(obj, false);
+    return obj;
 }
 
 template<class T>
 T * OUncontrollableRef<T>::SetObject(T * obj) const
 {
-	if (this->_has_generic)
-		_generic_ptr = obj;
+    if (this->_has_generic)
+        _generic_ptr = obj;
 
-	if (this->_has_optr)
-		this->_optr.SetObject(obj);
-	return obj;
+    if (this->_has_optr)
+        this->_optr.SetObject(obj, false);
+    return obj;
 }
