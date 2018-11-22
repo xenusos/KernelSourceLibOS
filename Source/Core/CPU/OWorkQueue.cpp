@@ -25,7 +25,7 @@ static inline long MS_TO_JIFFIES(long ms)
         return HZ / (1000 / ms);
 }
 
-struct WorkWaitingThreading
+struct WorkWaitingThreads
 {
     task_k thread;
     bool signal;
@@ -78,8 +78,8 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
 error_t OWorkQueueImpl::GoToSleep(uint32_t ms, bool waiters)
 {
     CHK_DEAD;
-    WorkWaitingThreading entry;
-    WorkWaitingThreading **lentry;
+    WorkWaitingThreads entry;
+    WorkWaitingThreads **lentry;
     uint_t ustate;
     error_t err;
     ITask tsk(OSThread);
@@ -143,7 +143,7 @@ error_t OWorkQueueImpl::GoToSleep(uint32_t ms, bool waiters)
 error_t OWorkQueueImpl::ContExecution(bool waiters)
 {
     error_t err;
-    WorkWaitingThreading **entry;
+    WorkWaitingThreads **entry;
     size_t threads;
     dyn_list_head_p list;
 
@@ -206,7 +206,7 @@ error_t OWorkQueueImpl::ReleaseOwner()
     if (owners == 0)
     {
         mutex_unlock(_acquisition);
-        return kErrorAlreadyDeleted;
+        return kErrorTooManyReleases;
     }
 
     _owners = --owners;
@@ -238,7 +238,7 @@ error_t CreateWorkQueue(size_t cont, const OOutlivableRef<OWorkQueue> out)
     if (cont > UINT32_MAX)
         return kErrorIllegalSize;
 
-    list = DYN_LIST_CREATE(WorkWaitingThreading*);
+    list = DYN_LIST_CREATE(WorkWaitingThreads*);
 
     if (!list)
         return kErrorOutOfMemory;
@@ -251,7 +251,7 @@ error_t CreateWorkQueue(size_t cont, const OOutlivableRef<OWorkQueue> out)
         return kErrorOutOfMemory;
     }
 
-    list_a = DYN_LIST_CREATE(WorkWaitingThreading*);
+    list_a = DYN_LIST_CREATE(WorkWaitingThreads*);
 
     if (!list_a)
     {

@@ -16,7 +16,7 @@
 #define LOG_MOD "LibOS"
 #include <Logging/Logging.hpp>
 
-struct SemaWaitingThreading
+struct SemaWaitingThreads
 {
     task_k thread;
     bool signal;
@@ -76,8 +76,8 @@ error_t OCountingSemaphoreImpl::Wait()
 error_t OCountingSemaphoreImpl::GoToSleep()
 {
     CHK_DEAD;
-    SemaWaitingThreading entry;
-    SemaWaitingThreading **lentry;
+    SemaWaitingThreads entry;
+    SemaWaitingThreads **lentry;
     uint_t ustate;
     error_t err;
     ITask tsk(OSThread);
@@ -116,7 +116,7 @@ error_t OCountingSemaphoreImpl::GoToSleep()
 error_t OCountingSemaphoreImpl::ContExecution(uint32_t count)
 {
     error_t err;
-    SemaWaitingThreading **entry;
+    SemaWaitingThreads **entry;
     size_t entries;
     size_t threads;
 
@@ -188,7 +188,7 @@ error_t CreateCountingSemaphore(size_t count, size_t limit, const OOutlivableRef
     if (limit > UINT32_MAX)
         return kErrorIllegalSize;
 
-    list = DYN_LIST_CREATE(SemaWaitingThreading*);
+    list = DYN_LIST_CREATE(SemaWaitingThreads*);
 
     if (!list)
         return kErrorOutOfMemory;
