@@ -15,10 +15,10 @@
 #define LOG_MOD "LibOS"
 #include <Logging/Logging.hpp>
 
-const long  HZ = 300; // TODO: Get from OSINFO
 
 static inline long MS_TO_JIFFIES(long ms)
 {
+    long HZ = kernel_information.KERNEL_FREQUENCY;
     if (ms > 1000)
         return HZ * ms / 1000;
     else
