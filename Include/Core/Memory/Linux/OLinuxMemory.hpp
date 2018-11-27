@@ -5,6 +5,21 @@
 */
 #pragma once
 
+const size_t OL_ACCESS_READ         = (1 << 0);
+const size_t OL_ACCESS_WRITE        = (1 << 1);
+const size_t OL_ACCESS_EXECUTE      = (1 << 2);
+
+enum OLCacheType
+{
+    kCacheCache          = 0,
+    kCacheWriteCombined  = 1,
+    kCacheNoCache        = 2,
+    kCacheWriteThrough   = 3, // read cache, write cache and physical
+    kCacheWriteProtected = 4  // read cache, write physical
+};
+// PPC and X86 has more
+// driver devs just dont need access to them... such makes our job easier
+
 // Describes mapped memory
 class OLGenericMappedBuffer : public OObject
 {
@@ -19,7 +34,6 @@ public:
 class OLBufferDescription : public OObject
 {
 public:
-    
     // Add/remove/modify pages in virtual buffer
     virtual bool    PageIsPresent(size_t idx)                       = 0;
     virtual error_t PageInsert   (size_t idx, page_k page)          = 0;
@@ -31,11 +45,16 @@ public:
     virtual void    PageUnmap    (void * addr)                      = 0;
 
     // Map
-    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)              = 0; // OUncontrollableRef -> life is controlled by OLBufferDescriptions container [or lack thereof]
-    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, task_k task, pgprot_t prot) = 0;
+    virtual error_t SetupKernelAddress(size_t & address)            = 0;
+    virtual error_t SetupUserAddress(task_k task, size_t & address) = 0;
+     // OUncontrollableRef -> life is controlled by OLBufferDescriptions container [or lack thereof]
+    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) = 0; 
+    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) = 0;
 
     // Remap
-    virtual error_t UpdateMaps(pgprot_t prot)                       = 0;
+    virtual error_t UpdateKernel(pgprot_t prot)                     = 0;
+    virtual error_t UpdateUser  (pgprot_t prot)                     = 0;
+    virtual error_t UpdateAll   (pgprot_t prot)                     = 0;
 };
 
 enum OLPageLocation
@@ -49,19 +68,22 @@ enum OLPageLocation
 class OLMemoryInterface
 {
 public:
-    virtual OLPageLocation GetPageLocation(size_t max)                            = 0;           // nvidya demands ranges of (0, (1 << adapter bits) - 1) 
-                                                                                                 // lets be nice to them
-    virtual page_k AllocatePage(OLPageLocation location)                          = 0;
-    virtual void   FreePage(page_k page)                                          = 0;
+    virtual OLPageLocation GetPageLocation(size_t max)                                = 0;           // nvidya demands ranges of (0, (1 << adapter bits) - 1) 
+                                                                                                     // lets be nice to them
+    virtual page_k AllocatePage(OLPageLocation location)                              = 0;
+    virtual void   FreePage(page_k page)                                              = 0;
+                                                                                      
+    virtual phys_addr_t   PhysPage(page_k page)                                       = 0;
+    virtual void *         MapPage(page_k page)                                       = 0;
+    virtual void         UnmapPage(void * virt)                                       = 0;
+                                                                                      
+    virtual pgprot_t ProtFromCache (OLCacheType cache)                                = 0;
+    virtual pgprot_t ProtFromAccess(size_t access)                                    = 0;
+                                                                                      
+    virtual error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder)     = 0;
 
-    virtual phys_addr_t   PhysPage(page_k page)                                   = 0;
-    virtual void *         MapPage(page_k page)                                   = 0;
-    virtual void         UnmapPage(void * virt)                                   = 0;
-
-    virtual error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder) = 0;
-
-    //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, size_t length) = 0;
-    //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, page_k page)   = 0;
+  //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, size_t length) = 0;
+  //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, page_k page)   = 0;
 
 };
 

@@ -17,7 +17,7 @@ public:
     error_t GetLength(size_t&)                                            override;
     error_t Unmap()                                                       override;
 
-    error_t CreateAddress(size_t pages);
+    error_t CreateAddress(size_t pages, size_t & out);
     error_t Remap(dyn_list_head_p pages, size_t count, pgprot_t prot);
 
 protected:
@@ -39,7 +39,7 @@ public:
     error_t GetLength(size_t&)                                            override;
     error_t Unmap()                                                       override;
                                                                  
-    error_t CreateAddress(size_t pages, task_k task);
+    error_t CreateAddress(size_t pages, task_k task, size_t & out);
     error_t Remap(dyn_list_head_p pages, size_t count, pgprot_t prot);
 protected:
     void InvalidateImp()                                                  override;
@@ -63,13 +63,21 @@ public:
     error_t PageCount(size_t &)                                           override;
     void    PageUnmap(void * addr)                                        override;
 
-    error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)            override;
-    error_t MapUser(const OUncontrollableRef<OLGenericMappedBuffer> kernel, task_k task, pgprot_t prot) override;
+    // Map
+    virtual error_t SetupKernelAddress(size_t & out)                      override;
+    virtual error_t SetupUserAddress(task_k task, size_t & out)           override;
+    
+    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) override; 
+    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) override;
 
-    error_t UpdateMaps(pgprot_t prot)                                     override;
+    // Remap
+    virtual error_t UpdateKernel(pgprot_t prot)                           override;
+    virtual error_t UpdateUser  (pgprot_t prot)                           override;
+    virtual error_t UpdateAll   (pgprot_t prot)                           override;
 protected:
     void InvalidateImp()                                                  override;
     
+    size_t _cnt;
     dyn_list_head_p _pages;
     OLUserMappedBufferImpl   * _mapped_user;
     OLKernelMappedBufferImpl * _mapped_kernel;
@@ -87,6 +95,10 @@ public:
                                                                           
     page_k AllocatePage(OLPageLocation location)                          override;
     void       FreePage(page_k page)                                      override;
+
+    
+    pgprot_t ProtFromCache (OLCacheType cache)                            override;
+    pgprot_t ProtFromAccess(size_t access)                                override;
     
     error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder) override;
 };

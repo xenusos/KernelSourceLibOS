@@ -87,12 +87,12 @@ error_t OLKernelMappedBufferImpl::Unmap()
     return kStatusOkay;
 }
 
-error_t OLKernelMappedBufferImpl::CreateAddress(size_t pages)
+error_t OLKernelMappedBufferImpl::CreateAddress(size_t pages, size_t & out)
 {
     CHK_DEAD;
 
     _vm = __get_vm_area(pages << OS_PAGE_SHIFT, 0, kernel_information.LINUX_VMALLOC_START, kernel_information.LINUX_VMALLOC_END);
-
+    
     if (!_vm)
     {
         Invalidate();
@@ -101,6 +101,8 @@ error_t OLKernelMappedBufferImpl::CreateAddress(size_t pages)
 
     _va    = _vm->addr;
     _length = PAGE_SIZE * pages;
+
+    out    = (size_t)_va;
     return kStatusOkay;
 }
 
@@ -187,7 +189,7 @@ error_t OLUserMappedBufferImpl::GetLength(size_t& length)
     return kStatusOkay;
 }
 
-error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task)
+error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t & out)
 {
     CHK_DEAD;
     error_t ret;
@@ -236,8 +238,10 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task)
     }
 
 
+
+    out     = map;
     _area   = area;
-    _va    = map;
+    _va     = map;
     _length = PAGE_SIZE * pages;
     _mm     = mm;
 
@@ -334,15 +338,12 @@ OLBufferDescriptionImpl::OLBufferDescriptionImpl(dyn_list_head_p pages)
     _pages         = pages;
     _mapped_user   = nullptr;
     _mapped_kernel = nullptr;
+    _cnt           = 0;
 }
-
 
 bool    OLBufferDescriptionImpl::PageIsPresent(size_t idx)
 {
     void * buf;
-
-    if (!_pages)
-        return false;
 
     if (ERROR(dyn_list_get_by_index(_pages, idx, &buf)))
         return false;
@@ -356,14 +357,12 @@ error_t OLBufferDescriptionImpl::PageInsert(size_t idx, page_k page)
     size_t cnt;
     error_t ret;
 
-    if (!_pages)
-        return kErrorOutOfMemory;
-
     if (ERROR(ret = dyn_list_entries(_pages, &cnt)))
         return ret;
 
     if (cnt == idx)
     {
+        // append
         if (_mapped_kernel)
             return kErrorAlreadyMapped;
 
@@ -372,15 +371,17 @@ error_t OLBufferDescriptionImpl::PageInsert(size_t idx, page_k page)
 
         if (ERROR(ret = dyn_list_append(_pages, (void **)&entry)))
             return ret;
+
+        _cnt++;
     }
     else
     {
+        // update
         if (ERROR(ret = dyn_list_get_by_index(_pages, idx, (void **)&entry)))
             return ret;
     }
 
     *entry = page;
-
     return kStatusOkay;
 }
 
@@ -389,9 +390,6 @@ error_t OLBufferDescriptionImpl::PageCount(size_t & out)
     page_k *entry;
     size_t cnt;
     error_t ret;
-
-    if (!_pages)
-        return kErrorOutOfMemory;
 
     if (ERROR(ret = dyn_list_entries(_pages, &cnt)))
         return ret;
@@ -404,9 +402,6 @@ error_t OLBufferDescriptionImpl::PagePhysAddr(size_t idx, phys_addr_t & addr)
 {
     error_t err;
     page_k *entry;
-
-    if (!_pages)
-        return false;
 
     if (ERROR(dyn_list_get_by_index(_pages, idx, (void **)&entry)))
         return false;
@@ -423,9 +418,6 @@ error_t OLBufferDescriptionImpl::PageMap(size_t idx, void * & addr)
     error_t err;
     page_k *entry;
 
-    if (!_pages)
-        return false;
-
     if (ERROR(dyn_list_get_by_index(_pages, idx, (void **)&entry)))
         return false;
 
@@ -441,63 +433,10 @@ void OLBufferDescriptionImpl::PageUnmap(void * addr)
     return linux_memory->UnmapPage(addr);
 }
 
-error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)
+error_t OLBufferDescriptionImpl::SetupUserAddress(task_k task, size_t & out)
 {
     error_t er;
-    OLKernelMappedBufferImpl * instance;
-    size_t count;
-
-    if (!_pages)
-        return kErrorOutOfMemory;
-
-    if (_mapped_kernel)
-    {
-        if (_mapped_kernel->IsDead())
-        {
-            _mapped_kernel->Destory();
-            _mapped_kernel = nullptr;
-        }
-        else
-        {
-            return kErrorAlreadyMapped;
-        }
-    }
-
-    if (!(instance = new OLKernelMappedBufferImpl()))
-        return kErrorOutOfMemory;
-
-    if (ERROR(er = PageCount(count)))
-    {
-        instance->Destory();
-        return er;
-    }
-
-    if (ERROR(er = instance->CreateAddress(count)))
-    {
-        instance->Destory();
-        return er;
-    }
-
-    if (ERROR(er = instance->Remap(_pages, count, prot)))
-    {
-        instance->Destory();
-        return er;
-    }
-
-    _mapped_kernel = instance;
-    kernel.SetObject(instance);
-    
-    return kStatusOkay;
-}
-
-error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappedBuffer> kernel, task_k task, pgprot_t prot)
-{
-    error_t er;
-    size_t count;
     OLUserMappedBufferImpl * instance;
-
-    if (!_pages)
-        return kErrorOutOfMemory;
 
     if (_mapped_user)
     {
@@ -515,48 +454,110 @@ error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappe
     if (!(instance = new OLUserMappedBufferImpl()))
         return kErrorOutOfMemory;
 
-    if (ERROR(er = PageCount(count)))
-    {
-        instance->Destory();
-        return er;
-    }
-
-    if (ERROR(er = instance->CreateAddress(count, task)))
-    {
-        instance->Destory();
-        return er;
-    }
-
-    if (ERROR(er = instance->Remap(_pages, count, prot)))
+    if (ERROR(er = instance->CreateAddress(_cnt, task, out)))
     {
         instance->Destory();
         return er;
     }
 
     _mapped_user = instance;
-    kernel.SetObject(instance);
+    return kStatusOkay;
+}
+
+error_t OLBufferDescriptionImpl::SetupKernelAddress(size_t & out)
+{
+    error_t er;
+    OLKernelMappedBufferImpl * instance;
+
+    if (_mapped_kernel)
+    {
+        if (_mapped_kernel->IsDead())
+        {
+            _mapped_kernel->Destory();
+            _mapped_kernel = nullptr;
+        }
+        else
+        {
+            return kErrorAlreadyMapped;
+        }
+    }
+
+    if (!(instance = new OLKernelMappedBufferImpl()))
+        return kErrorOutOfMemory;
+
+    if (ERROR(er = instance->CreateAddress(_cnt, out)))
+    {
+        instance->Destory();
+        return er;
+    }
+
+    _mapped_kernel = instance;
+    return kStatusOkay;
+}
+
+error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)
+{
+    error_t er;
+
+    if (!_mapped_user)
+        return kErrorNotMapped;
+
+    if (ERROR(er = _mapped_user->Remap(_pages, _cnt, prot)))
+        return er;
+
+    kernel.SetObject(_mapped_user);
+    return kStatusOkay;
+}
+
+error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)
+{
+    error_t er;
+
+    if (!_mapped_kernel)
+        return kErrorNotMapped;
+
+    if (ERROR(er = _mapped_kernel->Remap(_pages, _cnt, prot)))
+        return er;
+
+    kernel.SetObject(_mapped_kernel);
+    return kStatusOkay;
+}
+
+error_t OLBufferDescriptionImpl::UpdateUser(pgprot_t prot)
+{
+    error_t er;
+
+    if (!_mapped_user)
+        return kStatusOkay;
+
+    if (ERROR(er = _mapped_user->Remap(_pages, _cnt, prot)))
+        return er;
 
     return kStatusOkay;
 }
 
-error_t OLBufferDescriptionImpl::UpdateMaps(pgprot_t prot)
+error_t OLBufferDescriptionImpl::UpdateKernel(pgprot_t prot)
 {
     error_t er;
-    size_t count;
 
-    if (!_pages)
-        return kErrorOutOfMemory;
+    if (!_mapped_kernel)
+        return kStatusOkay;
 
-    if (ERROR(er = PageCount(count)))
+    if (ERROR(er = _mapped_kernel->Remap(_pages, _cnt, prot)))
         return er;
 
-    if (_mapped_kernel)
-        if (ERROR(er = _mapped_kernel->Remap(_pages, count, prot)))
-            return er;
+    return kStatusOkay;
+}
 
-    if (_mapped_user)
-        if (ERROR(er = _mapped_user->Remap(_pages, count, prot)))
-            return er;
+error_t OLBufferDescriptionImpl::UpdateAll(pgprot_t prot)
+{
+    error_t er;
+    
+    if (ERROR(er = UpdateUser(prot)))
+        return er;
+
+    if (ERROR(er = UpdateKernel(prot)))
+        return er;
 
     return kStatusOkay;
 }
@@ -639,6 +640,74 @@ void OLMemoryInterfaceImpl::FreePage(page_k page)
     __free_pages(page, 0);
 }
 
+uint16_t * __cachemode2pte_tbl;// [_PAGE_CACHE_MODE_NUM];
+
+static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
+{
+    if (pcm == 0)
+        return 0;
+    return __cachemode2pte_tbl[pcm];
+}
+
+pgprot_t OLMemoryInterfaceImpl::ProtFromCache(OLCacheType cache)
+{
+    pgprot_t prot;
+    prot.pgprot_ = 0;
+
+    switch (cache)
+    {
+    case kCacheCache:
+    {
+        // _PAGE_CACHE_MODE_WB = no op
+        return prot;
+    }
+    case kCacheNoCache:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_UC);
+        return prot;
+    }
+    case kCacheWriteCombined:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WC);
+        return prot;
+    }
+    case kCacheWriteThrough:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WT);
+        return prot;
+    }
+    case kCacheWriteProtected:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WP);
+        return prot;
+    }
+    default:
+    {
+        panicf("Bad protection id %i", cache);
+    }
+    }
+ 
+    // I dont think we need to specify _PAGE_CACHE_MODE_WB
+    return prot;
+}
+
+pgprot_t OLMemoryInterfaceImpl::ProtFromAccess(size_t access)
+{
+    size_t vmflags;
+    vmflags = 0;
+
+    if (access & OL_ACCESS_EXECUTE)
+        vmflags = VM_EXEC;
+
+    if (access & OL_ACCESS_READ)
+        vmflags = VM_READ;
+
+    if (access & OL_ACCESS_WRITE)
+        vmflags = VM_WRITE;
+
+    return vm_get_page_prot(vmflags);
+}
+
 error_t OLMemoryInterfaceImpl::NewBuilder(const OOutlivableRef<OLBufferDescription> builder)
 {
     dyn_list_head_p pages;
@@ -686,4 +755,7 @@ void InitMemmory()
 
     linux_memory = new OLMemoryInterfaceImpl();
     ASSERT(linux_memory, "couldn't allocate static memory interface");
+
+    __cachemode2pte_tbl = *(uint16_t **)kallsyms_lookup_name("__cachemode2pte_tbl");
+    ASSERT(__cachemode2pte_tbl, "couldn't find x86 cache lookup table");
 }
