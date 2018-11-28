@@ -18,7 +18,7 @@ public:
     error_t Unmap()                                                       override;
 
     error_t CreateAddress(size_t pages, size_t & out);
-    error_t Remap(dyn_list_head_p pages, size_t count, pgprot_t prot);
+    error_t Remap(dyn_list_head_p pages, size_t count, OLPageEntry prot);
 
 protected:
     void InvalidateImp()                                                  override;
@@ -40,7 +40,7 @@ public:
     error_t Unmap()                                                       override;
                                                                  
     error_t CreateAddress(size_t pages, task_k task, size_t & out);
-    error_t Remap(dyn_list_head_p pages, size_t count, pgprot_t prot);
+    error_t Remap(dyn_list_head_p pages, size_t count, OLPageEntry prot);
 protected:
     void InvalidateImp()                                                  override;
 
@@ -67,13 +67,13 @@ public:
     virtual error_t SetupKernelAddress(size_t & out)                      override;
     virtual error_t SetupUserAddress(task_k task, size_t & out)           override;
     
-    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) override; 
-    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) override;
+    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry prot) override; 
+    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry prot) override;
 
     // Remap
-    virtual error_t UpdateKernel(pgprot_t prot)                           override;
-    virtual error_t UpdateUser  (pgprot_t prot)                           override;
-    virtual error_t UpdateAll   (pgprot_t prot)                           override;
+    virtual error_t UpdateKernel(OLPageEntry prot)                        override;
+    virtual error_t UpdateUser  (OLPageEntry prot)                        override;
+    virtual error_t UpdateAll   (OLPageEntry prot)                        override;
 protected:
     void InvalidateImp()                                                  override;
     
@@ -86,21 +86,21 @@ protected:
 class OLMemoryInterfaceImpl : public OLMemoryInterface
 {
 public:
-    OLPageLocation GetPageLocation(size_t max)                            override;
+    OLPageLocation GetPageLocation(size_t max)                                  override;
                                                                           
                                                                           
-    phys_addr_t    PhysPage(page_k page)                                  override;
-    void *          MapPage(page_k page)                                  override;
-    void          UnmapPage(void * virt)                                  override;
+    phys_addr_t    PhysPage(page_k page)                                        override;
+    void *          MapPage(page_k page)                                        override;
+    void          UnmapPage(void * virt)                                        override;
                                                                           
-    page_k AllocatePage(OLPageLocation location)                          override;
-    void       FreePage(page_k page)                                      override;
+    page_k AllocatePage(OLPageLocation location)                                override;
+    void       FreePage(page_k page)                                            override;
+  
+    void        UpdatePageEntryCache (OLPageEntry &, OLCacheType cache)         override;
+    void        UpdatePageEntryAccess(OLPageEntry &, size_t access)             override;
+    OLPageEntry CreatePageEntry      (size_t access, OLCacheType cache)         override;
     
-    pgprot_t ProtFromCache (OLCacheType cache)                            override;
-    pgprot_t ProtFromAccess(size_t access)                                override;
-    pgprot_t CreateProt(size_t access, OLCacheType cache)                 override;
-    
-    error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder) override;
+    error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder)       override;
 };
 
 void InitMemmory();

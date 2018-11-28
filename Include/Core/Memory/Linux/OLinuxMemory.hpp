@@ -17,8 +17,15 @@ enum OLCacheType
     kCacheWriteThrough   = 3, // read cache, write cache and physical
     kCacheWriteProtected = 4  // read cache, write physical
 };
-// PPC and X86 has more
+// PPC and X86 have more
 // driver devs just dont need access to them... such makes our job easier
+
+struct OLPageEntry
+{
+    pgprot_t prot;
+    size_t access;
+    OLCacheType cache;
+};
 
 // Describes mapped memory
 class OLGenericMappedBuffer : public OObject
@@ -48,13 +55,13 @@ public:
     virtual error_t SetupKernelAddress(size_t & address)            = 0;
     virtual error_t SetupUserAddress(task_k task, size_t & address) = 0;
      // OUncontrollableRef -> life is controlled by OLBufferDescriptions container [or lack thereof]
-    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) = 0; 
-    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot) = 0;
+    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry pte) = 0; 
+    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry pte) = 0;
 
     // Remap
-    virtual error_t UpdateKernel(pgprot_t prot)                     = 0;
-    virtual error_t UpdateUser  (pgprot_t prot)                     = 0;
-    virtual error_t UpdateAll   (pgprot_t prot)                     = 0;
+    virtual error_t UpdateKernel(OLPageEntry pte)                    = 0;
+    virtual error_t UpdateUser  (OLPageEntry pte)                    = 0;
+    virtual error_t UpdateAll   (OLPageEntry pte)                    = 0;
 };
 
 enum OLPageLocation
@@ -77,9 +84,9 @@ public:
     virtual void *         MapPage(page_k page)                                       = 0;
     virtual void         UnmapPage(void * virt)                                       = 0;
                                                                                       
-    virtual pgprot_t ProtFromCache (OLCacheType cache)                                = 0;
-    virtual pgprot_t ProtFromAccess(size_t access)                                    = 0;
-    virtual pgprot_t CreateProt(size_t access, OLCacheType cache)                     = 0;
+    virtual void        UpdatePageEntryCache (OLPageEntry &, OLCacheType cache)       = 0;
+    virtual void        UpdatePageEntryAccess(OLPageEntry &, size_t access)           = 0;
+    virtual OLPageEntry CreatePageEntry(size_t access, OLCacheType cache)             = 0;
 
     virtual error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder)     = 0;
 

@@ -106,7 +106,7 @@ error_t OLKernelMappedBufferImpl::CreateAddress(size_t pages, size_t & out)
     return kStatusOkay;
 }
 
-error_t OLKernelMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, pgprot_t prot)
+error_t OLKernelMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPageEntry prot)
 {
     CHK_DEAD;
     page_k *entry;
@@ -131,7 +131,7 @@ error_t OLKernelMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, pgp
         }
     }
 
-    l = map_vm_area(_vm, prot, entry);
+    l = map_vm_area(_vm, prot.prot, entry);
     
     if (l)
         return kErrorInternalError;
@@ -231,7 +231,7 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t 
     // TODO: make remove_vma or similar public OR use a pool to mitigate leaks
 
     // TODO: update VM_ flags
-    area = _install_special_mapping(mm, (l_unsigned_long)map, pages << OS_PAGE_SHIFT, VM_READ | VM_WRITE | VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC, special_map); 
+    area = _install_special_mapping(mm, (l_unsigned_long)map, pages << OS_PAGE_SHIFT,  VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | VM_SHARED, special_map); 
     if (!area)
     {
         Invalidate();
@@ -251,7 +251,7 @@ out:
     return ret;
 }
 
-error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, pgprot_t prot)
+error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPageEntry prot)
 {
     CHK_DEAD;
     error_t ret;
@@ -281,20 +281,48 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, pgpro
     down_write(mm_struct_get_mmap_sem(_mm));
 
     // update page protection before commit
-    vm_area_struct_set_vm_page_prot_uint64(_area, prot.pgprot_);
-
-    // insert pages into the PTE
-    for (size_t i = 0; i < count; i++)
     {
-        l_int error;
+        vm_area_struct_set_vm_page_prot_uint64(_area, prot.prot.pgprot_);
+    }
 
-        if (!entry[i])
-            continue;
-
-        // try insert; must be post pgprot update
-        error = vm_insert_page(_area, (l_unsigned_long)_va + (i << OS_PAGE_SHIFT), entry[i]);
+    // update vm flags
+    {
+        l_unsigned_long flags;
+        flags = vm_area_struct_get_vm_flags_size_t(_area);
         
-        ASSERT(error == 0, "fatal error occurred while inserting user page");
+        if (prot.access & OL_ACCESS_READ)
+            flags |= VM_READ;
+        
+        if (prot.access & OL_ACCESS_WRITE)
+        {
+            flags |= VM_READ;
+            flags |= VM_WRITE;
+        }
+
+        if (prot.access & OL_ACCESS_EXECUTE)
+        {
+            flags |= VM_READ;
+            flags |= VM_EXEC;
+        }
+
+        vm_area_struct_set_vm_flags_size_t(_area, flags);
+    }
+
+    // ramb our massive pages into the general vm area 
+    {
+        // insert pages into the PTE
+        for (size_t i = 0; i < count; i++)
+        {
+            l_int error;
+
+            if (!entry[i])
+                continue;
+
+            // try insert; must be post pgprot update
+            error = vm_insert_page(_area, (l_unsigned_long)_va + (i << OS_PAGE_SHIFT), entry[i]);
+
+            ASSERT(error == 0, "fatal error occurred while inserting user page");
+        }
     }
 
     // free semaphore
@@ -492,7 +520,7 @@ error_t OLBufferDescriptionImpl::SetupKernelAddress(size_t & out)
     return kStatusOkay;
 }
 
-error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)
+error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry prot)
 {
     error_t er;
 
@@ -506,7 +534,7 @@ error_t OLBufferDescriptionImpl::MapUser(const OUncontrollableRef<OLGenericMappe
     return kStatusOkay;
 }
 
-error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, pgprot_t prot)
+error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry prot)
 {
     error_t er;
 
@@ -520,7 +548,7 @@ error_t OLBufferDescriptionImpl::MapKernel(const OUncontrollableRef<OLGenericMap
     return kStatusOkay;
 }
 
-error_t OLBufferDescriptionImpl::UpdateUser(pgprot_t prot)
+error_t OLBufferDescriptionImpl::UpdateUser(OLPageEntry prot)
 {
     error_t er;
 
@@ -533,7 +561,7 @@ error_t OLBufferDescriptionImpl::UpdateUser(pgprot_t prot)
     return kStatusOkay;
 }
 
-error_t OLBufferDescriptionImpl::UpdateKernel(pgprot_t prot)
+error_t OLBufferDescriptionImpl::UpdateKernel(OLPageEntry prot)
 {
     error_t er;
 
@@ -546,7 +574,7 @@ error_t OLBufferDescriptionImpl::UpdateKernel(pgprot_t prot)
     return kStatusOkay;
 }
 
-error_t OLBufferDescriptionImpl::UpdateAll(pgprot_t prot)
+error_t OLBufferDescriptionImpl::UpdateAll(OLPageEntry prot)
 {
     error_t er;
     
@@ -569,6 +597,7 @@ void OLBufferDescriptionImpl::InvalidateImp()
 
 OLPageLocation OLMemoryInterfaceImpl::GetPageLocation(size_t max)
 {
+#if defined(AMD64)
     // These values are K**i**B 
     // Citiation: https://elixir.bootlin.com/linux/latest/source/arch/x86/mm/init.c#L881
 
@@ -584,7 +613,7 @@ OLPageLocation OLMemoryInterfaceImpl::GetPageLocation(size_t max)
   
     if (max > 0)
         return kPageDMAVeryLow;
-    
+#endif
     return kPageInvalid;
 }
 
@@ -637,6 +666,8 @@ void OLMemoryInterfaceImpl::FreePage(page_k page)
     __free_pages(page, 0);
 }
 
+
+#if defined(AMD64)
 uint16_t * __cachemode2pte_tbl;// [_PAGE_CACHE_MODE_NUM];
 
 static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
@@ -645,9 +676,11 @@ static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
         return 0;
     return __cachemode2pte_tbl[pcm];
 }
+#endif
 
-pgprot_t OLMemoryInterfaceImpl::ProtFromCache(OLCacheType cache)
+pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
 {
+#if defined(AMD64)
     pgprot_t prot;
     prot.pgprot_ = 0;
 
@@ -683,11 +716,20 @@ pgprot_t OLMemoryInterfaceImpl::ProtFromCache(OLCacheType cache)
         panicf("Bad protection id %i", cache);
     }
     }
- 
+#else
+pgprot_noncached(vm_page_prot)
+pgprot_writecombine(vm_page_prot)
+pgprot_dmacoherent(vm_page_prot)
+#endif
     return prot;
 }
 
-pgprot_t OLMemoryInterfaceImpl::ProtFromAccess(size_t access)
+void OLMemoryInterfaceImpl::UpdatePageEntryCache(OLPageEntry &entry, OLCacheType cache)
+{
+    entry.prot.pgprot_ |= CacheTypeToCacheModeToProt(cache).pgprot_;
+}
+
+void OLMemoryInterfaceImpl::UpdatePageEntryAccess(OLPageEntry &entry, size_t access)
 {
     size_t vmflags;
     vmflags = 0;
@@ -703,16 +745,16 @@ pgprot_t OLMemoryInterfaceImpl::ProtFromAccess(size_t access)
 
     vmflags |= VM_SHARED; // _PAGE_RW is required even when not writing.
                           // udmabuf also uses this logic alongside similar x86 cache logic
-    return vm_get_page_prot(vmflags);
+    entry.prot.pgprot_ |= vm_get_page_prot(vmflags).pgprot_;
+    entry.access = access;
 }
 
-pgprot_t OLMemoryInterfaceImpl::CreateProt(size_t access, OLCacheType cache)
+OLPageEntry OLMemoryInterfaceImpl::CreatePageEntry(size_t access, OLCacheType cache)
 {
-    pgprot_t ret;
-    ret = { 0 };
-    ret.pgprot_ |= ProtFromCache(cache).pgprot_;
-    ret.pgprot_ |= ProtFromAccess(access).pgprot_;
-    return ret;
+    OLPageEntry entry = { 0 };
+    UpdatePageEntryAccess(entry, access);
+    UpdatePageEntryCache(entry, cache);
+    return entry;
 }
 
 error_t OLMemoryInterfaceImpl::NewBuilder(const OOutlivableRef<OLBufferDescription> builder)
@@ -763,6 +805,8 @@ void InitMemmory()
     linux_memory = new OLMemoryInterfaceImpl();
     ASSERT(linux_memory, "couldn't allocate static memory interface");
 
+#if defined(AMD64)
     __cachemode2pte_tbl = (uint16_t *)kallsyms_lookup_name("__cachemode2pte_tbl");
     ASSERT(__cachemode2pte_tbl, "couldn't find x86 cache lookup table");
+#endif
 }
