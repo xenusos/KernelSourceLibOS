@@ -95,10 +95,10 @@ public:
                                                                           
     page_k AllocatePage(OLPageLocation location)                          override;
     void       FreePage(page_k page)                                      override;
-
     
     pgprot_t ProtFromCache (OLCacheType cache)                            override;
     pgprot_t ProtFromAccess(size_t access)                                override;
+    pgprot_t CreateProt(size_t access, OLCacheType cache)                 override;
     
     error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder) override;
 };

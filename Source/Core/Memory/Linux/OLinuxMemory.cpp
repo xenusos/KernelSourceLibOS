@@ -229,15 +229,14 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t 
 
     // abuse a static kernel function to create PTEs
     // TODO: make remove_vma or similar public OR use a pool to mitigate leaks
-    area = _install_special_mapping(mm, (l_unsigned_long)map, pages << OS_PAGE_SHIFT, VM_READ | VM_WRITE | VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC, special_map); 
 
+    // TODO: update VM_ flags
+    area = _install_special_mapping(mm, (l_unsigned_long)map, pages << OS_PAGE_SHIFT, VM_READ | VM_WRITE | VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC, special_map); 
     if (!area)
     {
         Invalidate();
         ret = kErrorInternalError; goto out;
     }
-
-
 
     out     = map;
     _area   = area;
@@ -298,14 +297,12 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, pgpro
         ASSERT(error == 0, "fatal error occurred while inserting user page");
     }
 
-
     // free semaphore
     up_write(mm_struct_get_mmap_sem(_mm));
 
     _mapped = true;
     return kStatusOkay;
 }
-
 
 error_t OLUserMappedBufferImpl::Unmap()
 {
@@ -687,7 +684,6 @@ pgprot_t OLMemoryInterfaceImpl::ProtFromCache(OLCacheType cache)
     }
     }
  
-    // I dont think we need to specify _PAGE_CACHE_MODE_WB
     return prot;
 }
 
@@ -697,15 +693,26 @@ pgprot_t OLMemoryInterfaceImpl::ProtFromAccess(size_t access)
     vmflags = 0;
 
     if (access & OL_ACCESS_EXECUTE)
-        vmflags = VM_EXEC;
+        vmflags |= VM_EXEC;
 
     if (access & OL_ACCESS_READ)
-        vmflags = VM_READ;
+        vmflags |= VM_READ;
 
     if (access & OL_ACCESS_WRITE)
-        vmflags = VM_WRITE;
+        vmflags |= VM_WRITE;
 
+    vmflags |= VM_SHARED; // _PAGE_RW is required even when not writing.
+                          // udmabuf also uses this logic alongside similar x86 cache logic
     return vm_get_page_prot(vmflags);
+}
+
+pgprot_t OLMemoryInterfaceImpl::CreateProt(size_t access, OLCacheType cache)
+{
+    pgprot_t ret;
+    ret = { 0 };
+    ret.pgprot_ |= ProtFromCache(cache).pgprot_;
+    ret.pgprot_ |= ProtFromAccess(access).pgprot_;
+    return ret;
 }
 
 error_t OLMemoryInterfaceImpl::NewBuilder(const OOutlivableRef<OLBufferDescription> builder)
@@ -756,6 +763,6 @@ void InitMemmory()
     linux_memory = new OLMemoryInterfaceImpl();
     ASSERT(linux_memory, "couldn't allocate static memory interface");
 
-    __cachemode2pte_tbl = *(uint16_t **)kallsyms_lookup_name("__cachemode2pte_tbl");
+    __cachemode2pte_tbl = (uint16_t *)kallsyms_lookup_name("__cachemode2pte_tbl");
     ASSERT(__cachemode2pte_tbl, "couldn't find x86 cache lookup table");
 }

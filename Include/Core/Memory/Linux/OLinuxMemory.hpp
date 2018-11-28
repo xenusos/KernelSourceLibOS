@@ -79,7 +79,8 @@ public:
                                                                                       
     virtual pgprot_t ProtFromCache (OLCacheType cache)                                = 0;
     virtual pgprot_t ProtFromAccess(size_t access)                                    = 0;
-                                                                                      
+    virtual pgprot_t CreateProt(size_t access, OLCacheType cache)                     = 0;
+
     virtual error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder)     = 0;
 
   //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, size_t length) = 0;
