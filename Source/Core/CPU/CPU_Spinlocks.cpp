@@ -6,7 +6,7 @@
 #include <xenus_lazy.h>
 #include <libos.hpp>
 
-#include <Core/CPU/OThread.hpp>
+#include <Core/CPU/OSpinlock.hpp>
 
 void SpinLock_Lock(los_spinlock_t * lock)
 {

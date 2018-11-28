@@ -5,7 +5,7 @@
 */
 #include <libos.hpp>
 
-#include <Core/CPU/OThread_Spinlocks.hpp>
+#include <Core/CPU/OSpinlock.hpp>
 
 #include "OWorkQueue.hpp"
 

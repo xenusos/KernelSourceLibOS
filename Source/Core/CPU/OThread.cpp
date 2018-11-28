@@ -12,7 +12,7 @@
 
 #include "../Processes/OProcesses.hpp"
 
-#include <Core/CPU/OThread_Spinlocks.hpp>
+#include <Core/CPU/OSpinlock.hpp>
 #include <Core/CPU/OSemaphore.hpp>
 
 static void * thread_dealloc_mutex;

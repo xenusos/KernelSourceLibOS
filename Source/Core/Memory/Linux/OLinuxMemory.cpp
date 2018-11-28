@@ -3,10 +3,9 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+#define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>
 #include "OLinuxMemory.hpp"
-
-#include "../../Processes/OProcesses.hpp"
 
 #define LOG_MOD "LibOS"
 #include <Logging/Logging.hpp>
@@ -14,6 +13,7 @@
 static l_unsigned_long page_offset_base = 0;
 static OLMemoryInterface * linux_memory = 0;
 
+#include "../../Processes/OProcesses.hpp"
 #define MEMORY_DEVICE "XenusMemoryMapper"
 
 void * special_map_fault;
@@ -639,7 +639,7 @@ page_k OLMemoryInterfaceImpl::AllocatePage(OLPageLocation location)
     ASSERT(location != kPageInvalid, "invalid page region");
 
     flags = 0;
-    flags |= GFP_KERNEL;
+    flags |= GFP_KERNEL /*user differs with the addition of __GFP_HARDWALL. afaik we dont need such*/;
 
     switch (location)
     {

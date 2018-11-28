@@ -6,9 +6,10 @@
 #pragma once
 
 #include "OThread_Preemption.hpp"
-#include "OThread_Spinlocks.hpp"
+//#include "OSpinlock.hpp"
 #include "OThread_CPU.hpp"
 #include "OThread_Nice.hpp"
+#include "OThread_Timing.hpp"
 
 #if defined(TGT_KRN_LINUX)
     #include "OThread_Linux.hpp"

@@ -362,6 +362,8 @@ error_t OProcessImpl::Terminate(bool force)
     return kStatusOkay; // assume ok for now
 }
 
+#include <Core/Memory/Linux/OLinuxMemory.hpp>
+
 error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, size_t length, bool read)
 {
     CHK_DEAD;
@@ -373,17 +375,18 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     size_t remaining;
     size_t written;
     mm_struct_k  mm;
-    pgprot_t prot;
     size_t pg_offset;
     void * map;
-    pgprot_t base_prot;
     error_t ret;
+    OLMemoryInterface * lm;
+    OLPageEntry protection;
 
     ret = kStatusOkay;
 
-    base_prot = PAGE_KERNEL_IO;
-    memex_get_prot(_PAGE_CACHE_MODE_UC_MINUS, &prot);
-    prot.pgprot_ |= (base_prot).pgprot_;
+    if (ERROR(ret = GetLinuxMemoryInterface(lm)))
+        return ret;
+
+    protection = lm->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
 
     if (length == 0)
         return kErrorIllegalArgLength;
@@ -419,7 +422,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
 
     TODO = get_user_pages_remote(_tsk, mm, (l_unsigned_long)start, pages, FOLL_FORCE, page_array, NULL, NULL); // WHAT DOES THIS RETURN? 
 
-    if (!(map = vmap(page_array, pages, 0, prot)))
+    if (!(map = vmap(page_array, pages, 0, protection.prot)))
     {
         ret = kErrorInternalError;
         goto exit;

@@ -13,7 +13,7 @@
     <ClInclude Include="Include\Core\CPU\OThread_Linux.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Nice.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Preemption.hpp" />
-    <ClInclude Include="Include\Core\CPU\OThread_Spinlocks.hpp" />
+    <ClInclude Include="Include\Core\CPU\OSpinlock.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Timing.hpp" />
     <ClInclude Include="Include\Core\CPU\OWorkQueue.hpp" />
     <ClInclude Include="Include\Core\Memory\Linux\OLinuxMemory.hpp" />
