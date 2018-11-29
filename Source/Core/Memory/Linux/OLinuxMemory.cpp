@@ -77,7 +77,8 @@ error_t OLKernelMappedBufferImpl::Unmap()
     CHK_DEAD;  
     if (_vm)
     {
-        vm_fault_free(_vm);
+        vunmap(_va); // deallocates _vm
+        _va     = 0;
         _vm     = nullptr;
         _mapped = false;
     }
@@ -328,10 +329,11 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
 
 error_t OLUserMappedBufferImpl::Unmap()
 {
-    if (_mapped)
+    if (_va)
     {
         ASSERT(((_mm) && (_va)), "Illegal mapping state!");
         vm_munmap_ex(_mm, _va, _length);
+        //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
     }
 
     _mapped = false;
@@ -346,11 +348,6 @@ void OLUserMappedBufferImpl::InvalidateImp()
     
     if (_mm)
         ProcessesMMUnlock(_mm);
-    
-    //LogPrint(kLogWarning, "Leaking virtual address area %lli -> %lli in process %p", vm_area_struct_get_vm_start(_area), vm_area_struct_get_vm_end(_area), OSThread);
-    // WRONG! 
-    // vm_munmap_ex -> vm_munmap ->  remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
-
     _mm   = nullptr;
 }
 
