@@ -228,9 +228,6 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t 
     }
 
     // abuse a static kernel function to create PTEs
-    // TODO: make remove_vma or similar public OR use a pool to mitigate leaks
-
-    // TODO: update VM_ flags
     area = _install_special_mapping(mm, (l_unsigned_long)map, pages << OS_PAGE_SHIFT,  VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | VM_SHARED, special_map); 
     if (!area)
     {
@@ -341,6 +338,8 @@ error_t OLUserMappedBufferImpl::Unmap()
     }
 
     _mapped = false;
+    _area   = nullptr;
+    _va     = 0;
     return kStatusOkay;
 }
 
@@ -351,11 +350,11 @@ void OLUserMappedBufferImpl::InvalidateImp()
     if (_mm)
         ProcessesMMUnlock(_mm);
     
-    LogPrint(kLogWarning, "Leaking virtual address area %lli -> %lli in process %p", vm_area_struct_get_vm_start(_area), vm_area_struct_get_vm_end(_area), OSThread);
+    //LogPrint(kLogWarning, "Leaking virtual address area %lli -> %lli in process %p", vm_area_struct_get_vm_start(_area), vm_area_struct_get_vm_end(_area), OSThread);
+    // WRONG! 
+    // vm_munmap_ex -> vm_munmap ->  remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
 
     _mm   = nullptr;
-    _area = nullptr;
-    _va  = 0;
 }
 
 OLBufferDescriptionImpl::OLBufferDescriptionImpl(dyn_list_head_p pages)
