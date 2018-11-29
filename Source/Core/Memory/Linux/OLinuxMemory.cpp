@@ -74,14 +74,15 @@ error_t OLKernelMappedBufferImpl::GetLength(size_t& length)
 
 error_t OLKernelMappedBufferImpl::Unmap()
 {
-    CHK_DEAD;  
-    if (_vm)
+    CHK_DEAD;
+    if (_va)
     {
-        vunmap(_va); // deallocates _vm
-        _va     = 0;
-        _vm     = nullptr;
-        _mapped = false;
+        // deallocates _vm
+        vunmap(_va);
     }
+    _va     = 0;
+    _vm     = nullptr;
+    _mapped = false;
     return kStatusOkay;
 }
 
@@ -97,10 +98,10 @@ error_t OLKernelMappedBufferImpl::CreateAddress(size_t pages, size_t & out)
         return kErrorInternalError;
     }
 
-    _va    = _vm->addr;
+    _va     = _vm->addr;
     _length = PAGE_SIZE * pages;
 
-    out    = (size_t)_va;
+    out     = (size_t)_va;
     return kStatusOkay;
 }
 
@@ -190,10 +191,10 @@ error_t OLUserMappedBufferImpl::GetLength(size_t& length)
 error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t & out)
 {
     CHK_DEAD;
+    size_t map;
     error_t ret;
     mm_struct_k mm;
     vm_area_struct_k area;
-    size_t map;
 
     ret = kStatusOkay;
 
