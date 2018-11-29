@@ -3,6 +3,7 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+
 #include <libos.hpp>
 
 #include <Core/CPU/OSpinlock.hpp>
@@ -12,10 +13,6 @@
 #include <ITypes/ITask.hpp>
 
 #include "OSemaphore.hpp"
-
-#define LOG_MOD "LibOS"
-#include <Logging/Logging.hpp>
-
 struct SemaWaitingThreads
 {
     task_k thread;

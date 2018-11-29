@@ -3,13 +3,11 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+
 #include <libos.hpp>
 
 #include <ITypes/IFileOperations.hpp>
 #include "OPseudoFile.hpp"
-
-#define LOG_MOD "LibOS"
-#include <Logging\Logging.hpp>
 
 mutex_k pfns_mutex;
 chain_p pseudo_file_handles;

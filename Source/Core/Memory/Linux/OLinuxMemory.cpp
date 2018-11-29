@@ -7,9 +7,6 @@
 #include <libos.hpp>
 #include "OLinuxMemory.hpp"
 
-#define LOG_MOD "LibOS"
-#include <Logging/Logging.hpp>
-
 static l_unsigned_long page_offset_base = 0;
 static OLMemoryInterface * linux_memory = 0;
 

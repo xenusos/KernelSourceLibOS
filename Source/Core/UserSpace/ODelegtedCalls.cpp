@@ -3,6 +3,7 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+
 #include <libos.hpp>
 
 #include "ODelegtedCalls.hpp"
@@ -10,9 +11,6 @@
 #include "../Processes/OProcesses.hpp"
 
 #include <Core/CPU/OThread.hpp>
-
-#define LOG_MOD "LibOS"
-#include <Logging/Logging.hpp>
 
 mutex_k delegated_mutex;
 dyn_list_head_p delegated_fns;

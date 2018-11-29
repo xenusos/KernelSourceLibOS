@@ -19,28 +19,8 @@
     #include <xenus_lazy.h>
     #include <libtypes.hpp>
     #include <libcompiler.hpp>
+    #define LOG_MOD "LibOS"
 #endif
 
-#include "Core\Base\Objects.hpp"
-
-enum LoggingLevel_e
-{
-    kLogInfo,
-    kLogWarning,
-    kLogError,
-    kLogDbg,
-
-    KInvalidLogLevel
-};
-
-LIBLINUX_SYM void LoggingPrint(const char * mod, LoggingLevel_e lvl, const char * msg, va_list list);
-
-// include core/logging and use LogPrint within your source files!
-static inline void LogPrintEx(const char * mod, LoggingLevel_e lvl, const char * msg, ...)
-{
-    va_list list;
-
-    va_start(list, msg);
-    LoggingPrint(mod, lvl, msg, list);
-    va_end(list);
-}
+#include "Base\Objects\Objects.hpp"
+#include "Base\Logging\Logging.hpp"

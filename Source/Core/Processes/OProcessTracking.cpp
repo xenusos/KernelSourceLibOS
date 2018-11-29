@@ -3,6 +3,7 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+
 #include <libos.hpp>
 
 #include "OProcesses.hpp"
@@ -12,10 +13,6 @@
 // LibOSTypes
 #include <ITypes/IThreadStruct.hpp>
 #include <ITypes/ITask.hpp>
-
-// Logging
-#define LOG_MOD "LibOS"
-#include <Logging/Logging.hpp>
 
 mutex_k tracking_mutex;
 linked_list_head_p tracking_exit_cbs;

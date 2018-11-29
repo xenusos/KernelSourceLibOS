@@ -3,6 +3,7 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+
 #include <libos.hpp>
 
 #include "OProcesses.hpp"
@@ -13,10 +14,6 @@
 
 // Other parts of LibOS
 #include "../FIO/OPath.hpp"
-
-// Logging
-#define LOG_MOD "LibOS"
-#include <Logging/Logging.hpp>
 
 task_k init_task;
 //l_unsigned_long page_offset_base;

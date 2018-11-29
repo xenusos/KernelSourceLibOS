@@ -7,6 +7,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Include\Base\Logging\Logging.hpp" />
+    <ClInclude Include="Include\Base\Objects\Objects.hpp" />
     <ClInclude Include="Include\Core\CPU\OMutex.hpp" />
     <ClInclude Include="Include\Core\CPU\OSemaphore.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_CPU.hpp" />
@@ -23,7 +25,6 @@
     <ClInclude Include="Include\Core\UserSpace\ODelegatedCalls.hpp" />
     <ClInclude Include="Include\Core\UserSpace\OPseudoFile.hpp" />
     <ClInclude Include="Include\libos.hpp" />
-    <ClInclude Include="Include\Core\Base\Objects.hpp" />
     <ClInclude Include="Include\Core\CPU\OCpuMask.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread.hpp" />
     <ClInclude Include="Include\Core\FIO\ODirectory.hpp" />
@@ -86,12 +87,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
-    <None Include="Include\Core\Base\ObjectsObject.imp" />
-    <None Include="Include\Core\Base\ObjectsOPtr.imp" />
-    <None Include="Include\Core\Base\ObjectsOutlivableRef.imp" />
-    <None Include="Include\Core\Base\ObjectsRef.imp" />
-    <None Include="Include\Core\Base\ObjectsReferenceCounter.imp" />
-    <None Include="Include\Core\Base\ObjectsRetardPointer.imp" />
+    <None Include="Include\Base\Objects\ObjectsObject.imp" />
+    <None Include="Include\Base\Objects\ObjectsOPtr.imp" />
+    <None Include="Include\Base\Objects\ObjectsOutlivableRef.imp" />
+    <None Include="Include\Base\Objects\ObjectsRef.imp" />
+    <None Include="Include\Base\Objects\ObjectsReferenceCounter.imp" />
+    <None Include="Include\Base\Objects\ObjectsRetardPointer.imp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Include\Core\Net\Text.txt" />

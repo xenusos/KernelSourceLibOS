@@ -3,6 +3,7 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+
 #include <libos.hpp>
 
 #include <Core/CPU/OSpinlock.hpp>
@@ -11,10 +12,6 @@
 
 #include <ITypes/IThreadStruct.hpp>
 #include <ITypes/ITask.hpp>
-
-#define LOG_MOD "LibOS"
-#include <Logging/Logging.hpp>
-
 
 static inline long MS_TO_JIFFIES(long ms)
 {

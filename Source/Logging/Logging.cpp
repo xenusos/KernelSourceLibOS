@@ -4,13 +4,9 @@
     License: All Rights Reserved J. Reece Wilson
 */
 #include <libos.hpp>
-
-#define LOG_MOD "somethingreallyfuckedup"
-
 #include <Core\FIO\OFile.hpp>
 #include <Core\FIO\ODirectory.hpp>
 #include <Utils\DateHelper.hpp>
-#include <Logging\Logging.hpp>
 
 static mutex_k logging_mutex;
 static char * logging_tline;
