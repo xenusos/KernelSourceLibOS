@@ -6,6 +6,8 @@
 
 #include <xenus_subsystem.hpp>
 
+#include "Logging/Logging.hpp"
+
 #include "Core/UserSpace/OPseudoFile.hpp"
 #include "Core/UserSpace/ODelegtedCalls.hpp"
 #include "Core/Processes/OProcesses.hpp"
@@ -25,6 +27,8 @@ int libos_start()
 
 c_bool libos_init(mod_dependency_list_p deps)
 {
+    LoggingInit();
+
     InitPseudoFiles();
     InitDelegatedCalls();
     InitProcesses();
