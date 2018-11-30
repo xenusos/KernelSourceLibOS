@@ -172,4 +172,5 @@ void LoggingInit()
         return;
 
     LoggingInitResetDir(dir);
+    LoggingInitCreateFile();
 }
