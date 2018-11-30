@@ -33,7 +33,7 @@ OLKernelMappedBufferImpl::OLKernelMappedBufferImpl()
 {
     _length = 0;
     _vm     = nullptr;
-    _va    = nullptr;
+    _va     = nullptr;
     _mapped = false;
 }
 
@@ -284,7 +284,10 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
     // update vm flags
     {
         l_unsigned_long flags;
-        flags = vm_area_struct_get_vm_flags_size_t(_area);
+
+        flags = mm_struct_get_def_flags_size_t(_mm);
+        flags |= VM_DONTEXPAND | VM_SOFTDIRTY;
+        flags |= VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | VM_SHARED;
         
         if (prot.access & OL_ACCESS_READ)
             flags |= VM_READ;
