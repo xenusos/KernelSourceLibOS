@@ -53,6 +53,8 @@
     <ClInclude Include="Source\Core\UserSpace\ODelegtedCalls.hpp" />
     <ClInclude Include="Source\Core\UserSpace\OPseudoFile.hpp" />
     <ClInclude Include="Source\Logging\Logging.hpp" />
+    <ClInclude Include="Source\Utils\DateHelper.hpp" />
+    <ClInclude Include="Source\Utils\FileIOHelper.hpp" />
     <ClInclude Include="src\UserSpace\ODelegtedCalls.hpp" />
     <ClInclude Include="src\UserSpace\OPseudoFile.hpp" />
   </ItemGroup>
@@ -80,7 +82,6 @@
     <ClCompile Include="Source\Logging\Logging.cpp" />
     <ClCompile Include="Source\Utils\DateHelper.cpp" />
     <ClCompile Include="Source\Utils\FileIOHelper.cpp" />
-    <ClCompile Include="Source\Utils\MemoryHelper.cpp" />
     <ClCompile Include="Source\Utils\ThreadHelper.cpp" />
   </ItemGroup>
   <ItemGroup>

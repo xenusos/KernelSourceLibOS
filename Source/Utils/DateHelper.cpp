@@ -4,9 +4,8 @@
     License: All Rights Reserved J. Reece Wilson (2018-01-12)
     License: Released under MIT License (https://en.wikipedia.org/wiki/MIT_License) (2018-06-26)
 */  
-#include <xenus_lazy.h>
 #include <libos.hpp>
-#include <Utils\DateHelper.hpp>
+#include "DateHelper.hpp"
 
 const char * __month_names[] = {
     "January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"
@@ -31,6 +30,9 @@ int64_t DateHelpers::GetTimeZoneOffset()
 
     if (!_sys_tz)
         return 0;
+
+    if (_tz_offset != 0)
+        return _tz_offset;
 
     return _tz_offset = -_sys_tz->tz_minuteswest * 60000;
 }
