@@ -15,7 +15,7 @@
     #define LIBLINUX_ASM __declspec(dllimport) 
 #endif
 
-#if defined(LIBLINUX_BUILDING) && !defined(LIB_COMPILER_PRESENT)
+#if defined(LIBLINUX_BUILDING) 
     #include <xenus_lazy.h>
     #include <libtypes.hpp>
     #include <libcompiler.hpp>

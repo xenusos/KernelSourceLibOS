@@ -33,22 +33,22 @@ static inline void LogPrintEx(const char * mod, LoggingLevel_e lvl, const char *
 #endif // #if defined(LOGGING_DECLARED)
 
 #if defined(LogPrint)
-#undef LogPrint
+    #undef LogPrint
 #endif
+
 #if defined(LOG_MOD_)
-#undef LOG_MOD_
+    #undef LOG_MOD_
+#endif
+
+#if defined(LOG_NO_IDNT)
+    #undef LOG_NO_IDNT
 #endif
 
 #if !defined(LOG_MOD)
-#define LOG_NO_IDNT
-#define LOG_MOD_ "PreprocessorError"
+    #define LOG_NO_IDNT
+    #define LOG_MOD_ "PreprocessorError"
 #else
-#define LOG_MOD_ LOG_MOD
+    #define LOG_MOD_ LOG_MOD
 #endif 
 
 #define LogPrint(lvl, msg, ...) LogPrintEx(LOG_MOD_, lvl, msg, __VA_ARGS__);
-
-#if defined(LOG_NO_IDNT)
-#undef LOG_MOD
-#undef LOG_NO_IDNT
-#endif
