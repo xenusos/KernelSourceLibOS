@@ -12,12 +12,12 @@ void HackProcessesAppendTskExitListener();
 void InitProcesses();
 void InitProcessTracking();
 
-void ProcessesMMLock(mm_struct_k mm);
-void ProcessesMMUnlock(mm_struct_k mm);
-void ProcessesLockTask(task_k tsk);
-void ProcessesUnlockTask(task_k tsk);
-void ProcessesTaskStructInc(task_k  tsk);
-void ProcessesTaskStructDec(task_k  tsk);
+void ProcessesMMIncrementCounter(mm_struct_k mm);
+void ProcessesMMDecrementCounter(mm_struct_k mm);
+void ProcessesAcquireTaskFields(task_k tsk);
+void ProcessesReleaseTaskFields(task_k tsk);
+void ProcessesTaskIncrementCounter(task_k  tsk);
+void ProcessesTaskDecrementCounter(task_k  tsk);
 
 #define GENERIC_PATH 256
 #define GENERIC_NAME 100

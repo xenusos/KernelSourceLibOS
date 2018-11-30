@@ -199,21 +199,21 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t 
     ret = kStatusOkay;
 
     // lock task; we're using the mm member
-    ProcessesLockTask(task);
+    ProcessesAcquireTaskFields(task);
     mm = (mm_struct_k)task_get_mm_size_t(task);
 
     if (!mm)
     {
-        ProcessesUnlockTask(task);
+        ProcessesReleaseTaskFields(task);
         Invalidate();
         return kErrorInternalError;
     }
 
     // lock mm
-    ProcessesMMLock(mm);          
+    ProcessesMMIncrementCounter(mm);          
     
     // allow task struct to update mm file and other similar members if someone really needs to
-    ProcessesUnlockTask(task);    
+    ProcessesReleaseTaskFields(task);    
 
     // signal the semaphore that we need write access [linux semaphores are dumb]
     down_write(mm_struct_get_mmap_sem(mm));
@@ -226,7 +226,7 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t 
         ret = kErrorInternalError; goto out;
     }
 
-    // abuse a static kernel function to create PTEs
+    // abuse a static kernel function to create VMAs 
     area = _install_special_mapping(mm, (l_unsigned_long)map, pages << OS_PAGE_SHIFT,  VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | VM_SHARED, special_map); 
     if (!area)
     {
@@ -351,7 +351,7 @@ void OLUserMappedBufferImpl::InvalidateImp()
     Unmap();
     
     if (_mm)
-        ProcessesMMUnlock(_mm);
+        ProcessesMMDecrementCounter(_mm);
     _mm   = nullptr;
 }
 

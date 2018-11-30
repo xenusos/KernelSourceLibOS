@@ -23,39 +23,39 @@ void InitProcesses()
     init_task = kallsyms_lookup_name("init_task");
 }
 
-void ProcessesMMLock(mm_struct_k mm)
+void ProcessesMMIncrementCounter(mm_struct_k mm)
 {
     _InterlockedIncrement((long *)mm_struct_get_mm_users(mm));
 }
 
-void ProcessesMMUnlock(mm_struct_k mm)
+void ProcessesMMDecrementCounter(mm_struct_k mm)
 {
     mmput(mm);
 }
 
-void ProcessesLockTask(task_k tsk)
+void ProcessesAcquireTaskFields(task_k tsk)
 {
     _raw_spin_lock(task_get_alloc_lock(tsk));
 }
 
-void ProcessesUnlockTask(task_k tsk)
+void ProcessesReleaseTaskFields(task_k tsk)
 {
     _raw_spin_unlock(task_get_alloc_lock(tsk));
 }
 
-void ProcessesTaskStructInc(task_k  tsk)
+void ProcessesTaskIncrementCounter(task_k  tsk)
 {
     _InterlockedIncrement((long *)task_get_usage(tsk));
 }
 
-void ProcessesTaskStructDec(task_k  tsk)
+void ProcessesTaskDecrementCounter(task_k  tsk)
 {
-    bool should_exit;
+    long users;
 
-    should_exit = _InterlockedDecrement((long *)task_get_usage(tsk)) == 0;
+    users = _InterlockedDecrement((long *)task_get_usage(tsk));
 
-    if (should_exit)
-        __put_task_struct(tsk);
+    if (users == 0)
+        __put_task_struct(tsk);/*free task struct*/
 }
 
 uint_t ProcessesGetPid(task_k tsk)
@@ -84,7 +84,7 @@ void ProcessesConvertPath(void * path, char * buf, size_t length)
 
 OProcessThreadImpl::OProcessThreadImpl(task_k tsk, OProcess * process)
 {
-    ProcessesTaskStructInc(tsk);
+    ProcessesTaskIncrementCounter(tsk);
     _tsk = tsk;
     _id = ProcessesGetPid(tsk);
     _process = process;
@@ -94,7 +94,7 @@ OProcessThreadImpl::OProcessThreadImpl(task_k tsk, OProcess * process)
 
 void OProcessThreadImpl::InvalidateImp()
 {
-    ProcessesTaskStructDec(_tsk);
+    ProcessesTaskDecrementCounter(_tsk);
 }
 
 error_t OProcessThreadImpl::GetThreadName(const char ** name)
@@ -129,7 +129,7 @@ error_t OProcessThreadImpl::GetParent(OUncontrollableRef<OProcess> parent)
 
 OProcessImpl::OProcessImpl(task_k tsk)
 {
-    ProcessesTaskStructInc(tsk);
+    ProcessesTaskIncrementCounter(tsk);
     _threads_mutex = mutex_create();
     _tsk = tsk;
     _pid = ProcessesGetPid(tsk);
@@ -166,7 +166,7 @@ void OProcessImpl::InitPaths()
         fput(file);
     }
 
-    ProcessesLockTask(_tsk);
+    ProcessesAcquireTaskFields(_tsk);
     fs = (fs_struct_k)task_get_fs_size_t(_tsk);
     if (fs)
     {
@@ -178,7 +178,7 @@ void OProcessImpl::InitPaths()
         _root[0] = '\0';
         _working[0] = '\0';
     }
-    ProcessesUnlockTask(_tsk);
+    ProcessesReleaseTaskFields(_tsk);
 }
 
 error_t OProcessImpl::GetProcessName(const char ** name)
@@ -400,17 +400,17 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     if (!page_array)
         return kErrorInternalError;
 
-    ProcessesLockTask(_tsk);
+    ProcessesAcquireTaskFields(_tsk);
     mm = (mm_struct_k)task_get_mm_size_t(_tsk);
 
     if (!mm)
     {
-        ProcessesUnlockTask(_tsk);
+        ProcessesReleaseTaskFields(_tsk);
         return kErrorInternalError;
     }
 
-    ProcessesMMLock(mm);
-    ProcessesUnlockTask(_tsk);
+    ProcessesMMIncrementCounter(mm);
+    ProcessesReleaseTaskFields(_tsk);
 
     start = (user_addr_t)(size_t(address) & (kernel_information.LINUX_PAGE_MASK));
 
@@ -434,7 +434,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     vunmap(map);
 
 exit:
-    ProcessesMMUnlock(mm);
+    ProcessesMMDecrementCounter(mm);
     up_read(semaphore);									 // unlock semaphore
     free(page_array);
     return ret;
@@ -452,7 +452,7 @@ error_t OProcessImpl::WriteProcessMemory(user_addr_t address, const void * buffe
 
 void OProcessImpl::InvalidateImp()
 {
-    ProcessesTaskStructDec(_tsk);
+    ProcessesTaskDecrementCounter(_tsk);
     dyn_list_destory(_threads);
 }
 
