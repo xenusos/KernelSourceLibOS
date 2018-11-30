@@ -145,12 +145,13 @@ void OLKernelMappedBufferImpl::InvalidateImp()
     Unmap();
 }
 
-OLUserMappedBufferImpl::OLUserMappedBufferImpl()
+OLUserMappedBufferImpl::OLUserMappedBufferImpl(task_k task)
 {
     _length = 0;
     _va     = 0;
-    _mm     = nullptr;
     _mapped = false;
+    _task   = task;
+    ProcessesTaskIncrementCounter(task);
 }
 
 error_t OLUserMappedBufferImpl::GetVAStart(size_t& end)
@@ -188,7 +189,7 @@ error_t OLUserMappedBufferImpl::GetLength(size_t& length)
     return kStatusOkay;
 }
 
-error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t & out)
+error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, size_t & out)
 {
     CHK_DEAD;
     size_t map;
@@ -198,25 +199,9 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t 
 
     ret = kStatusOkay;
 
-    // lock task; we're using the mm member
-    ProcessesAcquireTaskFields(task);
-    mm = (mm_struct_k)task_get_mm_size_t(task);
-
+    mm = ProcessesAcquireMM_Write(_task);
     if (!mm)
-    {
-        ProcessesReleaseTaskFields(task);
-        Invalidate();
         return kErrorInternalError;
-    }
-
-    // lock mm
-    ProcessesMMIncrementCounter(mm);          
-    
-    // allow task struct to update mm file and other similar members if someone really needs to
-    ProcessesReleaseTaskFields(task);    
-
-    // signal the semaphore that we need write access [linux semaphores are dumb]
-    down_write(mm_struct_get_mmap_sem(mm));
 
     map = (size_t)get_unmapped_area(NULL, 0, pages << OS_PAGE_SHIFT, 0, 0);  // find an unused area in the processes vmarea
 
@@ -238,12 +223,9 @@ error_t OLUserMappedBufferImpl::CreateAddress(size_t pages, task_k task, size_t 
     _area   = area;
     _va     = map;
     _length = PAGE_SIZE * pages;
-    _mm     = mm;
 
 out:
-    // free semaphore
-    up_write(mm_struct_get_mmap_sem(mm));
-
+    ProcessesReleaseMM_Write(mm);
     return ret;
 }
 
@@ -252,6 +234,7 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
     CHK_DEAD;
     error_t ret;
     page_k *entry;
+    mm_struct_k mm;
 
     ret = kStatusOkay;
 
@@ -273,8 +256,9 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
         }
     }
 
-    // signal the semaphore that we need write access [linux semaphores are dumb]
-    down_write(mm_struct_get_mmap_sem(_mm));
+    mm = ProcessesAcquireMM_Write(_task);
+    if (!mm)
+        return kErrorInternalError;
 
     // update page protection before commit
     {
@@ -285,7 +269,7 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
     {
         l_unsigned_long flags;
 
-        flags = mm_struct_get_def_flags_size_t(_mm);
+        flags = mm_struct_get_def_flags_size_t(mm);
         flags |= VM_DONTEXPAND | VM_SOFTDIRTY;
         flags |= VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | VM_SHARED;
         
@@ -325,7 +309,7 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
     }
 
     // free semaphore
-    up_write(mm_struct_get_mmap_sem(_mm));
+    ProcessesReleaseMM_Write(mm);
 
     _mapped = true;
     return kStatusOkay;
@@ -333,26 +317,41 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
 
 error_t OLUserMappedBufferImpl::Unmap()
 {
+    error_t ret;
+    
+    ret = kStatusOkay;
+
     if (_va)
     {
-        ASSERT(((_mm) && (_va)), "Illegal mapping state!");
-        vm_munmap_ex(_mm, _va, _length);
+        mm_struct_k mm;
+
+        mm = ProcessesAcquireMM(_task);
+
+        if (!mm)
+            return kErrorInternalError;
+
         //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
+        vm_munmap_ex(mm, _va, _length);
+
+        ProcessesReleaseMM_NoLock(mm);
     }
 
-    _mapped = false;
-    _area   = nullptr;
     _va     = 0;
+    _length = 0;
+    _area   = nullptr;
+    _mapped = false;
     return kStatusOkay;
 }
 
 void OLUserMappedBufferImpl::InvalidateImp()
 {
-    Unmap();
+    Unmap();   
     
-    if (_mm)
-        ProcessesMMDecrementCounter(_mm);
-    _mm   = nullptr;
+    if (_task)
+    {
+        ProcessesTaskDecrementCounter(_task);
+        _task = nullptr;
+    }
 }
 
 OLBufferDescriptionImpl::OLBufferDescriptionImpl(dyn_list_head_p pages)
@@ -473,10 +472,10 @@ error_t OLBufferDescriptionImpl::SetupUserAddress(task_k task, size_t & out)
         }
     }
 
-    if (!(instance = new OLUserMappedBufferImpl()))
+    if (!(instance = new OLUserMappedBufferImpl(task)))
         return kErrorOutOfMemory;
 
-    if (ERROR(er = instance->CreateAddress(_cnt, task, out)))
+    if (ERROR(er = instance->CreateAddress(_cnt, out)))
     {
         instance->Destory();
         return er;

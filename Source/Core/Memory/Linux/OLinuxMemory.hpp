@@ -32,21 +32,21 @@ protected:
 class OLUserMappedBufferImpl : public OLGenericMappedBuffer
 {
 public:
-    OLUserMappedBufferImpl();
+    OLUserMappedBufferImpl(task_k task);
 
     error_t GetVAStart(size_t&)                                           override;
     error_t GetVAEnd(size_t&)                                             override;
     error_t GetLength(size_t&)                                            override;
     error_t Unmap()                                                       override;
                                                                  
-    error_t CreateAddress(size_t pages, task_k task, size_t & out);
+    error_t CreateAddress(size_t pages, size_t & out);
     error_t Remap(dyn_list_head_p pages, size_t count, OLPageEntry prot);
 protected:
     void InvalidateImp()                                                  override;
 
     size_t _va;
     size_t _length;
-    mm_struct_k _mm;
+    task_k _task;
     vm_area_struct_k _area;
     bool _mapped;
 };

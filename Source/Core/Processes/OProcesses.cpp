@@ -58,6 +58,64 @@ void ProcessesTaskDecrementCounter(task_k  tsk)
         __put_task_struct(tsk);/*free task struct*/
 }
 
+
+mm_struct_k ProcessesAcquireMM(task_k tsk)
+{
+    mm_struct_k mm;
+    rw_semaphore_k semaphore;
+
+    ProcessesAcquireTaskFields(tsk);
+    mm = (mm_struct_k)task_get_mm_size_t(tsk);
+    
+    if (!mm)
+    {
+        ProcessesReleaseTaskFields(tsk);
+        return nullptr;
+    }
+
+    ProcessesMMIncrementCounter(mm);
+    ProcessesReleaseTaskFields(tsk);
+    return mm;
+}
+
+mm_struct_k ProcessesAcquireMM_Read(task_k tsk)
+{
+    mm_struct_k mm;
+
+    mm = ProcessesAcquireMM(tsk);
+
+    if (!mm)
+        return nullptr;
+
+    down_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    return mm;
+}
+
+mm_struct_k ProcessesAcquireMM_Write(task_k tsk)
+{
+    mm_struct_k mm;
+
+    mm = ProcessesAcquireMM(tsk);
+
+    if (!mm)
+        return nullptr;
+
+    down_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    return mm;
+}
+
+void ProcessesReleaseMM_Read(mm_struct_k mm)
+{
+    up_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    ProcessesMMDecrementCounter(mm);
+}
+
+void ProcessesReleaseMM_Write(mm_struct_k mm)
+{
+    up_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    ProcessesMMDecrementCounter(mm);
+}
+
 uint_t ProcessesGetPid(task_k tsk)
 {
     return ITask(tsk).GetVarPID().GetUInt();
@@ -318,6 +376,9 @@ error_t OProcessImpl::IterateThreads(ThreadIterator_cb callback, void * ctx)
     error_t er;
     size_t cnt;
 
+    if (!callback)
+        return kErrorIllegalBadArgument;
+
     er = kStatusOkay;
     if (!_threads)
         UpdateThreadCache();
@@ -364,7 +425,6 @@ error_t OProcessImpl::Terminate(bool force)
 error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, size_t length, bool read)
 {
     CHK_DEAD;
-    rw_semaphore_k semaphore;
     uint32_t pages;
     page_k *page_array;
     user_addr_t start;
@@ -400,24 +460,22 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     if (!page_array)
         return kErrorInternalError;
 
-    ProcessesAcquireTaskFields(_tsk);
-    mm = (mm_struct_k)task_get_mm_size_t(_tsk);
-
+    mm = ProcessesAcquireMM_Read(_tsk);
     if (!mm)
-    {
-        ProcessesReleaseTaskFields(_tsk);
         return kErrorInternalError;
-    }
-
-    ProcessesMMIncrementCounter(mm);
-    ProcessesReleaseTaskFields(_tsk);
 
     start = (user_addr_t)(size_t(address) & (kernel_information.LINUX_PAGE_MASK));
 
-    semaphore = (rw_semaphore_k)mm_struct_get_mmap_sem(mm); // &mm->mmap_sem
-    down_read(semaphore);									// lock semaphore
+    if (OSThread == _tsk)
+        TODO = get_user_pages_fast((l_unsigned_long)start, pages, read ? 0 : 1, page_array);
+    else
+        TODO = get_user_pages_remote(_tsk, mm, (l_unsigned_long)start, pages, read ? 0 : FOLL_WRITE, page_array, NULL, NULL);
 
-    TODO = get_user_pages_remote(_tsk, mm, (l_unsigned_long)start, pages, FOLL_FORCE, page_array, NULL, NULL); // WHAT DOES THIS RETURN? 
+    if (TODO <= 0)
+    {
+        ret = kERrorOutOfRange;
+        goto exit;
+    }
 
     if (!(map = vmap(page_array, pages, 0, protection.prot)))
     {
@@ -434,8 +492,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     vunmap(map);
 
 exit:
-    ProcessesMMDecrementCounter(mm);
-    up_read(semaphore);									 // unlock semaphore
+    ProcessesReleaseMM_Read(mm);
     free(page_array);
     return ret;
 }

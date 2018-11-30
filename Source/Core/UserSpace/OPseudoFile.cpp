@@ -113,7 +113,9 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_open, l_int)
     cb = PSEUDOFILE_IMPL_THIS->open_cb;
 
     if (!cb)
+    {
         SYSV_FUNCTON_RETURN(0);
+    }
 
     ret = cb(PSEUDOFILE_IMPL_THIS) ? 0 : PSEUDOFILE_ERROR_CB_ERROR;
     SYSV_FUNCTON_RETURN(ret)
@@ -132,7 +134,9 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_release, l_int)
     cb = PSEUDOFILE_IMPL_THIS->release_cb;
 
     if (!cb)
+    {
         SYSV_FUNCTON_RETURN(0);
+    }
 
     cb(PSEUDOFILE_IMPL_THIS);
     SYSV_FUNCTON_RETURN(0)
@@ -155,16 +159,19 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_read, ssize_t)
     cb = PSEUDOFILE_IMPL_THIS->read_cb;
 
     if (!cb)
+    {
         SYSV_FUNCTON_RETURN(PSEUDOFILE_ERROR_NO_HANDLER)
-
-        of = off ? *off : PSEUDOFILE_IMPL_THIS->seek;
+    }
+    of = off ? *off : PSEUDOFILE_IMPL_THIS->seek;
 
     buf = malloc(len);
 
     if (!buf)
+    {
         SYSV_FUNCTON_RETURN(PSEUDOFILE_ERROR_MEM_ERROR)
+    }
 
-        failed = cb(PSEUDOFILE_IMPL_THIS, buf, len, of, &written);
+    failed = cb(PSEUDOFILE_IMPL_THIS, buf, len, of, &written);
 
     if (!failed)
     {
@@ -196,14 +203,18 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_write, ssize_t)
     cb = PSEUDOFILE_IMPL_THIS->write_cb;
 
     if (!cb)
+    {
         SYSV_FUNCTON_RETURN(PSEUDOFILE_ERROR_NO_HANDLER)
+    }
 
-        buf = malloc(len);
+    buf = malloc(len);
 
     if (!buf)
+    {
         SYSV_FUNCTON_RETURN(PSEUDOFILE_ERROR_MEM_ERROR)
+    }
 
-        _copy_from_user(buf, buffer, len);
+    _copy_from_user(buf, buffer, len);
 
     failed = cb(PSEUDOFILE_IMPL_THIS, buf, len, off ? *off : PSEUDOFILE_IMPL_THIS->seek, &read);
 
@@ -229,7 +240,6 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_seek, loff_t)
     loff_t newpos;
 
     impl = PSEUDOFILE_IMPL_THIS;
-
 
     switch (whence) {
     case 0: /* SEEK_SET */
