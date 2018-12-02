@@ -97,11 +97,11 @@ public:
 
 // about dma:
 //  on x86, all we need is a memory fence to ensure that we're synced
-//  dma_ops on linux builds targeting x86_64 just point to nommu_dma_ops [assuming amd gart hackery isn't used]
-//  nommu_dma_ops.sync_??_for_device = flush_write_buffers();
+//  on linux builds targeting x86[_64/_32], dma_ops point to nommu_dma_ops (assuming AMD gart hackery isn't used which uses similar logic)
+//  nommu_dma_ops.sync_??_for_device = flush_write_buffers() { barrier }
 // 
 //  MSDN docs just state "idk man- PAGED BUFFERS" without actually defining what makes dma buffers from a dma device special
-//  the dxgk subsystem just allocates generic no-cache PTEs to an MDL 
+//  the dxgk subsystem just allocates generic NC PTEs given an MDL 
 //
 //  we could implement an OLDmaBuffer to be safe, but since 90% of Xenus is x86_64 only, there is no point
 //class OLDmaBuffer

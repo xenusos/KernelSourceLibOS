@@ -14,6 +14,7 @@
 
 // Other parts of LibOS
 #include "../FIO/OPath.hpp"
+#include "../../Utils/RCU.hpp"
 
 task_k init_task;
 //l_unsigned_long page_offset_base;
@@ -513,7 +514,7 @@ void OProcessImpl::InvalidateImp()
     dyn_list_destory(_threads);
 }
 
-error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
+error_t _GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
 {
     task_k cur;
     task_k srt;
@@ -536,13 +537,19 @@ error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
             }
 
             head = (list_head *)task_get_tasks(cur);
-            cur = (task_k)((uint64_t)(head->next) - (uint64_t)task_get_tasks(NULL)); // next/priv is volatile, READ_ONCE just dereferences a volatilevalue
-                                                                                     // hopefully this is legal enough
-                                                                                     // especially considering x86/AMD64 guarantees atomicity of type read/writes on sizeof(type) boundaries
-                                                                                     // no idea how linux makes this thread safe... dont really care
-        } while (cur != srt);														 // cbfa to read all the RCU related patents and headers
+            cur = (task_k)((uint64_t)(head->next) - (uint64_t)task_get_tasks(NULL));
+        } while (cur != srt);
     }
     return kErrorProcessPidInvalid;
+}
+
+error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
+{
+    error_t ret;
+    RCU::ReadLock();
+    ret = _GetProcessById(id, process);
+    RCU::ReadUnlock();
+    return ret;
 }
 
 error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
@@ -550,7 +557,7 @@ error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
     return GetProcessById(ProcessesGetTgid(OSThread), process);
 }
 
-error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
+error_t _GetProcessesByAll(ProcessIterator_cb callback, void * data)
 {
     task_k cur;
     task_k srt;
@@ -582,4 +589,13 @@ error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
         } while (cur != srt);
     }
     return kStatusOkay;
+}
+
+error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
+{
+    error_t ret;
+    RCU::ReadLock();
+    ret = _GetProcessesByAll(callback, data);
+    RCU::ReadUnlock();
+    return ret;
 }
