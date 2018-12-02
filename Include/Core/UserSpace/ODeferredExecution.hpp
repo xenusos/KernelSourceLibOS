@@ -51,3 +51,4 @@ public:
     virtual error_t WaitExecute(uint32_t ms)               = 0;
     virtual error_t AwaitExecute(ODECompleteCallback_f cb) = 0;
 };
+

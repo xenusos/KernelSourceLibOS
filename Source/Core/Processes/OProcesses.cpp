@@ -313,13 +313,14 @@ error_t OProcessImpl::UpdateThreadCache()
     er = kStatusOkay;
 
     mutex_lock(_threads_mutex);
+    RCU::ReadLock();
 
     if (!_threads)
     {
         if (!(_threads = DYN_LIST_CREATE(OProcessThreadImpl *)))
         {
-            mutex_unlock(_threads_mutex);
-            return kErrorOutOfMemory;
+            er = kErrorOutOfMemory;
+            goto exit;
         }
     }
 
@@ -359,6 +360,7 @@ error_t OProcessImpl::UpdateThreadCache()
     }
 
 exit:
+    RCU::ReadUnlock();
     mutex_unlock(_threads_mutex);
     return er;
 }

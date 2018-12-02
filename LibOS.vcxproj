@@ -22,6 +22,7 @@
     <ClInclude Include="Include\Core\Memory\Linux\OLinuxStack.hpp" />
     <ClInclude Include="Include\Core\Net\_NetCommon.hpp" />
     <ClInclude Include="Include\Core\Processes\OProcesses.hpp" />
+    <ClInclude Include="Include\Core\UserSpace\ODeferredExecution.hpp" />
     <ClInclude Include="Include\Core\UserSpace\ODelegatedCalls.hpp" />
     <ClInclude Include="Include\Core\UserSpace\OPseudoFile.hpp" />
     <ClInclude Include="Include\libos.hpp" />
