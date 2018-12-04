@@ -24,7 +24,6 @@ OPseudoFileImpl::OPseudoFileImpl(PsudoFileInformation_t & info)
     read_cb    = 0;
     release_cb = 0;
     open_cb    = 0;
-    seek       = 0;
     snprintf(_path, sizeof(_path), "/dev/" CHARFS_PREFIX "%lli", info.pub.devfs.char_dev_id);
 }
 
@@ -162,7 +161,7 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_read, ssize_t)
     {
         SYSV_FUNCTON_RETURN(PSEUDOFILE_ERROR_NO_HANDLER)
     }
-    of = off ? *off : PSEUDOFILE_IMPL_THIS->seek;
+    of = off ? *off : file_get_f_pos_int64(file);
 
     buf = malloc(len);
 
@@ -216,7 +215,7 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_write, ssize_t)
 
     _copy_from_user(buf, buffer, len);
 
-    failed = cb(PSEUDOFILE_IMPL_THIS, buf, len, off ? *off : PSEUDOFILE_IMPL_THIS->seek, &read);
+    failed = cb(PSEUDOFILE_IMPL_THIS, buf, len, off ? *off : file_get_f_pos_int64(file), &read);
 
     if (!failed)
     {
@@ -236,10 +235,7 @@ int whence,
 void *pad,
 DEFINE_SYSV_FUNCTON_END_DEF(fop_seek, loff_t)
 {
-    OPseudoFileImpl * impl;
     loff_t newpos;
-
-    impl = PSEUDOFILE_IMPL_THIS;
 
     switch (whence) {
     case 0: /* SEEK_SET */
@@ -247,7 +243,7 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_seek, loff_t)
         break;
 
     case 1: /* SEEK_CUR */
-        newpos = impl->seek + offset;
+        newpos = file_get_f_pos_int64(file) + offset;
         break;
 
     case 2: /* SEEK_END */
@@ -259,7 +255,6 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_seek, loff_t)
         return -1;
     }
 
-    impl->seek = newpos;
     file_set_f_pos_int64(file, newpos);
     SYSV_FUNCTON_RETURN(offset)
 }

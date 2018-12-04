@@ -87,7 +87,6 @@ public:
     PseudofileUserRead_t  read_cb;
     PseudofileRelease_t   release_cb;
     PseudofileOpen_t	  open_cb;
-    loff_t seek;
 
 protected:
     void InvalidateImp()                               override;
