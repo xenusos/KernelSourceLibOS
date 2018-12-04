@@ -7,8 +7,6 @@
 
 #include <Core/Processes/OProcesses.hpp>
 
-void HackProcessesOThreadHook();
-void HackProcessesAppendTskExitListener();
 void InitProcesses();
 void InitProcessTracking();
 

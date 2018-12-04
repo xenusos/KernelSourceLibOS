@@ -451,7 +451,7 @@ int RuntimeThreadEP(void * data)
     thread_post_context_switch_hook(RuntimeThreadPostContextSwitch);
 
     // nasty ass hack
-    HackProcessesOThreadHook();
+    //HackProcessesOThreadHook();
 
     // ntfy thread create
     {

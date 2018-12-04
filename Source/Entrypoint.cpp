@@ -12,6 +12,9 @@
 #include "Core/UserSpace/ODelegtedCalls.hpp"
 #include "Core/Processes/OProcesses.hpp"
 #include "Core/Memory/Linux/OLinuxMemory.hpp"
+#include "Core/Processes/OProcessTracking.hpp"
+#include "Core/UserSpace/ORegistration.hpp"
+#include "Core/UserSpace/ODeferredExecution.hpp"
 #include "Core/CPU/OThread.hpp"
 
 XENUS_BEGIN_C
@@ -33,8 +36,10 @@ c_bool libos_init(mod_dependency_list_p deps)
     InitDelegatedCalls();
     InitProcesses();
     InitProcessTracking();
+    InitRegistration();
     InitMemmory();
     InitThreading();
+    InitDeferredCalls();
     return true;
 }
 

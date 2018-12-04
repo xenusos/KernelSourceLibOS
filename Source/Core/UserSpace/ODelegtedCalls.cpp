@@ -3,11 +3,11 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
-
 #include <libos.hpp>
 
 #include "ODelegtedCalls.hpp"
 #include "OPseudoFile.hpp"
+#include "ODeferredExecution.hpp"
 #include "../Processes/OProcesses.hpp"
 
 #include <Core/CPU/OThread.hpp>
@@ -161,6 +161,11 @@ void DelegatedCallsHandleCall(xenus_syscall_p atten)
     atten->response = 0;
 }
 
+void DelegatedCallsHandleDeferredExec(xenus_syscall_p atten)
+{
+    DeferredExecFinish(atten->arg_alpha, atten->arg_bravo);
+}
+
 void DelegatedCallsSysCallHandler(xenus_syscall_ref atten)
 {
     if (atten->attention_id == BUILTIN_CALL_DB_PULL)
@@ -171,40 +176,18 @@ void DelegatedCallsSysCallHandler(xenus_syscall_ref atten)
     {
         DelegatedCallsHandleCall(atten);
     }
+    else if (atten->attention_id == BUTLTIN_CALL_NTFY_COMPLETE)
+    {
+        DelegatedCallsHandleDeferredExec(atten);
+    }
     else
     {
         LogPrint(kLogWarning, "Couldn't execute illegal user syscall (attention id: %zu) ", atten->attention_id);
     }
 }
 
-void DelegatedCallsAddThread()
-{
-    threading_set_process_syscall_handler(DelegatedCallsSysCallHandler);
-}
-
-void DelegatedCallsInitRegisterFile()
-{
-    error_t er;
-    const char * path;
-    OPtr<OPseudoFile> file; // do not garbage collect - such would delete the file
-
-    ASSERT(NO_ERROR(er = CreateTempKernFile(OOutlivableRef<OPseudoFile>(file))), "delegated calls couldn't create file %lli", er);
-
-    ASSERT(file->GetPath(&path) == kStatusOkay, "couldn't get path - delegated calls");
-    ASSERT(path[strlen(path) - 1] == '0', "pseudofile should have been allocated with idx 0 for delegated calls");
-
-    file->OnOpen([](OPtr<OPseudoFile> file)
-    {
-        DelegatedCallsAddThread();
-        HackProcessesAppendTskExitListener();
-        return true;
-    });
-}
-
 void InitDelegatedCalls()
 {
-    DelegatedCallsInitRegisterFile();
-
     delegated_fns = DYN_LIST_CREATE(DelegatedCallInstance_t);
     ASSERT(delegated_fns, "couldn't create dynamic list for delegated calls");
 

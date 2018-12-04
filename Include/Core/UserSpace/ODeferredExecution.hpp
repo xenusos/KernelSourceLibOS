@@ -2,16 +2,11 @@
     Purpose:
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
-    Notes: 
-           NT    - APC
-           Linux - backed by LibIRC
 */
-
 class OProcessThread;
 
 struct ODEParameters
 {
-    bool extended;
     union
     {
         struct
@@ -21,17 +16,6 @@ struct ODEParameters
             size_t three;
             size_t four;
         };
-        struct
-        {
-            size_t one;
-            size_t two;
-            size_t three;
-            size_t four;
-            size_t five;
-            size_t six;
-            size_t seven;
-            size_t eight;
-        } ex;
     };
 };
 
@@ -50,5 +34,8 @@ public:
 
     virtual error_t WaitExecute(uint32_t ms)               = 0;
     virtual error_t AwaitExecute(ODECompleteCallback_f cb) = 0;
+
+    virtual error_t GetResponse(size_t & ret)              = 0;
 };
 
+LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkItem> out);

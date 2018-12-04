@@ -3,16 +3,11 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
-
 #include <libos.hpp>
-
 #include "OProcesses.hpp"
+#include "OProcessTracking.hpp"
 
 #include <Core/CPU/OThread.hpp>
-
-// LibOSTypes
-#include <ITypes/IThreadStruct.hpp>
-#include <ITypes/ITask.hpp>
 
 mutex_k tracking_mutex;
 linked_list_head_p tracking_exit_cbs;
@@ -188,15 +183,6 @@ void ProcessesTryRegisterLeader(task_k tsk)
     ProcessesTryRegister(leader ? leader : tsk);
 }
 
-void HackProcessesOThreadHook()
-{
-
-}
-
-void HackProcessesAppendTskExitListener()
-{
-    ProcessesTryRegisterLeader(OSThread);
-}
 
 // TODO: 
 // consider implementing a thread that scans for new process using public OProcess apis

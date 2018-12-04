@@ -9,6 +9,7 @@
   <ItemGroup>
     <ClInclude Include="Include\Base\Logging\Logging.hpp" />
     <ClInclude Include="Include\Base\Objects\Objects.hpp" />
+    <ClInclude Include="Include\Core\CPU\OCPU.hpp" />
     <ClInclude Include="Include\Core\CPU\OMutex.hpp" />
     <ClInclude Include="Include\Core\CPU\OSemaphore.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_CPU.hpp" />
@@ -51,8 +52,11 @@
     <ClInclude Include="Source\Core\Memory\Linux\OLinuxStack.hpp" />
     <ClInclude Include="Source\Core\Net\OTCPNetworking.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcesses.hpp" />
+    <ClInclude Include="Source\Core\Processes\OProcessTracking.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\ODeferredExecution.hpp" />
     <ClInclude Include="Source\Core\UserSpace\ODelegtedCalls.hpp" />
     <ClInclude Include="Source\Core\UserSpace\OPseudoFile.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\ORegistration.hpp" />
     <ClInclude Include="Source\Logging\Logging.hpp" />
     <ClInclude Include="Source\Utils\DateHelper.hpp" />
     <ClInclude Include="Source\Utils\FileIOHelper.hpp" />
@@ -73,6 +77,8 @@
     <ClCompile Include="Source\Core\Net\OTCPNetworking.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcesses.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcessTracking.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\ODeferredExecution.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\ORegistration.cpp" />
     <ClCompile Include="Source\Entrypoint.cpp" />
     <ClCompile Include="Source\Core\FIO\ODirectory.cpp" />
     <ClCompile Include="Source\Core\FIO\OFile.cpp" />
