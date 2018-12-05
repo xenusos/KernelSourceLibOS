@@ -5,15 +5,6 @@
 */
 #pragma once
 
-enum ProcessSecurityLevel_e
-{
-    kProcessKernel = 0,       // to be use with OThreads, XNU, and bsd
-    kProcessSystemThread = 0, // Windows Kernel Driver thread 
-    kProcessBigGuns,          // PID 0 / SYSTEM / NTAuth
-    kProcessUsrAdmin,         // Administrator / Root
-    kProcessUsrGeneric        // Danny Redbeard 
-};
-
 class OProcess;
 class OProcessThread : public  OObject
 {
@@ -38,9 +29,9 @@ public:
     virtual error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec)                            = 0;
     // TODO: user api                                                                           
                                                                                                 
-    virtual error_t UpdateThreadCache()                                                         = 0;
-    virtual uint_t GetThreadCount()                                                             = 0;
-    virtual error_t IterateThreads(ThreadIterator_cb callback, void * ctx)                      = 0;
+    virtual error_t UpdateThreadCache()                                                         = 0; // WARNING: 
+    virtual uint_t GetThreadCount()                                                             = 0; // On Linux, these may lock execution if the RCU locking mechanism has been called prior 
+    virtual error_t IterateThreads(ThreadIterator_cb callback, void * ctx)                      = 0; // Assume RCU locked if within callback (IE: GetProcessesByAll), assume unlocked otherwise
                                                                                                 
     virtual error_t Terminate(bool force)                                                       = 0;
 

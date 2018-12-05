@@ -205,7 +205,7 @@ OProcessImpl::OProcessImpl(task_k tsk)
 
 void OProcessImpl::InitSec()
 {
-    _lvl = kProcessUsrGeneric; //TODO
+    
 }
 
 void OProcessImpl::InitModName()
@@ -291,15 +291,6 @@ error_t OProcessImpl::GetWorkingDirectory(const char **wd)
     if (!wd)
         return kErrorIllegalBadArgument;
     *wd = _working;
-    return kStatusOkay;
-}
-
-error_t OProcessImpl::GetGenericSecLevel(ProcessSecurityLevel_e * sec)
-{
-    CHK_DEAD;
-    if (!sec)
-        return kErrorIllegalBadArgument;
-    *sec = _lvl;
     return kStatusOkay;
 }
 
