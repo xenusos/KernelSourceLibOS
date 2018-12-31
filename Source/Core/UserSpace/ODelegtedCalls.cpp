@@ -168,7 +168,6 @@ void DelegatedCallsHandleDeferredExec(xenus_syscall_p atten)
 
 void DelegatedCallsSysCallHandler(xenus_syscall_ref atten)
 {
-    puts("Syscall handler in");
     if (atten->attention_id == BUILTIN_CALL_DB_PULL)
     {
         DelegatedCallsHandlePull(atten);

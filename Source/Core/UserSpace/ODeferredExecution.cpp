@@ -30,6 +30,15 @@ struct APCStack
     } mapped;
 };
 
+struct linux_thread_info // TODO: portable structs. NEVER TRUST MSVC and GCC TO AGREE
+{
+    l_unsignedlong flags;
+    u32      state;
+    atomic_t swap_bool;
+    pt_regs  previous_user;
+    pt_regs  next_user;
+};
+
 static page_k  work_returnstub;
 static chain_p work_queues;            // chain<tgid, chain<tid, ODEWorkHandler>>
 static chain_p work_thread_stacks;     // chain<tgid, chain<tid, APCStack>>
@@ -40,20 +49,11 @@ static mutex_k work_watcher_mutex;
 
 static OPtr<OLMemoryInterface> OS_MemoryInterface;
 
-struct linux_thread_info
-{
-    l_unsignedlong flags;
-    u32      state;
-    atomic_t swap_bool;
-    pt_regs  previous_user;
-    pt_regs  next_user;
-};
-
 static void APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
 static void APC_GetTaskStack_s(task_k tsk, APCStack & stack);
 static void APC_GetProcessReturnStub_s(task_k tsk, size_t & ret);
 static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl);
-static void APC_PreemptThread_s(task_k task, pt_regs * registers);
+static void APC_PreemptThread_s(task_k task, pt_regs * registers, bool kick);
 
 static linux_thread_info * GetInfoForTask(task_k tsk)
 {
@@ -249,12 +249,10 @@ static void APC_MapReturnStub_s(task_k tsk, size_t & ret)
 
 static void APC_GetProcessReturnStub_s(task_k tsk, size_t & ret)
 {
-    error_t err;
-
-    uint_t tgid;
-
-    size_t * pusraddr;
+    error_t   err;
+    uint_t    tgid;
     size_t    usraddr;
+    size_t * pusraddr;
 
     tgid = ProcessesGetTgid(tsk);
 
@@ -320,7 +318,7 @@ static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
     tgid = ProcessesGetTgid(tsk);
     pid  = ProcessesGetPid(tsk);
 
-    if (NO_ERROR(chain_get(work_thread_stacks, tgid, nullptr, (void **)&ppidchain)))
+    if (NO_ERROR(err = chain_get(work_thread_stacks, tgid, nullptr, (void **)&ppidchain)))
     {
         if (NO_ERROR(chain_get(*ppidchain, pid, nullptr, (void **)&pstack)))
         {
@@ -332,7 +330,7 @@ static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
         // No PID exists
         pidchain = *ppidchain;
     }
-    else
+    else if (err == XENUS_ERROR_LINK_NOT_FOUND)
     {
         // No TGID and no subsequent chain of pids exists
         APCStack allocd;
@@ -351,6 +349,10 @@ static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
 
         pidchain = chain;
     }
+    else
+    {
+        panicf("APC_GetTaskStack_s: chain returned error code: 0x%zx", err);
+    }
 
     // Allocate stack
     APC_AllocateStack_s(tsk, stack);
@@ -365,21 +367,11 @@ static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
     outstack = stack;
 }
 
-static void APC_StallThread()
-{
-    LogPrint(kLogDbg, "APC: Blocking thread - we're about to be kicked into usermode. ");
-    while (1)
-    {
-        LogPrint(kLogDbg, "Not yet returned... HURRY UP KERNEL!");
-        msleep(1);
-    }
-}
-
-static void APC_Run_s(task_k tsk, ODEWorkHandler * impl)
+static void APC_Run_s(task_k tsk, ODEWorkHandler * impl, bool kick)
 {
     pt_regs regs;
     impl->ParseRegisters(regs);
-    APC_PreemptThread_s(tsk, &regs);
+    APC_PreemptThread_s(tsk, &regs, kick);
 }
 
 static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
@@ -398,12 +390,11 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
 
     // get or allocate array
     // map<task pid, dynamic array<ODEWorkhandler *>>
-    if (ERROR(chain_get(work_queues, tgid, nullptr, (void **)&pchain)))
+    if ((err = chain_get(work_queues, tgid, nullptr, (void **)&pchain)) == XENUS_ERROR_LINK_NOT_FOUND)
     {
         // No dynamic array
         dyn_list_head_p * plisthead;
         chain_p chain;
-        LogPrint(kLogDbg, "1: APC_AddWorkWork_s failed... creating vector");
 
         chain_allocate(&chain);
 
@@ -427,6 +418,10 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
             *plisthead = listhead;
         }
     }
+    else if (ERROR(err))
+    {
+        panicf("APC_AddWorkWork_s: bad chain. error code: 0x%zx", err);
+    }
     else
     {
         // TGID root exists
@@ -434,7 +429,7 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
         chain_p pidmap = *pchain;
 
         // get map entry
-        if (ERROR(chain_get(pidmap, pid, nullptr, (void **)&plisthead)))
+        if ((err = chain_get(pidmap, pid, nullptr, (void **)&plisthead)) == XENUS_ERROR_LINK_NOT_FOUND)
         {
             // PID doesn't exist...
 
@@ -446,6 +441,10 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
             err = chain_allocate_link(pidmap, pid, sizeof(dyn_list_head_p), nullptr, nullptr, (void **)&plisthead);
             ASSERT(NO_ERROR(err), "APC_AddWorkWork_s: couldn't create chain link");
             *plisthead = listhead;
+        }
+        else if (ERROR(err))
+        {
+            panicf("APC_AddWorkWork_s: bad second chain. error code: 0x%zx", err);
         }
         else
         {
@@ -464,7 +463,7 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
     err = dyn_list_entries(listhead, &length);
     ASSERT(NO_ERROR(err), "couldn't get list size");
     if (length == 1)
-        APC_Run_s(tsk, impl);
+        APC_Run_s(tsk, impl, true);
 }
 
 static void APC_PopComplete_s(task_k tsk, ODEWorkHandler * & job, bool & moreWorkPending, ODEWorkHandler * & next)
@@ -542,7 +541,7 @@ static void APC_CleanupTask_s(task_k tsk)
     //}
 }
 
-static void APC_PreemptThread_s(task_k task, pt_regs * registers)
+static void APC_PreemptThread_s(task_k task, pt_regs * registers, bool kick)
 {
     linux_thread_info * info;
 
@@ -550,11 +549,14 @@ static void APC_PreemptThread_s(task_k task, pt_regs * registers)
     info->next_user          = *registers;
     info->swap_bool.counter  = 1;
 
-    if (!ez_linux_caller(kallsyms_lookup_name("wake_up_state"), (size_t)task, TASK_INTERRUPTIBLE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+    if (kick)
     {
-        kick_process(task);
+        if (!ez_linux_caller(kallsyms_lookup_name("wake_up_state"), (size_t)task, TASK_INTERRUPTIBLE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        {
+            kick_process(task);
+        }
     }
-
+   
     LogPrint(kLogDbg, "APC: kicked/preempted usermode thread [%p / %i]", task, ProcessesGetPid(task));
 }
 
@@ -622,13 +624,13 @@ static void APC_RestoreUserState_s(task_k task, pt_regs * fallback)
             chain_deallocate_handle(link);
 
             LogPrint(kLogDbg, "APC: returning to usermode using stored registers - we had to deal with multiple items within the queue. RIP: %p", regs.rip);
-            APC_PreemptThread_s(task, &regs);
+            APC_PreemptThread_s(task, &regs, false);
             return;
         }
     }
 
     LogPrint(kLogDbg, "APC: returning to usermode without using stored registers - the queue should be emtpy. RIP: %p", fallback->rip);
-    APC_PreemptThread_s(task, fallback);
+    APC_PreemptThread_s(task, fallback, false);
 }
 
 static void APC_Complete_s(task_k task, size_t ret)
@@ -645,7 +647,7 @@ static void APC_Complete_s(task_k task, size_t ret)
     if (moreWorkPending)
     {
         APC_TryStoreSave(task, &GetInfoForTask(task)->previous_user);
-        APC_Run_s(task, next);
+        APC_Run_s(task, next, false);
     }
     else
     {
@@ -667,13 +669,6 @@ static void APC_OnThreadExit_s(OPtr<OProcess> thread)
     mutex_unlock(work_mutex);
 }
 
-static void APC_PreemptThread(task_k task, pt_regs * registers)
-{
-    mutex_lock(work_mutex);
-    APC_PreemptThread_s(task, registers);
-    mutex_unlock(work_mutex);
-}
-
 static void APC_OnThreadExit(OPtr<OProcess> thread)
 {
     mutex_lock(work_mutex);
@@ -686,8 +681,6 @@ void DeferredExecFinish(size_t ret)
     mutex_lock(work_mutex);
     APC_Complete_s(OSThread, ret);
     mutex_unlock(work_mutex);
-
-    APC_StallThread();
 }
 
 static void APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
