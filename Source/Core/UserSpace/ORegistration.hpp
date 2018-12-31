@@ -5,4 +5,4 @@
 */
 #pragma once
 
-void InitRegistration();
+extern void InitRegistration();

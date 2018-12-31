@@ -5,4 +5,4 @@
 */
 #pragma once
 
-void LoggingInit();
+extern void LoggingInit();

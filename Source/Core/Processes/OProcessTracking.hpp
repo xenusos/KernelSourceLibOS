@@ -5,5 +5,5 @@
 */
 #pragma once
 
-void InitProcessTracking();
-void ProcessesTryRegisterLeader(task_k tsk);
+extern void InitProcessTracking();
+extern void ProcessesTryRegisterLeader(task_k tsk);

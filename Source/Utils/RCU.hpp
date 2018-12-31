@@ -2,6 +2,6 @@
 
 namespace RCU
 {
-    void ReadLock();
-    void ReadUnlock();
+    extern void ReadLock();
+    extern void ReadUnlock();
 }

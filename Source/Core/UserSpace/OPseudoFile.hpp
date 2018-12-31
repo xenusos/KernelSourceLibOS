@@ -99,4 +99,4 @@ private:
 };
 
 
-void InitPseudoFiles();
+extern void InitPseudoFiles();

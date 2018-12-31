@@ -7,27 +7,27 @@ class OProcessThread;
 
 struct ODEParameters
 {
-    union
-    {
-        struct
-        {
-            size_t one;
-            size_t two;
-            size_t three;
-            size_t four;
-        };
-    };
+    size_t one;
+    size_t two;
+    size_t three;
+    size_t four;
+};
+
+struct ODEWork
+{
+    size_t address;
+    ODEParameters parameters;
 };
 
 typedef void(* ODECompleteCallback_f)(void * context);
 
-class ODEWorkItem : public OObject
+
+class ODEWorkJob : public OObject
 {
 public:
-    virtual error_t SetParameters(ODEParameters *)         = 0;
+    virtual error_t SetWork(ODEWork &)                     = 0;
 
     virtual error_t Schedule()                             = 0;
-    virtual error_t Unschedule()                           = 0;
 
     virtual error_t HasDispatched(bool &)                  = 0;
     virtual error_t HasExecuted(bool &)                    = 0;
@@ -38,4 +38,4 @@ public:
     virtual error_t GetResponse(size_t & ret)              = 0;
 };
 
-LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkItem> out);
+LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkJob> out);

@@ -151,6 +151,7 @@ OLUserMappedBufferImpl::OLUserMappedBufferImpl(task_k task)
     _va     = 0;
     _mapped = false;
     _task   = task;
+    _no_unmap = false;
     ProcessesTaskIncrementCounter(task);
 }
 
@@ -321,7 +322,7 @@ error_t OLUserMappedBufferImpl::Unmap()
     
     ret = kStatusOkay;
 
-    if (_va)
+    if (_va && _task)
     {
         mm_struct_k mm;
 
@@ -343,8 +344,22 @@ error_t OLUserMappedBufferImpl::Unmap()
     return kStatusOkay;
 }
 
+void  OLUserMappedBufferImpl::DisableUnmapOnFree()
+{
+    _no_unmap = true;
+
+    if (_task)
+    {
+        ProcessesTaskDecrementCounter(_task);
+        _task = nullptr;
+    }
+}
+
 void OLUserMappedBufferImpl::InvalidateImp()
 {
+    if (_no_unmap)
+        return;
+
     Unmap();   
     
     if (_task)
@@ -631,6 +646,7 @@ void  OLMemoryInterfaceImpl::UnmapPage(void * virt)
 page_k OLMemoryInterfaceImpl::AllocatePage(OLPageLocation location)
 {
     size_t flags;
+    page_k page;
  
     ASSERT(location != kPageInvalid, "invalid page region");
 
@@ -652,7 +668,7 @@ page_k OLMemoryInterfaceImpl::AllocatePage(OLPageLocation location)
     default:
         panic("illegal case statement " __FUNCTION__);
     }
-    
+
     return alloc_pages_current(flags, 0);
 }
 

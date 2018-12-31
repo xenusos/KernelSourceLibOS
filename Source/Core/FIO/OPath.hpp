@@ -35,5 +35,5 @@ private:
 };
 
 
-error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, path_k path);
-error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, vfsmount_k mnt, dentry_k entry);
+extern error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, path_k path);
+extern error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, vfsmount_k mnt, dentry_k entry);

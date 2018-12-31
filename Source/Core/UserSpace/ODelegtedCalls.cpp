@@ -12,8 +12,8 @@
 
 #include <Core/CPU/OThread.hpp>
 
-mutex_k delegated_mutex;
-dyn_list_head_p delegated_fns;
+static mutex_k delegated_mutex;
+static dyn_list_head_p delegated_fns;
 
 typedef struct SysJob_s
 {
@@ -163,11 +163,12 @@ void DelegatedCallsHandleCall(xenus_syscall_p atten)
 
 void DelegatedCallsHandleDeferredExec(xenus_syscall_p atten)
 {
-    DeferredExecFinish(atten->arg_alpha, atten->arg_bravo);
+    DeferredExecFinish(atten->arg_alpha/*, atten->arg_bravo*/);
 }
 
 void DelegatedCallsSysCallHandler(xenus_syscall_ref atten)
 {
+    puts("Syscall handler in");
     if (atten->attention_id == BUILTIN_CALL_DB_PULL)
     {
         DelegatedCallsHandlePull(atten);

@@ -35,6 +35,7 @@ public:
     virtual error_t GetVAEnd(size_t &)                              = 0;
     virtual error_t GetLength(size_t &)                             = 0;
     virtual error_t Unmap()                                         = 0;
+    virtual void    DisableUnmapOnFree()                            = 0;
 };
 
 // Describes a virtual buffer [or two if shared between user and kernel] pre-PTE allocation

@@ -17,6 +17,11 @@ public:
     error_t GetLength(size_t&)                                            override;
     error_t Unmap()                                                       override;
 
+    void    DisableUnmapOnFree()                                          override
+    {
+        panic("A kernel mapped buffer should be kept in memory and an attempt to unmap must be made on free");
+    }
+
     error_t CreateAddress(size_t pages, size_t & out);
     error_t Remap(dyn_list_head_p pages, size_t count, OLPageEntry prot);
 
@@ -38,6 +43,8 @@ public:
     error_t GetVAEnd(size_t&)                                             override;
     error_t GetLength(size_t&)                                            override;
     error_t Unmap()                                                       override;
+
+    void    DisableUnmapOnFree()                                          override;
                                                                  
     error_t CreateAddress(size_t pages, size_t & out);
     error_t Remap(dyn_list_head_p pages, size_t count, OLPageEntry prot);
@@ -49,6 +56,7 @@ protected:
     task_k _task;
     vm_area_struct_k _area;
     bool _mapped;
+    bool _no_unmap;
 };
 
 class OLBufferDescriptionImpl : public OLBufferDescription
@@ -103,4 +111,4 @@ public:
     error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder)       override;
 };
 
-void InitMemmory();
+extern void InitMemmory();

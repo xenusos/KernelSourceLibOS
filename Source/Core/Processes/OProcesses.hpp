@@ -69,7 +69,7 @@ public:
     error_t GetModulePath(const char **path)                                                     override;
     error_t GetDrive(const char **mnt)                                                           override;
     error_t GetWorkingDirectory(const char **wd)                                                 override;
-    error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec)                                     override;
+    //error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec)                                     override;
                                                                                                  
     error_t UpdateThreadCache()                                                                  override;
     uint_t GetThreadCount()                                                                      override;
@@ -94,6 +94,6 @@ private:
     task_k  _tsk;
     mutex_k _threads_mutex;
     dyn_list_head_p         _threads;
-    ProcessSecurityLevel_e  _lvl;
+    //ProcessSecurityLevel_e  _lvl;
     OProcessThreadImpl *    _main_thread;
 };

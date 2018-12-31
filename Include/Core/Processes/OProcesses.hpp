@@ -26,7 +26,7 @@ public:
     virtual error_t GetModulePath(const char **path)                                            = 0;
     virtual error_t GetDrive(const char **mnt)                                                  = 0;
     virtual error_t GetWorkingDirectory(const char **wd)                                        = 0;
-    virtual error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec)                            = 0;
+    // virtual error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec) = 0;
     // TODO: user api                                                                           
                                                                                                 
     virtual error_t UpdateThreadCache()                                                         = 0; // WARNING: 
