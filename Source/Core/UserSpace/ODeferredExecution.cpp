@@ -174,7 +174,9 @@ void ODEWorkHandler::ParseRegisters(pt_regs & regs)
     for (int i = 0; i < 6; i++)
         desc->PageInsert(i, stack.pages[i]);
 
-    desc->SetupKernelAddress(stackStart);
+    err = desc->SetupKernelAddress(stackStart);
+    ASSERT(err, "Couldn't setup kernel address for map");
+
     err = desc->MapKernel(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
     ASSERT(err, "Couldn't get map pages to kernel");
 
@@ -456,12 +458,12 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
     // append work entry to list 
     err = dyn_list_append(listhead, (void **)&pimpl);
     ASSERT(NO_ERROR(err), "couldn't append list entry");
-    printf("pimpl %p %p\n", pimpl, impl);
     *pimpl = impl;
 
     // if there's only one entry in the work queue, kick start
     err = dyn_list_entries(listhead, &length);
     ASSERT(NO_ERROR(err), "couldn't get list size");
+
     if (length == 1)
         APC_Run_s(tsk, impl, true);
 }
@@ -574,7 +576,7 @@ static void APC_TryStoreSave(task_k task, pt_regs * restore)
 
     // get or allocate array
     // map<task pid, dynamic array<ODEWorkhandler *>>
-    if (ERROR(chain_get(work_restore, tgid, nullptr, (void **)&pchain)))
+    if ((err = chain_get(work_restore, tgid, nullptr, (void **)&pchain)) == XENUS_ERROR_LINK_NOT_FOUND)
     {
         chain_p chain;
         chain_allocate(&chain);
@@ -586,14 +588,20 @@ static void APC_TryStoreSave(task_k task, pt_regs * restore)
             *pchain = chain;
         }
     }
+    else if (ERROR(err))
+    {
+        panicf("APC_TryStoreSave: [1] chain error %zx", err);
+    }
     else
     {
         // get map entry
-        if (NO_ERROR(chain_get(*pchain, pid, nullptr, (void **)&pregs)))
+        if (NO_ERROR(err = chain_get(*pchain, pid, nullptr, (void **)&pregs)))
         {
             // PID exists
             return;
-        }
+        } 
+
+        ASSERT(err != XENUS_ERROR_LINK_NOT_FOUND, "APC_TryStoreSave: [2] chain error %zx", err)
     }
 
     chain = *pchain;
@@ -729,8 +737,9 @@ void InitDeferredCalls()
     chain_allocate(&work_thread_stacks);
     chain_allocate(&work_process_ips);
     chain_allocate(&work_restore);
-    work_mutex         = mutex_create();
-    work_watcher_mutex = mutex_create();
+
+    work_mutex         = mutex_init();
+    work_watcher_mutex = mutex_init();
 }
 
 LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkJob> out)
