@@ -643,7 +643,7 @@ void  OLMemoryInterfaceImpl::UnmapPage(void * virt)
     
 }
 
-page_k OLMemoryInterfaceImpl::AllocatePage(OLPageLocation location, size_t flags)
+page_k OLMemoryInterfaceImpl::AllocatePage(OLPageLocation location, size_t uflags)
 {
     size_t flags;
     page_k page;
@@ -653,7 +653,7 @@ page_k OLMemoryInterfaceImpl::AllocatePage(OLPageLocation location, size_t flags
     flags = 0;
     flags |= GFP_KERNEL /*user differs with the addition of __GFP_HARDWALL. afaik we dont need such*/;
 
-    if (flags & OL_PAGE_ZERO)
+    if (uflags & OL_PAGE_ZERO)
         flags |= __GFP_ZERO;
 
     switch (location)
