@@ -476,7 +476,7 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
     ASSERT(NO_ERROR(err), "couldn't get list size");
 
     if (length == 1)
-        APC_Run_s(tsk, impl, true);
+        APC_Run_s(tsk, impl, OSThread != tsk);
 }
 
 static void APC_PopComplete_s(task_k tsk, ODEWorkHandler * & job, bool & moreWorkPending, ODEWorkHandler * & next)
