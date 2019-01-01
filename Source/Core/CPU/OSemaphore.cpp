@@ -19,6 +19,15 @@ struct SemaWaitingThreads
     bool signal;
 };
 
+static inline long MS_TO_JIFFIES(long ms)
+{
+    long HZ = kernel_information.KERNEL_FREQUENCY;
+    if (ms > 1000)
+        return HZ * ms / 1000;
+    else
+        return HZ / (1000 / ms);
+}
+
 OCountingSemaphoreImpl::OCountingSemaphoreImpl(uint32_t start_count, uint32_t limit, mutex_k mutex, dyn_list_head_p list)
 {
     _counter = start_count;
@@ -41,7 +50,7 @@ error_t OCountingSemaphoreImpl::GetUsed(size_t & out)
     return kStatusOkay;
 }
 
-error_t OCountingSemaphoreImpl::Wait()
+error_t OCountingSemaphoreImpl::Wait(uint32_t ms)
 {
     CHK_DEAD;
     error_t err;
@@ -61,7 +70,7 @@ error_t OCountingSemaphoreImpl::Wait()
         return kErrorSemaphoreExceededLimit;
     }
 
-    if (NO_ERROR(err = GoToSleep()))
+    if (STRICTLY_OKAY(err = GoToSleep(ms)))
     {
         _InterlockedDecrement(&_counter);
     }
@@ -70,7 +79,7 @@ error_t OCountingSemaphoreImpl::Wait()
     return err;
 }
 
-error_t OCountingSemaphoreImpl::GoToSleep()
+error_t OCountingSemaphoreImpl::GoToSleep(uint32_t ms)
 {
     CHK_DEAD;
     SemaWaitingThreads entry;
@@ -79,6 +88,8 @@ error_t OCountingSemaphoreImpl::GoToSleep()
     error_t err;
     ITask tsk(OSThread);
     size_t idx;
+    int64_t timeout;
+    bool timeoutable;
 
     ustate = tsk.GetVarState().GetUInt();
 
@@ -90,22 +101,45 @@ error_t OCountingSemaphoreImpl::GoToSleep()
     entry.thread = OSThread;
     entry.signal = false;
 
+    if (ms != -1)
+    {
+        timeout = MAX(1, MS_TO_JIFFIES(ms));
+        timeoutable = true;
+    }
+    else
+    {
+        timeoutable = false;
+    }
+
     while (1)
     {
         // Check if semaphore unlocked
         if (entry.signal)
             break;
 
+        if ((timeoutable) && (timeout == 0))
+            break;
+
         // Sleep
         mutex_unlock(_acquisition);
         {
-            tsk.GetVarState().Set((uint_t)TASK_INTERRUPTIBLE);
-            schedule();
+            if (!timeoutable)
+            {
+                tsk.GetVarState().Set((uint_t)TASK_INTERRUPTIBLE);
+                schedule();
+            }
+            else
+            {
+                timeout = schedule_timeout_interruptible(timeout);
+            }
         }
         mutex_lock(_acquisition);
     }
 
     tsk.GetVarState().Set(ustate);
+
+    if ((timeoutable) && (timeout == 0))
+        return kStatusTimeout;
 
     return kStatusOkay;
 }
