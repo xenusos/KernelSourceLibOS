@@ -161,6 +161,7 @@ exit:
 void ProcessesRegisterTsk(task_k tsk)
 {
     ProcessesStart(tsk);
+
     threading_ntfy_singleshot_exit(ProcessesGetPid(tsk), ProcessesExit);
 }
 

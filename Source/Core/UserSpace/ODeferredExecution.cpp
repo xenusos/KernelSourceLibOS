@@ -10,7 +10,9 @@
       More AHHHH
 */
 #include <libos.hpp>
+#include <Core/CPU/OWorkQueue.hpp>
 #include "ODeferredExecution.hpp"
+
 #include <Core/Memory/Linux/OLinuxMemory.hpp>
 #include "../Processes/OProcesses.hpp"
 #include "../../Utils/RCU.hpp"
@@ -60,24 +62,33 @@ static linux_thread_info * GetInfoForTask(task_k tsk)
     return (linux_thread_info *)task_get_thread_info(tsk);
 }
 
-ODEWorkJobImpl::ODEWorkJobImpl(task_k task)
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// Work object watcher / API ///////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+
+ODEWorkJobImpl::ODEWorkJobImpl(task_k task, OPtr<OWorkQueue> workqueue)
 {
     _worker     = nullptr;
     _execd      = false;
     _dispatched = false;
     _work       = { 0 };
     _task       = task;
+    _cb         = nullptr;
+    _workqueue = workqueue;
+
     ProcessesTaskIncrementCounter(task);
 }
 
 error_t ODEWorkJobImpl::SetWork(ODEWork & work)
 {
+    CHK_DEAD;
     _work = work;
     return kStatusOkay;
 }
 
 error_t ODEWorkJobImpl::Schedule()
 {
+    CHK_DEAD;
     if (_worker)
         return kErrorInternalError;
 
@@ -95,28 +106,40 @@ error_t ODEWorkJobImpl::Schedule()
 
 error_t ODEWorkJobImpl::HasDispatched(bool & dispatched) 
 {
+    CHK_DEAD;
     dispatched = _dispatched;
     return kStatusOkay;
 }
 
 error_t ODEWorkJobImpl::HasExecuted(bool & executed)
 {
+    CHK_DEAD;
     executed = _execd;
     return kStatusOkay;
 }
 
 error_t ODEWorkJobImpl::WaitExecute(uint32_t ms)               
 {
-    return kErrorNotImplemented;
+    CHK_DEAD;
+    error_t err;
+    if (STRICTLY_OKAY(err = _workqueue->WaitAndAddOwner(ms)))
+        _workqueue->ReleaseOwner();
+    return err;
 }
 
-error_t ODEWorkJobImpl::AwaitExecute(ODECompleteCallback_f cb) 
+error_t ODEWorkJobImpl::AwaitExecute(ODECompleteCallback_f cb, void * context)
 {
-    return kErrorNotImplemented;
+    CHK_DEAD;
+    if (_cb)
+        return kErrorInternalError;
+    _cb     = cb;
+    _cb_ctx = context;
+    return kStatusOkay;
 }
 
 error_t ODEWorkJobImpl::GetResponse(size_t & ret)
 {
+    CHK_DEAD;
     ret = _response;
     return kStatusOkay;
 }
@@ -126,9 +149,12 @@ void ODEWorkJobImpl::InvalidateImp()
     mutex_lock(work_watcher_mutex);
     if (_worker)
         _worker->Fuckoff();
+
+    _workqueue->Destory();
     mutex_unlock(work_watcher_mutex);
 
     ProcessesTaskDecrementCounter(_task);
+    _task = nullptr;
 }
 
 void ODEWorkJobImpl::Fuckoff()
@@ -140,7 +166,16 @@ void ODEWorkJobImpl::Hit(size_t response)
 {
     _response = response;
     _execd    = true;
+
+    if (_cb)
+        _cb(_cb_ctx);
+
+    _workqueue->Trigger();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// Work Handler [APC object] ///////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
 
 ODEWorkHandler::ODEWorkHandler(task_k tsk, ODEWorkJobImpl * worker)
 {
@@ -239,6 +274,10 @@ error_t ODEWorkHandler::Schedule()
     _tsk = nullptr;
     return kFuckMe;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// APC implementation  //////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
 
 static void APC_MapReturnStub_s(task_k tsk, size_t & ret)
 {
@@ -822,16 +861,20 @@ void InitDeferredCalls()
 
 LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkJob> out)
 {
-    error_t idgaf;
+    error_t err;
     task_k handle;
+    OPtr<OWorkQueue> wq;
 
     if (target->IsDead())
         return kErrorIllegalBadArgument;
 
-    if (ERROR(idgaf = target->GetOSHandle((void **)&handle)))
-        return idgaf;
+    if (ERROR(err = CreateWorkQueue(1, wq)))
+        return err;
 
-    if (!out.PassOwnership(new ODEWorkJobImpl(handle)))
+    if (ERROR(err = target->GetOSHandle((void **)&handle)))
+        return err;
+
+    if (!out.PassOwnership(new ODEWorkJobImpl(handle, wq)))
         return kErrorOutOfMemory;
 
     return kStatusOkay;

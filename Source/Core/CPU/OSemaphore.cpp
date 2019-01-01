@@ -209,6 +209,7 @@ void OCountingSemaphoreImpl::InvalidateImp()
         panic("OCountingSemaphore couldn't obtain length of waiters");
 
     ASSERT(waiters == 0, "destoryed counting semaphore with items awaiting");
+
     dyn_list_destory(_list);
     mutex_destroy(_acquisition);
 }

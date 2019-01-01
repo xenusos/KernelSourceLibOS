@@ -3,6 +3,7 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+#define THREAD_ENABLE_CLEANUP_ACCESS
 #include <libos.hpp>
 #include "ORegistration.hpp"
 
@@ -16,7 +17,7 @@ OPtr<OPseudoFile> registration_file;
 void RegisterCurrent()
 {
     threading_set_process_syscall_handler(DelegatedCallsSysCallHandler);
-
+    thread_enable_cleanup();
     ProcessesTryRegisterLeader(OSThread);
 }
 

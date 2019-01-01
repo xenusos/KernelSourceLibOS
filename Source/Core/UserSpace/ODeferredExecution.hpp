@@ -14,26 +14,26 @@ class ODEWorkHandler;
 class ODEWorkJobImpl : public ODEWorkJob
 {
 public:
-    ODEWorkJobImpl(task_k task);
-
-    error_t SetWork(ODEWork &)                     override;
-
-    error_t Schedule()                             override;
-
-    error_t HasDispatched(bool &)                  override;
-    error_t HasExecuted(bool &)                    override;
-
-    error_t WaitExecute(uint32_t ms)               override;
-    error_t AwaitExecute(ODECompleteCallback_f cb) override;
-
-    error_t GetResponse(size_t & ret)              override;
-
-    void Hit(size_t response);
-    void Fuckoff();
-    
-protected:
-    void InvalidateImp()                           override;
-
+    ODEWorkJobImpl(task_k task, OPtr<OWorkQueue> workqueue);
+                                                                   
+    error_t SetWork(ODEWork &)                                     override;
+                                                                   
+    error_t Schedule()                                             override;
+                                                                   
+    error_t HasDispatched(bool &)                                  override;
+    error_t HasExecuted(bool &)                                    override;
+                                                                   
+    error_t WaitExecute(uint32_t ms)                               override;
+    error_t AwaitExecute(ODECompleteCallback_f cb, void * context) override;
+                                                                   
+    error_t GetResponse(size_t & ret)                              override;
+                                                                   
+    void Hit(size_t response);                                     
+    void Fuckoff();                                                
+                                                                   
+protected:                                                         
+    void InvalidateImp()                                           override;
+                                                                   
 private:
     ODEWorkHandler * _worker;
     ODEWork _work;
@@ -41,6 +41,9 @@ private:
     bool _execd;
     bool _dispatched;
     size_t _response;
+    OPtr<OWorkQueue> _workqueue;
+    ODECompleteCallback_f _cb;
+    void * _cb_ctx;
 };
 
 class ODEWorkHandler 
