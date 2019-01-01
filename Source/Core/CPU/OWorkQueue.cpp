@@ -220,6 +220,7 @@ error_t OWorkQueueImpl::ReleaseOwner()
 
 void OWorkQueueImpl::InvalidateImp()
 {
+    // TODO: bug on workers length || waiters length
     dyn_list_destory(_workers);
     dyn_list_destory(_waiters);
     mutex_destroy(_acquisition);
