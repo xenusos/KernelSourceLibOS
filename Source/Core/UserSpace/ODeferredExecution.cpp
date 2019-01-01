@@ -1,11 +1,10 @@
 /*
-    Purpose: oh boyyy fuck me
+    Purpose: A Windows-APC style thread preemption within the Linux kernel [depends on latest xenus linux kernel patch]
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 
     Issues:
-      Undefined behaviour on thread crash; will leak and fuck up shit for all threads assigned to old bad pid (other tgid threads and derivatives will be ok)
-      AHHHH
+      Undefined behaviour on thread crash; ~~will leak and fuck up shit for all threads assigned to old bad pid (other tgid threads and derivatives will be ok)~~
       AHHHH
       More AHHHH
 */
@@ -600,7 +599,7 @@ static void APC_FreeWorkHandlers(void * data)
         error_t err;
         dyn_list_head_p *  listhead = (dyn_list_head_p *)buffer;
         dyn_list_head_p    list     = *listhead;
-        
+
         err = dyn_list_iterate(list, [](void * buffer, void * ctd)
         {
             ODEWorkHandler **  listitem = (ODEWorkHandler **)buffer;

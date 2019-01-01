@@ -5,6 +5,7 @@
 */
 #pragma once
 
+#include <Core/CPU/OWorkQueue.hpp> 
 #include <Core/UserSpace/ODeferredExecution.hpp>
 
 class OLBufferDescription;
