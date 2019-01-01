@@ -9,6 +9,8 @@ const size_t OL_ACCESS_READ         = (1 << 0);
 const size_t OL_ACCESS_WRITE        = (1 << 1);
 const size_t OL_ACCESS_EXECUTE      = (1 << 2);
 
+const size_t OL_PAGE_ZERO           = (1 << 0);
+
 enum OLCacheType
 {
     kCacheCache          = 0,
@@ -78,7 +80,7 @@ class OLMemoryInterface
 public:
     virtual OLPageLocation GetPageLocation(size_t max)                                = 0;           // nvidya demands ranges of (0, (1 << adapter bits) - 1) 
                                                                                                      // lets be nice to them
-    virtual page_k AllocatePage(OLPageLocation location)                              = 0;
+    virtual page_k AllocatePage(OLPageLocation location, size_t flags = 0)            = 0;
     virtual void   FreePage(page_k page)                                              = 0;
                                                                                       
     virtual phys_addr_t   PhysPage(page_k page)                                       = 0;

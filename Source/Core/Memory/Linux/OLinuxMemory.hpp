@@ -101,7 +101,7 @@ public:
     void *          MapPage(page_k page)                                        override;
     void          UnmapPage(void * virt)                                        override;
                                                                           
-    page_k AllocatePage(OLPageLocation location)                                override;
+    page_k AllocatePage(OLPageLocation location, size_t flags)                  override;
     void       FreePage(page_k page)                                            override;
   
     void        UpdatePageEntryCache (OLPageEntry &, OLCacheType cache)         override;
