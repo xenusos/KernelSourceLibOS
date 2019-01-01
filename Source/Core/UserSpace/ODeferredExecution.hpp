@@ -53,6 +53,7 @@ public:
     error_t Schedule();
     void Fuckoff();
     void Hit(size_t response);
+    void Die();
     void ParseRegisters(pt_regs & regs);
 private:
     ODEWorkJobImpl * _parant;

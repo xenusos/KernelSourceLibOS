@@ -39,7 +39,7 @@ struct linux_thread_info // TODO: portable structs. NEVER TRUST MSVC and GCC TO 
     pt_regs  next_user;
 };
 
-static page_k  work_returnstub;
+static page_k  work_returnstub_64;
 static chain_p work_queues;            // chain<tgid, chain<tid, ODEWorkHandler>>
 static chain_p work_thread_stacks;     // chain<tgid, chain<tid, APCStack>>
 static chain_p work_process_ips;       // chain<tgid, size_t>>
@@ -213,6 +213,17 @@ void ODEWorkHandler::Hit(size_t response)
     delete this;
 }
 
+void ODEWorkHandler::Die()
+{
+    mutex_lock(work_watcher_mutex);
+    if (_parant)
+    {
+        _parant->Fuckoff();
+    }
+    mutex_unlock(work_watcher_mutex);
+    delete this;
+}
+
 error_t ODEWorkHandler::SetWork(ODEWork & work)
 {
     _work = work;
@@ -238,7 +249,7 @@ static void APC_MapReturnStub_s(task_k tsk, size_t & ret)
     err = OS_MemoryInterface->NewBuilder(desc);
     ASSERT(NO_ERROR(err), "APC_AllocateStack_s: Couldn't allocate builder");
 
-    desc->PageInsert(0, work_returnstub);
+    desc->PageInsert(0, work_returnstub_64);
 
     err = desc->SetupUserAddress(tsk, ret);
     ASSERT(NO_ERROR(err), "APC_AllocateStack_s: couldn't setup address");
@@ -525,22 +536,90 @@ static void APC_PopComplete_s(task_k tsk, ODEWorkHandler * & job, bool & moreWor
     }
 }
 
+static void APC_FreeThreadStack(void * data)
+{
+    error_t er;
+    chain_p chain = *(chain_p *)data;
+
+    ASSERT(NO_ERROR(er = chain_destory(chain)), "APC_FreeThreadStack: error 0x%zx", er);
+}
+
+static void APC_FreeThreadRestore(void * data)
+{
+    error_t er;
+    chain_p chain = *(chain_p *)data;
+
+    ASSERT(NO_ERROR(er = chain_destory(chain)), "APC_FreeThreadRestore: error 0x%zx", er);
+}
+
+static void APC_FreeWorkHandlers(void * data)
+{
+    error_t er;
+    chain_p chain = *(chain_p *)data;
+
+    er = chain_iterator(chain, [](uint64_t hash, void * buffer, void * ctx) {
+        error_t err;
+        dyn_list_head_p *  listhead = (dyn_list_head_p *)buffer;
+        dyn_list_head_p    list     = *listhead;
+        
+        err = dyn_list_iterate(list, [](void * buffer, void * ctd)
+        {
+            ODEWorkHandler **  listitem = (ODEWorkHandler **)buffer;
+            ODEWorkHandler *   listvalue = *listitem;
+            LogPrint(kLogDbg, "APC: prematurely destorying work handler %p\n", listvalue);
+
+            listvalue->Die();
+        }, nullptr);
+        ASSERT(NO_ERROR(err), "APC_FreeWorkHandlers [lambda]: iteration failure. Code: 0x%zx", err);
+    
+        dyn_list_destory(*listhead);
+        LogPrint(kLogDbg, "APC: destoryed work handler list\n");
+    }, nullptr);
+    ASSERT(NO_ERROR(er), "APC_FreeWorkHandlers: iteration failure. Code: 0x%zx", er);
+
+    er =  chain_destory(chain);
+    ASSERT(NO_ERROR(er), "APC_FreeWorkHandlers: error 0x%zx", er);
+}
+
 static void APC_CleanupTask_s(task_k tsk)
 {
     link_p link;
     dyn_list_head_p * listhead;
+    uint_t pid;
+    uint_t tgid;
+    void * entry;
 
-    //if (NO_ERROR(chain_get(work_process_ips, ProcessesGetPid(tsk), &link, nullptr)))
-    //    chain_deallocate_handle(link);
-    //
-    //if (NO_ERROR(chain_get(work_thread_stacks, ProcessesGetPid(tsk), &link, nullptr)))
-    //    chain_deallocate_handle(link);
-    //
-    //if (NO_ERROR(chain_get(work_queues, ProcessesGetPid(tsk), &link, (void **)&listhead)))
-    //{
-    //    dyn_list_destory(*listhead);
-    //    chain_deallocate_handle(link);
-    //}
+    pid  = ProcessesGetPid(tsk);
+    tgid = ProcessesGetTgid(tsk);
+
+    if (pid != tgid)
+    {
+        LogPrint(kLogDbg, "APC_CleanupTask_s: %x (%i) isn't thread leader %i", tsk, pid, tgid);
+        return;
+    }
+
+    LogPrint(kLogDbg, "APC_CleanupTask_s: cleaning up process %x (%i)", tsk, pid, tgid);
+
+    if (NO_ERROR(chain_get(work_process_ips, tgid, &link, nullptr)))
+        chain_deallocate_handle(link);
+
+    if (NO_ERROR(chain_get(work_thread_stacks, tgid, &link, &entry)))
+    {
+        APC_FreeThreadStack(entry);
+        chain_deallocate_handle(link);
+    }
+
+    if (NO_ERROR(chain_get(work_restore, tgid, &link, &entry)))
+    {
+        APC_FreeThreadRestore(entry);
+        chain_deallocate_handle(link);
+    }
+
+    if (NO_ERROR(chain_get(work_queues, tgid, &link, &entry)))
+    {
+        APC_FreeWorkHandlers(entry);
+        chain_deallocate_handle(link);
+    }
 }
 
 static void APC_PreemptThread_s(task_k task, pt_regs * registers, bool kick)
@@ -672,9 +751,7 @@ static void APC_OnThreadExit_s(OPtr<OProcess> thread)
         return;
     }
 
-    mutex_lock(work_mutex);
     APC_CleanupTask_s(task);
-    mutex_unlock(work_mutex);
 }
 
 static void APC_OnThreadExit(OPtr<OProcess> thread)
@@ -698,7 +775,7 @@ static void APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
     mutex_unlock(work_mutex);
 }
 
-static void InitReturnStub()
+static void InitReturnStub_64()
 {
     const uint8_t x86_64[] = { 0x48, 0xC7, 0xC7, 0x05, 0x00, 0x00, 0x00, 0x48, 0x89, 0xC6, 0x48, 0xC7, 0xC0, 0x90, 0x01, 0x00, 0x00, 0x0F, 0x05 };
 
@@ -707,13 +784,13 @@ static void InitReturnStub()
     ORetardPtr<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
-    work_returnstub = OS_MemoryInterface->AllocatePage(kPageNormal);
-    ASSERT(work_returnstub, "couldn't allocate return stub");
+    work_returnstub_64 = OS_MemoryInterface->AllocatePage(kPageNormal);
+    ASSERT(work_returnstub_64, "couldn't allocate return stub");
 
     err = OS_MemoryInterface->NewBuilder(desc);
     ASSERT(NO_ERROR(err), "Couldn't allocate builder");
 
-    desc->PageInsert(0, work_returnstub);
+    desc->PageInsert(0, work_returnstub_64);
 
     desc->SetupKernelAddress(addr);
     err = desc->MapKernel(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
@@ -725,13 +802,14 @@ static void InitReturnStub()
     memcpy((void *)addr, x86_64, sizeof(x86_64));
 }
 
+
 void InitDeferredCalls()
 {
     ProcessesAddExitHook(APC_OnThreadExit);
 
     ASSERT(NO_ERROR(GetLinuxMemoryInterface(OS_MemoryInterface)), "couldn't get linux memory interface"); // TODO: assert
 
-    InitReturnStub();
+    InitReturnStub_64();
 
     chain_allocate(&work_queues);
     chain_allocate(&work_thread_stacks);
