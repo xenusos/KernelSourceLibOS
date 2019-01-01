@@ -62,7 +62,8 @@ uint_t OLinuxPathImpl::ToString(char * str, uint_t length)
     
     len = ((uint_t)str + length - (uint_t)ffs);
     memmove(str, ffs, len);
-    //TODO: consider appending '\0'
+    str[length - 1] = '\x00'; 
+    //TODO Reece: check for exploits / underflows / whatevers
     return length;
 }
 
