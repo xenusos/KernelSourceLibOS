@@ -203,6 +203,12 @@ error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & out)
 
 void OCountingSemaphoreImpl::InvalidateImp()
 {
+    size_t waiters;
+
+    if (ERROR(dyn_list_entries(_list, &waiters)))
+        panic("OCountingSemaphore couldn't obtain length of waiters");
+
+    ASSERT(waiters == 0, "destoryed counting semaphore with items awaiting");
     dyn_list_destory(_list);
     mutex_destroy(_acquisition);
 }
