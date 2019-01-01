@@ -13,14 +13,20 @@ struct ODEParameters
     size_t four;
 };
 
+enum ODECallingConvention
+{
+    kODESysV = 0,
+    kODEWin64
+};
+
 struct ODEWork
 {
     size_t address;
+    ODECallingConvention cc;
     ODEParameters parameters;
 };
 
 typedef void(* ODECompleteCallback_f)(void * context);
-
 
 class ODEWorkJob : public OObject
 {

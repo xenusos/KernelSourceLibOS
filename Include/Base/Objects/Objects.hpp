@@ -20,8 +20,8 @@ private:
 };
 #include "ObjectsObject.imp"
 
-#define CHK_DEAD {if (IsDead()) return kErrorObjectDead; }
-#define CHK_DEAD_RET_NULL {if (IsDead()) return nullptr; }
+#define CHK_DEAD          do {if (IsDead()) return kErrorObjectDead; }  while (0)
+#define CHK_DEAD_RET_NULL do {if (IsDead()) return nullptr; }           while (0)
 
 template<class T>
 class OPtr

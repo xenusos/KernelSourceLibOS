@@ -224,10 +224,21 @@ void ODEWorkHandler::ParseRegisters(pt_regs & regs)
 
     regs.rsp = rsp;
     regs.rip = _work.address;
-    regs.rdi = _work.parameters.one;
-    regs.rsi = _work.parameters.two;
-    regs.rdx = _work.parameters.three;
-    regs.rcx = _work.parameters.four;
+
+    if (_work.cc == kODESysV)
+    {
+        regs.rdi = _work.parameters.one;
+        regs.rsi = _work.parameters.two;
+        regs.rdx = _work.parameters.three;
+        regs.rcx = _work.parameters.four;
+    }
+    else if (_work.cc == kODEWin64)
+    {
+        regs.rcx = _work.parameters.one;
+        regs.rdx = _work.parameters.two;
+        regs.r8  = _work.parameters.three;
+        regs.r9  = _work.parameters.four;
+    }
 }
 
 void ODEWorkHandler::Fuckoff()
@@ -285,15 +296,15 @@ static void APC_MapReturnStub_s(task_k tsk, size_t & ret)
     OPtr<OLGenericMappedBuffer> map;
 
     err = OS_MemoryInterface->NewBuilder(desc);
-    ASSERT(NO_ERROR(err), "APC_AllocateStack_s: Couldn't allocate builder");
+    ASSERT(NO_ERROR(err), "Couldn't allocate builder");
 
     desc->PageInsert(0, work_returnstub_64);
 
     err = desc->SetupUserAddress(tsk, ret);
-    ASSERT(NO_ERROR(err), "APC_AllocateStack_s: couldn't setup address");
+    ASSERT(NO_ERROR(err), "couldn't setup address");
 
     err = desc->MapUser(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE | OL_ACCESS_EXECUTE, kCacheNoCache));
-    ASSERT(NO_ERROR(err), "APC_AllocateStack_s: Couldn't get map pages to kernel");
+    ASSERT(NO_ERROR(err), "Couldn't get map pages to kernel");
      
     map->DisableUnmapOnFree(); // release Xenus shit, allow task GC, keep VA mapping
 }
@@ -318,7 +329,7 @@ static void APC_GetProcessReturnStub_s(task_k tsk, size_t & ret)
 
     // Allocate link / map entry
     err = chain_allocate_link(work_process_ips, tgid, sizeof(size_t), nullptr, nullptr, (void **)&pusraddr);
-    ASSERT(NO_ERROR(err), "APC_GetProcessReturnStub: couldn't create chain link");
+    ASSERT(NO_ERROR(err), "couldn't create chain link");
     *pusraddr = usraddr;
 
     ret = usraddr;
@@ -331,27 +342,27 @@ static void APC_AllocateStack_s(task_k tsk, APCStack & stack)
     OPtr<OLGenericMappedBuffer> map;
 
     for (int i = 0; i < 6; i++)
-        stack.pages[i] = OS_MemoryInterface->AllocatePage(kPageNormal);
+        stack.pages[i] = OS_MemoryInterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
 
     stack.length = OS_THREAD_SIZE * 6;
  
     err = OS_MemoryInterface->NewBuilder(desc);
-    ASSERT(err, "APC_AllocateStack_s: Couldn't allocate builder");
+    ASSERT(err, "Couldn't allocate builder");
 
     for (int i = 0; i < 6; i++)
         desc->PageInsert(i, stack.pages[i]);
 
     err = desc->SetupUserAddress(tsk, stack.mapped.address);
-    ASSERT(NO_ERROR(err), "APC_AllocateStack_s: couldn't setup address");
+    ASSERT(NO_ERROR(err), "couldn't setup address");
 
     err = desc->MapUser(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
-    ASSERT(err, "APC_AllocateStack_s: Couldn't get map pages to kernel");
+    ASSERT(err, "Couldn't get map pages to kernel");
 
     err = map->GetVAEnd(stack.mapped.top);
-    ASSERT(err, "APC_AllocateStack_s: Couldn't get VA end");
+    ASSERT(err, "Couldn't get VA end");
 
     err = map->GetVAStart(stack.mapped.bottom);
-    ASSERT(err, "APC_AllocateStack_s: Couldn't get VA start");
+    ASSERT(err, "Couldn't get VA start");
 
     map->DisableUnmapOnFree(); // release Xenus shit, allow task GC, keep VA mapping
 }
@@ -394,7 +405,7 @@ static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
         {
             chain_p * pchain;
             err = chain_allocate_link(work_thread_stacks, tgid, sizeof(chain_p), nullptr, nullptr, (void **)&pchain);
-            ASSERT(NO_ERROR(err), "APC_GetTaskStack_s: couldn't create tgid link");
+            ASSERT(NO_ERROR(err), "couldn't create tgid link");
             *pchain = chain;
         }
 
@@ -402,7 +413,7 @@ static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
     }
     else
     {
-        panicf("APC_GetTaskStack_s: chain returned error code: 0x%zx", err);
+        panicf("chain returned error code: 0x%zx", err);
     }
 
     // Allocate stack
@@ -411,7 +422,7 @@ static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
     // Allocate link / map entry
     {
         err = chain_allocate_link(pidchain, pid, sizeof(APCStack), nullptr, nullptr, (void **)&pstack);
-        ASSERT(NO_ERROR(err), "APC_GetTaskStack_s: couldn't create chain link");
+        ASSERT(NO_ERROR(err), "couldn't create chain link");
         *pstack = stack;
     }
 
@@ -452,26 +463,26 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
         // Append thread group entry map into root 
         {
             err = chain_allocate_link(work_queues, tgid, sizeof(chain_p), nullptr, nullptr, (void **)&pchain);
-            ASSERT(NO_ERROR(err), "APC_AddWorkWork_s: couldn't create chain link");
+            ASSERT(NO_ERROR(err), "couldn't create chain link");
             *pchain = chain;
         }
 
         // Allocate list head/handle
         {
             listhead = DYN_LIST_CREATE(ODEWorkHandler *);
-            ASSERT(listhead, "APC_AddWorkWork_s: list head couldn't be created - out of memory?");
+            ASSERT(listhead, "list head couldn't be created - out of memory?");
         }
 
         // Allocate link / map entry
         {
             err = chain_allocate_link(chain, pid, sizeof(dyn_list_head_p), nullptr, nullptr, (void **)&plisthead);
-            ASSERT(NO_ERROR(err), "APC_AddWorkWork_s: couldn't create chain link");
+            ASSERT(NO_ERROR(err), "couldn't create chain link");
             *plisthead = listhead;
         }
     }
     else if (ERROR(err))
     {
-        panicf("APC_AddWorkWork_s: bad chain. error code: 0x%zx", err);
+        panicf("bad chain. error code: 0x%zx", err);
     }
     else
     {
@@ -486,16 +497,16 @@ static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
 
             // Allocate list head/handle
             listhead = DYN_LIST_CREATE(ODEWorkHandler *);
-            ASSERT(listhead, "APC_AddWorkWork_s: list head couldn't be created - out of memory?");
+            ASSERT(listhead, "list head couldn't be created - out of memory?");
 
             // Allocate link / map entry
             err = chain_allocate_link(pidmap, pid, sizeof(dyn_list_head_p), nullptr, nullptr, (void **)&plisthead);
-            ASSERT(NO_ERROR(err), "APC_AddWorkWork_s: couldn't create chain link");
+            ASSERT(NO_ERROR(err), "couldn't create chain link");
             *plisthead = listhead;
         }
         else if (ERROR(err))
         {
-            panicf("APC_AddWorkWork_s: bad second chain. error code: 0x%zx", err);
+            panicf("bad second chain. error code: 0x%zx", err);
         }
         else
         {
@@ -579,7 +590,7 @@ static void APC_FreeThreadStack(void * data)
     error_t er;
     chain_p chain = *(chain_p *)data;
 
-    ASSERT(NO_ERROR(er = chain_destory(chain)), "APC_FreeThreadStack: error 0x%zx", er);
+    ASSERT(NO_ERROR(er = chain_destory(chain)), "error 0x%zx", er);
 }
 
 static void APC_FreeThreadRestore(void * data)
@@ -587,7 +598,7 @@ static void APC_FreeThreadRestore(void * data)
     error_t er;
     chain_p chain = *(chain_p *)data;
 
-    ASSERT(NO_ERROR(er = chain_destory(chain)), "APC_FreeThreadRestore: error 0x%zx", er);
+    ASSERT(NO_ERROR(er = chain_destory(chain)), "error 0x%zx", er);
 }
 
 static void APC_FreeWorkHandlers(void * data)
@@ -608,15 +619,15 @@ static void APC_FreeWorkHandlers(void * data)
 
             listvalue->Die();
         }, nullptr);
-        ASSERT(NO_ERROR(err), "APC_FreeWorkHandlers [lambda]: iteration failure. Code: 0x%zx", err);
+        ASSERT(NO_ERROR(err), "[lambda] iteration failure. Code: 0x%zx", err);
     
         dyn_list_destory(*listhead);
         LogPrint(kLogDbg, "APC: destoryed work handler list\n");
     }, nullptr);
-    ASSERT(NO_ERROR(er), "APC_FreeWorkHandlers: iteration failure. Code: 0x%zx", er);
+    ASSERT(NO_ERROR(er), "iteration failure. Code: 0x%zx", er);
 
     er =  chain_destory(chain);
-    ASSERT(NO_ERROR(er), "APC_FreeWorkHandlers: error 0x%zx", er);
+    ASSERT(NO_ERROR(er), "error 0x%zx", er);
 }
 
 static void APC_CleanupTask_s(task_k tsk)
@@ -632,11 +643,11 @@ static void APC_CleanupTask_s(task_k tsk)
 
     if (pid != tgid)
     {
-        LogPrint(kLogDbg, "APC_CleanupTask_s: %x (%i) isn't thread leader %i", tsk, pid, tgid);
+        LogPrint(kLogDbg, "%x (%i) isn't thread leader %i", tsk, pid, tgid);
         return;
     }
 
-    LogPrint(kLogDbg, "APC_CleanupTask_s: cleaning up process %x (%i)", tsk, pid, tgid);
+    LogPrint(kLogDbg,  "cleaning up process %x (%i)", tsk, pid, tgid);
 
     if (NO_ERROR(chain_get(work_process_ips, tgid, &link, nullptr)))
         chain_deallocate_handle(link);
@@ -701,13 +712,13 @@ static void APC_TryStoreSave(task_k task, pt_regs * restore)
         // Append thread group entry map into root 
         {
             err = chain_allocate_link(work_restore, tgid, sizeof(chain_p), nullptr, nullptr, (void **)&pchain);
-            ASSERT(NO_ERROR(err), "APC_TryStoreSave: couldn't create chain link");
+            ASSERT(NO_ERROR(err), "couldn't create chain link");
             *pchain = chain;
         }
     }
     else if (ERROR(err))
     {
-        panicf("APC_TryStoreSave: [1] chain error %zx", err);
+        panicf("[1] chain error %zx", err);
     }
     else
     {
@@ -718,7 +729,7 @@ static void APC_TryStoreSave(task_k task, pt_regs * restore)
             return;
         } 
 
-        ASSERT(err != XENUS_ERROR_LINK_NOT_FOUND, "APC_TryStoreSave: [2] chain error %zx", err)
+        ASSERT(err != XENUS_ERROR_LINK_NOT_FOUND, "[2] chain error %zx", err)
     }
 
     chain = *pchain;
@@ -765,7 +776,7 @@ static void APC_Complete_s(task_k task, size_t ret)
     ODEWorkHandler * cur;
 
     APC_PopComplete_s(task, cur, moreWorkPending, next);
-    ASSERT(cur, "APC_PopComplete_s didn't pop an item from the FIFO work queue");
+    ASSERT(cur, "didn't pop an item from the FIFO work queue");
 
     cur->Hit(ret);
 
@@ -822,20 +833,20 @@ static void InitReturnStub_64()
     ORetardPtr<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
-    work_returnstub_64 = OS_MemoryInterface->AllocatePage(kPageNormal);
-    ASSERT(work_returnstub_64, "couldn't allocate return stub");
+    work_returnstub_64 = OS_MemoryInterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
+    ASSERT(work_returnstub_64, "ODE: InitReturnStub_64, couldn't allocate return stub");
 
     err = OS_MemoryInterface->NewBuilder(desc);
-    ASSERT(NO_ERROR(err), "Couldn't allocate builder");
+    ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't allocate builder");
 
     desc->PageInsert(0, work_returnstub_64);
 
     desc->SetupKernelAddress(addr);
     err = desc->MapKernel(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
-    ASSERT(NO_ERROR(err), "Couldn't get map pages to kernel");
+    ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't get map pages to kernel");
 
     err = map->GetVAStart(addr);
-    ASSERT(NO_ERROR(err), "Couldn't get VA start");
+    ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't get VA start");
 
     memcpy((void *)addr, x86_64, sizeof(x86_64));
 }
@@ -845,7 +856,7 @@ void InitDeferredCalls()
 {
     ProcessesAddExitHook(APC_OnThreadExit);
 
-    ASSERT(NO_ERROR(GetLinuxMemoryInterface(OS_MemoryInterface)), "couldn't get linux memory interface"); // TODO: assert
+    ASSERT(NO_ERROR(GetLinuxMemoryInterface(OS_MemoryInterface)), "ODE: InitDeferredCalls, couldn't get linux memory interface"); // TODO: assert
 
     InitReturnStub_64();
 
