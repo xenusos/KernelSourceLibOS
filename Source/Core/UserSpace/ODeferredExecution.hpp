@@ -28,8 +28,9 @@ public:
     error_t AwaitExecute(ODECompleteCallback_f cb, void * context) override;
                                                                    
     error_t GetResponse(size_t & ret)                              override;
-                                                                   
-    void Hit(size_t response);                                     
+
+    void GetCallback(ODECompleteCallback_f & callback, void * & context);
+    void Trigger(size_t response);
     void Fuckoff();                                                
                                                                    
 protected:                                                         

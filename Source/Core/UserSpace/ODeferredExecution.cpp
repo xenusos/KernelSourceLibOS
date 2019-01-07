@@ -148,12 +148,12 @@ void ODEWorkJobImpl::InvalidateImp()
     mutex_lock(work_watcher_mutex);
     if (_worker)
         _worker->Fuckoff();
-
-    _workqueue->Destory();
     mutex_unlock(work_watcher_mutex);
 
-    ProcessesTaskDecrementCounter(_task);
-    _task = nullptr;
+    _workqueue->Destory();
+
+    if (_task)
+        ProcessesTaskDecrementCounter(_task);
 }
 
 void ODEWorkJobImpl::Fuckoff()
@@ -161,15 +161,16 @@ void ODEWorkJobImpl::Fuckoff()
     _worker = nullptr;
 }
 
-void ODEWorkJobImpl::Hit(size_t response)
+void ODEWorkJobImpl::Trigger(size_t response)
 {
     _response = response;
     _execd    = true;
+}
 
-    if (_cb)
-        _cb(_cb_ctx);
-
-    _workqueue->Trigger();
+void ODEWorkJobImpl::GetCallback(ODECompleteCallback_f & callback, void * & context)
+{
+    callback = _cb;
+    context  = _cb_ctx;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -248,13 +249,21 @@ void ODEWorkHandler::Fuckoff()
 
 void ODEWorkHandler::Hit(size_t response)
 {
+    ODECompleteCallback_f callback = nullptr;
+    void * context                 = nullptr;
+    
     mutex_lock(work_watcher_mutex);
     if (_parant)
     {
-        _parant->Hit(response);
+        _parant->Trigger(response);
+        _parant->GetCallback(callback, context);
         _parant->Fuckoff();
     }
     mutex_unlock(work_watcher_mutex);
+    
+    if (callback)
+        callback(context);
+    
     delete this;
 }
 
