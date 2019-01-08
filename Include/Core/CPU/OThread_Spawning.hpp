@@ -39,4 +39,4 @@ typedef struct ThreadMsg_s
 ThreadMsg_t;
 
 typedef void(*OThreadEP_t)(ThreadMsg_ref);
-error_t LIBLINUX_SYM SpawnOThread(const OOutlivableRef<OThread> & thread, OThreadEP_t entrypoint, const char * name, const void * data);
+error_t LIBLINUX_SYM SpawnOThread(const OOutlivableRef<OThread> & thread, OThreadEP_t entrypoint, const char * name, void * data);

@@ -23,7 +23,7 @@ static chain_p thread_ep_chain;
 typedef struct ThreadPrivData_s
 {
     OThreadEP_t entrypoint;
-    const void * data;
+    void * data;
     const char * name;
 } ThreadPrivData_t, *ThreadPrivData_p;
 
@@ -485,7 +485,7 @@ int RuntimeThreadEP(void * data)
     return exitcode;
 }
 
-error_t SpawnOThread(const OOutlivableRef<OThread> & thread, OThreadEP_t entrypoint, const char * name, const void * data)
+error_t SpawnOThread(const OOutlivableRef<OThread> & thread, OThreadEP_t entrypoint, const char * name, void * data)
 {
     error_t err;
     task_k task;
