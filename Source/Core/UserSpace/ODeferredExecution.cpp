@@ -350,12 +350,13 @@ error_t ODEWorkHandler::Schedule()
         return kErrorInternalError;
 
     err = APC_AddPendingWork(_tsk, this);
+
     if (ERROR(err))
         return err;
 
     ProcessesTaskDecrementCounter(_tsk);
     _tsk = nullptr;
-    return kFuckMe;
+    return kStatusOkay;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////

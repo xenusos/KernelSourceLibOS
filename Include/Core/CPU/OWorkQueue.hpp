@@ -10,17 +10,27 @@ class OWorkQueue : public  OObject
 public:
     virtual error_t GetCount(uint32_t &)              = 0;
     
-    virtual error_t WaitAndAddOwner(uint32_t ms = -1) = 0; // if kStatusTimeout or kStatusSemaphoreAlreadyUnlocked, you do not own 
-                                                        // you should do a STRICTLY_OKAY(...) to determine ownership
+    virtual error_t WaitAndAddOwner(uint32_t ms = -1) = 0; // if kStatusTimeout ~~or kStatusSemaphoreAlreadyUnlocked~~, you do not own 
+                                                           // you should do a STRICTLY_OKAY(...) to determine ownership
     virtual error_t ReleaseOwner()                    = 0;
                                                   
-    virtual error_t EndWork()                         = 0;  // reusable
+    virtual error_t EndWork()                         = 0; 
     virtual error_t BeginWork()                       = 0;
-                                                  
-    void Trigger()                                       // non-reusable
+                    
+    // Non-reusable APIs, or at least, not as safe. Do not use these unless you're certain that your work load will not break thread safety conditions.
+    void Trigger()
     {                                             
         BeginWork();
         EndWork();
+    }
+
+    error_t DumbWait(uint32_t ms = -1)
+    {
+        error_t ret;
+        ret = WaitAndAddOwner(ms);
+        if (STRICTLY_OKAY(ret))
+            ReleaseOwner();
+        return ret;
     }
 };
 
