@@ -186,6 +186,48 @@ error_t OProcessThreadImpl::GetParent(OUncontrollableRef<OProcess> parent)
     return kStatusOkay;
 }
 
+static error_t ProcessesClearCache(dyn_list_head_p threads)
+{
+    error_t err;
+
+    err = dyn_list_iterate(threads, [](void * buffer, void * context) {
+        OProcessThreadImpl ** pthread = (OProcessThreadImpl**)buffer;
+        if (*pthread)
+        {
+            (*pthread)->Destory();
+            *pthread = nullptr;
+        }
+    }, nullptr);
+
+    if (ERROR(err))
+        return err;
+
+    return dyn_list_reset(threads);
+}
+
+static error_t ProcessesAppendCache(dyn_list_head_p threads, task_k tsk, OProcess * parent)
+{
+    error_t err;
+    OProcess ** thread;
+    OProcess * inst;
+
+    inst = (OProcess *)new OProcessThreadImpl(tsk, parent); // todo: recursively add child groups
+
+    if (!inst)
+        return kErrorOutOfMemory;
+
+    err = dyn_list_append(threads, (void **)&thread);
+
+    if (ERROR(err))
+    {
+        inst->Destory();
+        return err;
+    }
+
+    *thread = inst;
+    return kStatusOkay;
+}
+
 OProcessImpl::OProcessImpl(task_k tsk)
 {
     ProcessesTaskIncrementCounter(tsk);
@@ -306,7 +348,14 @@ error_t OProcessImpl::UpdateThreadCache()
     mutex_lock(_threads_mutex);
     RCU::ReadLock();
 
-    if (!_threads)
+    if (_threads)
+    {
+        er = ProcessesClearCache(_threads);
+
+        if (ERROR(er))
+            goto exit;
+    }
+    else
     {
         if (!(_threads = DYN_LIST_CREATE(OProcessThreadImpl *)))
         {
@@ -315,38 +364,20 @@ error_t OProcessImpl::UpdateThreadCache()
         }
     }
 
-    dyn_list_reset(_threads);
-
-    if (!_threads)
-    {
-        er = kErrorOutOfMemory;
-        goto exit;
-    }
-
     cur = srt = _tsk;
     if (cur)
     {
         do
         {
             list_head * head;
-            OProcess ** thread;
-            OProcess * inst;
 
-            if (ERROR(er = dyn_list_append(_threads, (void **)&thread)))
+            er = ProcessesAppendCache(_threads, cur, this);
+
+            if (ERROR(er))
                 goto exit;
-
-            inst = (OProcess *)new OProcessThreadImpl(cur, this); // todo: recursively add child groups
-
-            if (!inst)
-            {
-                er = kErrorOutOfMemory;
-                goto exit;
-            }
-
-            *thread = inst;
 
             head = (list_head *)task_get_thread_group(cur);
-            cur = (task_k)((uint64_t)(head->next) - (uint64_t)task_get_thread_group(NULL));
+            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
         } while (cur != srt);
     }
 
@@ -448,7 +479,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     if (!buffer)
         return kErrorIllegalBadArgument;
 
-    pages = (length / kernel_information.LINUX_PAGE_SIZE) + 1;
+    pages      = (length / kernel_information.LINUX_PAGE_SIZE) + 1;
     page_array = (page_k *)zalloc(pages * sizeof(page_k));
 
     if (!page_array)
@@ -504,6 +535,7 @@ error_t OProcessImpl::WriteProcessMemory(user_addr_t address, const void * buffe
 void OProcessImpl::InvalidateImp()
 {
     ProcessesTaskDecrementCounter(_tsk);
+    ProcessesClearCache(_threads);
     dyn_list_destory(_threads);
 }
 
@@ -522,15 +554,17 @@ error_t _GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
             if ((id == ProcessesGetPid(cur)) && (id == ProcessesGetTgid(cur)))
             {
                 OProcess * proc;
+                
                 proc = new OProcessImpl(cur);
                 if (!proc)
                     return kErrorOutOfMemory;
+
                 process.PassOwnership(proc);
                 return kStatusOkay;
             }
 
             head = (list_head *)task_get_tasks(cur);
-            cur = (task_k)((uint64_t)(head->next) - (uint64_t)task_get_tasks(NULL));
+            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
         } while (cur != srt);
     }
     return kErrorProcessPidInvalid;
@@ -578,7 +612,7 @@ error_t _GetProcessesByAll(ProcessIterator_cb callback, void * data)
             }
 
             head = (list_head *)task_get_tasks(cur);
-            cur = (task_k)((uint64_t)(head->next) - (uint64_t)task_get_tasks(NULL));
+            cur = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
         } while (cur != srt);
     }
     return kStatusOkay;
