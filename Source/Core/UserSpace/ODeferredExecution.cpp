@@ -2,11 +2,10 @@
     Purpose: A Windows-APC style thread preemption within the Linux kernel [depends on latest xenus linux kernel patch]
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
-
     Issues:
-      Undefined behaviour on thread crash; ~~will leak and fuck up shit for all threads assigned to old bad pid (other tgid threads and derivatives will be ok)~~
-      AHHHH
-      More AHHHH
+      Partial leak on APC creation (thread restore queue) if the threaed has yet to be used. cleaned up on thread exit. not really a leak, but still something to consider fixing.
+      None known yet.
+
 */
 #include <libos.hpp>
 #include <Core/CPU/OWorkQueue.hpp>
@@ -16,21 +15,6 @@
 #include "../Processes/OProcesses.hpp"
 #include "../../Utils/RCU.hpp"
 
-struct APCStack
-{
-    page_k pages[6];
-    size_t length;
-    struct
-    {
-        union
-        {
-            size_t address;
-            size_t bottom;
-        };
-        size_t top;
-    } mapped;
-};
-
 struct linux_thread_info // TODO: portable structs. NEVER TRUST MSVC and GCC TO AGREE
 {
     l_unsignedlong flags;
@@ -38,6 +22,12 @@ struct linux_thread_info // TODO: portable structs. NEVER TRUST MSVC and GCC TO 
     atomic_t swap_bool;
     pt_regs  previous_user;
     pt_regs  next_user;
+};
+
+struct RegRestoreQueue
+{
+    bool hasPreviousTask;
+    pt_regs restore;
 };
 
 static page_k  work_returnstub_64;
@@ -50,10 +40,10 @@ static mutex_k work_watcher_mutex;
 
 static OPtr<OLMemoryInterface> OS_MemoryInterface;
 
-static void APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
-static void APC_GetTaskStack_s(task_k tsk, APCStack & stack);
-static void APC_GetProcessReturnStub_s(task_k tsk, size_t & ret);
-static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl);
+static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
+static error_t APC_GetTaskStack_s(task_k tsk, APCStack & stack);
+static error_t APC_GetProcessReturnStub_s(task_k tsk, size_t & ret);
+static error_t APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl);
 static void APC_PreemptThread_s(task_k task, pt_regs * registers, bool kick);
 
 static linux_thread_info * GetInfoForTask(task_k tsk)
@@ -88,15 +78,22 @@ error_t ODEWorkJobImpl::SetWork(ODEWork & work)
 error_t ODEWorkJobImpl::Schedule()
 {
     CHK_DEAD;
+    error_t err;
+
     if (_worker)
         return kErrorInternalError;
 
     _worker = new ODEWorkHandler(_task, this);
+
     if (!_worker)
-    {
-        mutex_unlock(work_watcher_mutex);
         return kErrorOutOfMemory;
+
+    if (ERROR(err = _worker->Construct()))
+    {
+        delete _worker;
+        return err;
     }
+
     _worker->SetWork(_work);
     _dispatched = true;
 
@@ -175,12 +172,15 @@ void ODEWorkJobImpl::GetCallback(ODECompleteCallback_f & callback, void * & cont
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// Work Handler [APC object] ///////////////////////////////////
+//  This doesn't follow the regular conventions in this codebase                          //
+//   nor does this follow common practices                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 ODEWorkHandler::ODEWorkHandler(task_k tsk, ODEWorkJobImpl * worker)
 {
-     _tsk = tsk;
-     _parant = worker;
+     _rtstub          = 0;
+     _tsk             = tsk;
+     _parant          = worker;
      ProcessesTaskIncrementCounter(_tsk);
 }
 
@@ -188,40 +188,90 @@ ODEWorkHandler::~ODEWorkHandler()
 {
     if (_tsk)
         ProcessesTaskDecrementCounter(_tsk);
+
+    if (_kernel_map.desc.GetTypedObject())
+        _kernel_map.desc->Destory();
+}
+
+error_t ODEWorkHandler::AllocateStack()
+{
+    return APC_GetTaskStack_s(_tsk, _stack);
+}
+
+error_t ODEWorkHandler::AllocateStub()
+{
+    return APC_GetProcessReturnStub_s(_tsk, _rtstub);
+}
+
+error_t ODEWorkHandler::MapToKernel()
+{
+    error_t err;
+    OPtr<OLGenericMappedBuffer> map;
+
+    err = OS_MemoryInterface->NewBuilder(_kernel_map.desc);
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't allocate builder, error 0x%xz", err);
+        return err;
+    }
+
+    for (int i = 0; i < APC_STACK_PAGES; i++)
+        _kernel_map.desc->PageInsert(i, _stack.pages[i]); // TODO assert
+
+    err = _kernel_map.desc->SetupKernelAddress(_kernel_map.address);
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't setup kernel address for map, error 0x%xz", err);
+        return err;
+    }
+
+    err = _kernel_map.desc->MapKernel(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't get map pages to kernel, error 0x%xz", err);
+        return err;
+    }
+
+    err = map->GetVAEnd(_kernel_map.sp);
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "aa");
+        return err;
+    }
+
+    return kStatusOkay;
+}
+
+error_t ODEWorkHandler::Construct()
+{
+    error_t err;
+
+    if (ERROR(err = AllocateStack()))
+        return err;
+
+    if (ERROR(err = AllocateStub()))
+        return err;
+
+    if (ERROR(err = MapToKernel()))
+        return err;
+
+    return kStatusOkay;
 }
 
 void ODEWorkHandler::ParseRegisters(pt_regs & regs)
 {
-    ORetardPtr<OLBufferDescription> desc;
-    OPtr<OLGenericMappedBuffer> map;
     error_t err;
-    APCStack stack;
-    size_t rtstub;
     size_t rsp, krsp;
     size_t stackStart;
 
-    APC_GetTaskStack_s(_tsk, stack);
-    APC_GetProcessReturnStub_s(_tsk, rtstub);
+    rsp  = _stack.mapped.top;
+    krsp = _kernel_map.sp;
 
-    err = OS_MemoryInterface->NewBuilder(desc);
-    ASSERT(err, "Couldn't allocate builder");
-
-    for (int i = 0; i < 6; i++)
-        desc->PageInsert(i, stack.pages[i]);
-
-    err = desc->SetupKernelAddress(stackStart);
-    ASSERT(err, "Couldn't setup kernel address for map");
-
-    err = desc->MapKernel(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
-    ASSERT(err, "Couldn't get map pages to kernel");
-
-    err = map->GetVAEnd(krsp);
-    ASSERT(err, "Couldn't get VA end");
-
-    rsp  = stack.mapped.top;
     rsp  -= sizeof(size_t);
     krsp -= sizeof(size_t);
-    *(size_t*)krsp = rtstub;
+
+    *(size_t*)krsp = _rtstub;
+    // copy is effective in usermode 
 
     regs.rsp = rsp;
     regs.rip = _work.address;
@@ -286,9 +336,15 @@ error_t ODEWorkHandler::SetWork(ODEWork & work)
 
 error_t ODEWorkHandler::Schedule()
 {
+    error_t err;
+
     if (!_tsk)
         return kErrorInternalError;
-    APC_AddPendingWork(_tsk, this);
+
+    err = APC_AddPendingWork(_tsk, this);
+    if (ERROR(err))
+        return err;
+
     ProcessesTaskDecrementCounter(_tsk);
     _tsk = nullptr;
     return kFuckMe;
@@ -298,27 +354,45 @@ error_t ODEWorkHandler::Schedule()
 ///////////////////////////////// APC implementation  //////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-static void APC_MapReturnStub_s(task_k tsk, size_t & ret)
+static error_t APC_MapReturnStub_s(task_k tsk, size_t & ret)
 {
     error_t err;
     ORetardPtr<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
     err = OS_MemoryInterface->NewBuilder(desc);
-    ASSERT(NO_ERROR(err), "Couldn't allocate builder");
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't allocate builder");
+        return err;
+    }
 
-    desc->PageInsert(0, work_returnstub_64);
+    err = desc->PageInsert(0, work_returnstub_64);
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't insert page");
+        return err;
+    }
 
     err = desc->SetupUserAddress(tsk, ret);
-    ASSERT(NO_ERROR(err), "couldn't setup address");
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "couldn't setup address");
+        return err;
+    }
 
     err = desc->MapUser(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE | OL_ACCESS_EXECUTE, kCacheNoCache));
-    ASSERT(NO_ERROR(err), "Couldn't get map pages to kernel");
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't get map pages to user mode");
+        return err;
+    }
      
     map->DisableUnmapOnFree(); // release Xenus shit, allow task GC, keep VA mapping
+    return kStatusOkay;
 }
 
-static void APC_GetProcessReturnStub_s(task_k tsk, size_t & ret)
+static bool APC_GetProcessReturnStubCache_s(task_k tsk, error_t & error, size_t & ret)
 {
     error_t   err;
     uint_t    tgid;
@@ -327,115 +401,283 @@ static void APC_GetProcessReturnStub_s(task_k tsk, size_t & ret)
 
     tgid = ProcessesGetTgid(tsk);
 
-    if (NO_ERROR(chain_get(work_process_ips, tgid, nullptr, (void **)&pusraddr)))
+    if (NO_ERROR(error = chain_get(work_process_ips, tgid, nullptr, (void **)&pusraddr)))
     {
         ret = *pusraddr;
-        return;
+        return true;
     }
-
-    // Map stub
-    APC_MapReturnStub_s(tsk, usraddr);
-
-    // Allocate link / map entry
-    err = chain_allocate_link(work_process_ips, tgid, sizeof(size_t), nullptr, nullptr, (void **)&pusraddr);
-    ASSERT(NO_ERROR(err), "couldn't create chain link");
-    *pusraddr = usraddr;
-
-    ret = usraddr;
+    else if (error == kErrorLinkNotFound)
+    {
+        error = kStatusOkay;
+        return false;
+    }
+    else
+    {
+        return false;
+    }
 }
 
-static void APC_AllocateStack_s(task_k tsk, APCStack & stack)
+static error_t APC_AllocateAndLinkProcessReturnStub_s(task_k tsk, size_t & ret)
+{
+    error_t err;
+    size_t * pusraddr;
+    uint_t    tgid;
+
+    tgid = ProcessesGetTgid(tsk);
+
+    if (ERROR(err = APC_MapReturnStub_s(tsk, ret)))
+        return err;
+
+    err = chain_allocate_link(work_process_ips, tgid, sizeof(size_t), nullptr, nullptr, (void **)&pusraddr);
+   
+    if (ERROR(err))
+        return err; // no clean up is required; we do that on process exit
+
+    *pusraddr = ret;
+
+    return kStatusOkay;
+}
+
+static error_t APC_GetProcessReturnStub_s(task_k tsk, size_t & ret)
+{
+    error_t err;
+    chain_p chain;
+    bool    found;
+
+    found = APC_GetProcessReturnStubCache_s(tsk, err, ret);
+
+    if (found)
+    {
+        ASSERT(NO_ERROR(err), "found APC return handler stub, but an error occurred.");
+        return kStatusOkay;
+    }
+
+    if (ERROR(err))
+        return err;
+
+    return APC_AllocateAndLinkProcessReturnStub_s(tsk, ret);
+}
+
+static void APC_ReleaseStack_s(APCStack * stack)
+{
+    for (int i = 0; i < APC_STACK_PAGES; i++)
+    {
+        if (stack->pages[i])
+        {
+            OS_MemoryInterface->FreePage(stack->pages[i]);
+        }
+    }
+}
+
+static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
 {
     error_t err;
     ORetardPtr<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
     for (int i = 0; i < 6; i++)
-        stack.pages[i] = OS_MemoryInterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
+    {
+        page_k page;
 
-    stack.length = OS_THREAD_SIZE * 6;
+        page = OS_MemoryInterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
+
+        if (!page)
+        {
+            err = kErrorOutOfMemory;
+            goto errorFreePages;
+        }
+
+        stack.pages[i] = page;
+    }
+
+    stack.length = APC_STACK_PAGES << OS_PAGE_SHIFT;
  
     err = OS_MemoryInterface->NewBuilder(desc);
-    ASSERT(err, "Couldn't allocate builder");
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't allocate memory builder interface, 0x%zx", err);
+        return err;
+    }
 
     for (int i = 0; i < 6; i++)
-        desc->PageInsert(i, stack.pages[i]);
+    {
+        error_t err;
+
+        err = desc->PageInsert(i, stack.pages[i]);
+
+        if (ERROR(err))
+        {
+            LogPrint(kLogError, "Couldn't insert page into builder interface, 0x%zx", err);
+            goto errorFreePages;
+        }
+    }
 
     err = desc->SetupUserAddress(tsk, stack.mapped.address);
-    ASSERT(NO_ERROR(err), "couldn't setup address");
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "apc couldn't reserve user address, 0x%zx", err);
+        goto errorFreePages;
+    }
 
     err = desc->MapUser(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
-    ASSERT(err, "Couldn't get map pages to kernel");
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't get map pages to kernel, 0x%zx", err);
+        goto errorFreePages;
+    }
 
     err = map->GetVAEnd(stack.mapped.top);
-    ASSERT(err, "Couldn't get VA end");
+    if (ERROR(err))
+    {
+        goto errorFreePages;
+    }
 
     err = map->GetVAStart(stack.mapped.bottom);
-    ASSERT(err, "Couldn't get VA start");
+    if (ERROR(err))
+    {
+        goto errorFreePages;
+    }
 
     map->DisableUnmapOnFree(); // release Xenus shit, allow task GC, keep VA mapping
+    return kStatusOkay;
+
+errorFreePages:
+
+    if (map.GetTypedObject())
+        map->Destory();
+
+    APC_ReleaseStack_s(&stack);
+    return err;
 }
 
-static void APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
+/**
+   Given "static chain_p work_thread_stacks;     // chain<tgid, chain<tid, APCStack>>",
+    returns outstack: the stack of the thread (if such exists) 
+    returns pidchain: the second pid chain value within the root chain
+    returns <bool>  : has APC stack been found
+*/
+static bool APC_GetTaskStackCache_s(task_k tsk, error_t & error, chain_p & pidchain, APCStack & outstack)
 {
     error_t     err;
     uint_t      pid;
     uint_t      tgid;
     chain_p  * ppidchain;
-    chain_p     pidchain;
     APCStack * pstack;
-    APCStack    stack;
 
     tgid = ProcessesGetTgid(tsk);
     pid  = ProcessesGetPid(tsk);
 
+    pidchain = nullptr;
+    error    = kStatusOkay;
+
     if (NO_ERROR(err = chain_get(work_thread_stacks, tgid, nullptr, (void **)&ppidchain)))
     {
-        if (NO_ERROR(chain_get(*ppidchain, pid, nullptr, (void **)&pstack)))
+        pidchain = *ppidchain;
+
+        if (NO_ERROR(err == chain_get(pidchain, pid, nullptr, (void **)&pstack)))
         {
             // TGID exists, PID exists
+            error = kStatusOkay;
             outstack = *pstack;
-            return;
+            return true;
         }
-
-        // No PID exists
-        pidchain = *ppidchain;
+        else if (err == kErrorLinkNotFound)
+        {
+            // No PID / APC exists
+            error = kStatusOkay;
+            return false;
+        }
+        else 
+        {
+            // something bad happened :/
+            error = err;
+            return false;
+        }
+    
     }
-    else if (err == XENUS_ERROR_LINK_NOT_FOUND)
+    else if (err == kErrorLinkNotFound)
     {
-        // No TGID and no subsequent chain of pids exists
-        APCStack allocd;
-        chain_p chain;
+        chain_p   chain;
+        chain_p * pchain;
 
         // Allocate pid chain
-        chain_allocate(&chain);
-        
+        err = chain_allocate(&chain);
+
+        if (ERROR(err))
+            goto errorCondition;
+
         // Link pid chain in root chain
-        {
-            chain_p * pchain;
-            err = chain_allocate_link(work_thread_stacks, tgid, sizeof(chain_p), nullptr, nullptr, (void **)&pchain);
-            ASSERT(NO_ERROR(err), "couldn't create tgid link");
-            *pchain = chain;
-        }
+        err = chain_allocate_link(work_thread_stacks, tgid, sizeof(chain_p), nullptr, nullptr, (void **)&pchain);
+
+        if (ERROR(err))
+            goto errorCondition;
+
+        *pchain = chain;
 
         pidchain = chain;
+        outstack = { 0 };
+        error = kStatusOkay;
+        return false;
     }
     else
     {
-        panicf("chain returned error code: 0x%zx", err);
+        // something bad happened :/
+        outstack = { 0 };
+        error = err;
+        return false;
     }
 
-    // Allocate stack
-    APC_AllocateStack_s(tsk, stack);
-
-    // Allocate link / map entry
+errorCondition:
     {
-        err = chain_allocate_link(pidchain, pid, sizeof(APCStack), nullptr, nullptr, (void **)&pstack);
-        ASSERT(NO_ERROR(err), "couldn't create chain link");
-        *pstack = stack;
+        error = err;
+        return false;
+    }
+}
+
+/***
+    Given a task struct and chain, allocates an APC stack, and append it to the pidchain
+*/
+static error_t APC_AllocateAndLinkStack_s(task_k task, chain_p pidchain, APCStack & outstack)
+{
+    error_t     err;
+    uint_t      pid;
+    APCStack * pstack;
+
+    pid = ProcessesGetPid(task);
+
+    if (ERROR(err = APC_AllocateStack_s(task, outstack)))
+        return err;
+
+    err = chain_allocate_link(pidchain, pid, sizeof(APCStack), nullptr, nullptr, (void **)&pstack);
+
+    if (ERROR(err))
+    {
+        APC_ReleaseStack_s(&outstack);
+        return err;
     }
 
-    outstack = stack;
+    *pstack = outstack;
+    return kStatusOkay;
+}
+
+static error_t APC_GetTaskStack_s(task_k tsk, APCStack & outstack)
+{
+    error_t err;
+    chain_p chain;
+    bool    found;
+
+    found = APC_GetTaskStackCache_s(tsk, err, chain, outstack);
+    
+    if (found)
+    {
+        ASSERT(NO_ERROR(err), "found APC stack, but an error occurred.");
+        return kStatusOkay;
+    }
+
+    if (ERROR(err))
+        return err;
+
+    return APC_AllocateAndLinkStack_s(tsk, chain, outstack);
 }
 
 static void APC_Run_s(task_k tsk, ODEWorkHandler * impl, bool kick)
@@ -445,96 +687,226 @@ static void APC_Run_s(task_k tsk, ODEWorkHandler * impl, bool kick)
     APC_PreemptThread_s(tsk, &regs, kick);
 }
 
-static void APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
+static error_t APC_WQ_RegisterTGID_s(uint_t tgid, chain_p & chain, link_p & link)
 {
-    linux_thread_info * info;
-    uint_t pid;
-    uint_t tgid;
     error_t err;
-    size_t length;
-    ODEWorkHandler ** pimpl;
-    dyn_list_head_p   listhead;
     chain_p * pchain;
 
-    tgid = ProcessesGetTgid(tsk);
-    pid  = ProcessesGetPid(tsk);
+    if (ERROR(err = chain_allocate(&chain)))
+        return err;
 
-    // get or allocate array
-    // map<task pid, dynamic array<ODEWorkhandler *>>
-    if ((err = chain_get(work_queues, tgid, nullptr, (void **)&pchain)) == XENUS_ERROR_LINK_NOT_FOUND)
+    err = chain_allocate_link(work_queues, tgid, sizeof(chain_p), nullptr, &link, (void **)&pchain);
+
+    if (ERROR(err))
+        return err;
+
+    *pchain = chain;
+    return kStatusOkay;
+}
+
+static error_t APC_WQ_RegisterPID_s(chain_p chain, uint_t pid, dyn_list_head_p & list, link_p & handle)
+{
+    error_t err;
+    dyn_list_head_p * plist;
+
+    list = DYN_LIST_CREATE(ODEWorkHandler *);
+    if (!list)
+        return kErrorOutOfMemory;
+
+    err = chain_allocate_link(chain, pid, sizeof(dyn_list_head_p), nullptr, &handle, (void **)&plist);
+
+    if (ERROR(err))
     {
-        // No dynamic array
-        dyn_list_head_p * plisthead;
-        chain_p chain;
-
-        chain_allocate(&chain);
-
-        // Append thread group entry map into root 
-        {
-            err = chain_allocate_link(work_queues, tgid, sizeof(chain_p), nullptr, nullptr, (void **)&pchain);
-            ASSERT(NO_ERROR(err), "couldn't create chain link");
-            *pchain = chain;
-        }
-
-        // Allocate list head/handle
-        {
-            listhead = DYN_LIST_CREATE(ODEWorkHandler *);
-            ASSERT(listhead, "list head couldn't be created - out of memory?");
-        }
-
-        // Allocate link / map entry
-        {
-            err = chain_allocate_link(chain, pid, sizeof(dyn_list_head_p), nullptr, nullptr, (void **)&plisthead);
-            ASSERT(NO_ERROR(err), "couldn't create chain link");
-            *plisthead = listhead;
-        }
-    }
-    else if (ERROR(err))
-    {
-        panicf("bad chain. error code: 0x%zx", err);
-    }
-    else
-    {
-        // TGID root exists
-        dyn_list_head_p * plisthead;
-        chain_p pidmap = *pchain;
-
-        // get map entry
-        if ((err = chain_get(pidmap, pid, nullptr, (void **)&plisthead)) == XENUS_ERROR_LINK_NOT_FOUND)
-        {
-            // PID doesn't exist...
-
-            // Allocate list head/handle
-            listhead = DYN_LIST_CREATE(ODEWorkHandler *);
-            ASSERT(listhead, "list head couldn't be created - out of memory?");
-
-            // Allocate link / map entry
-            err = chain_allocate_link(pidmap, pid, sizeof(dyn_list_head_p), nullptr, nullptr, (void **)&plisthead);
-            ASSERT(NO_ERROR(err), "couldn't create chain link");
-            *plisthead = listhead;
-        }
-        else if (ERROR(err))
-        {
-            panicf("bad second chain. error code: 0x%zx", err);
-        }
-        else
-        {
-            // TGID exists, PID exists
-            listhead = *plisthead;
-        }
+        ASSERT(NO_ERROR(dyn_list_destory(list)), "invalid list");
+        return err;
     }
 
-    // append work entry to list 
-    err = dyn_list_append(listhead, (void **)&pimpl);
-    ASSERT(NO_ERROR(err), "couldn't append list entry");
-    *pimpl = impl;
+    *plist = list;
+    return kStatusOkay;
+}
 
-    // if there's only one entry in the work queue, kick start
+static error_t APC_WQ_TrySchedule_s(task_k tsk, ODEWorkHandler * impl, dyn_list_head_p listhead)
+{
+    error_t err;
+    size_t length;
+
     err = dyn_list_entries(listhead, &length);
-    ASSERT(NO_ERROR(err), "couldn't get list size");
+
+    if (ERROR(err))
+        return err;
 
     if (length == 1)
         APC_Run_s(tsk, impl, OSThread != tsk);
+
+    return kStatusOkay;
+}
+
+static error_t APC_WQ_PreallocateRegQueue(uint_t tgid, uint_t pid)
+{
+    error_t           err;
+    chain_p   *       pchain;
+    chain_p           chain;
+    link_p            lhandle;
+    RegRestoreQueue  *pqueue;
+    RegRestoreQueue   queue;
+
+    lhandle = nullptr;
+
+    if (NO_ERROR(err = chain_get(work_restore, tgid, nullptr, (void **)&pchain)))
+    {
+        // get map entry
+        if (NO_ERROR(err = chain_get(*pchain, pid, &lhandle, (void **)&pqueue)))
+        {
+            // PID exists
+            return kStatusOkay;
+        }
+        else if (err == kErrorLinkNotFound)
+        {
+            goto allocatePidQueue;
+        }
+        else
+        {
+            return err;
+        }
+    }
+    else if (err == kErrorLinkNotFound)
+    {
+        chain_p chain;
+
+        err = chain_allocate(&chain);
+        if (ERROR(err))
+            return err;
+
+        err = chain_allocate_link(work_restore, tgid, sizeof(chain_p), nullptr, &lhandle, (void **)&pchain);
+        if (ERROR(err))
+        {
+            ASSERT(NO_ERROR(chain_destory(chain)), "couldn't destory chain; leaking memory");
+            return err;
+        }
+
+        *pchain = chain;
+
+        goto allocatePidQueue;
+    }
+    else
+    {
+        return err;
+    }
+
+allocatePidQueue:
+    chain = *pchain;
+
+    err = chain_allocate_link(chain, pid, sizeof(RegRestoreQueue), nullptr, nullptr, (void **)&pqueue);
+    if (ERROR(err))
+    {
+        if (lhandle)
+        {
+            ASSERT(NO_ERROR(chain_deallocate_handle(lhandle)), "couldn't destory pid handle; leaking memory");
+        }
+        return err;
+    }
+
+    queue.restore         = { 0 };
+    queue.hasPreviousTask = false;
+
+    *pqueue = queue;
+
+    return kStatusOkay;
+}
+
+static error_t APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
+{
+    uint_t pid;
+    uint_t tgid;
+    error_t err;
+    dyn_list_head_p   listhead;
+    chain_p * pchain;
+    link_p pidHandle;
+
+    // Obtain prerequisite task data
+    {
+        tgid = ProcessesGetTgid(tsk);
+        pid = ProcessesGetPid(tsk);
+    }
+
+    // Preallocate register storage for the stack, if we decide to jump to another work item, rather than the callee
+    {
+        APC_WQ_PreallocateRegQueue(tgid, pid);
+    }
+
+    // get or allocate array
+    // map<task pid, dynamic array<ODEWorkhandler *>>
+    {
+        if (NO_ERROR(err = chain_get(work_queues, tgid, nullptr, (void **)&pchain)))
+        {
+            chain_p chain = *pchain;
+            dyn_list_head_p * plisthead;
+
+            if (NO_ERROR(err = chain_get(chain, pid, nullptr, (void **)&plisthead)))
+            {
+                pidHandle = nullptr;
+                listhead = *plisthead;
+            }
+            else if (err == kErrorLinkNotFound)
+            {
+                if (ERROR(err = APC_WQ_RegisterPID_s(chain, pid, listhead, pidHandle)))
+                {
+                    return err;
+                }
+            }
+            else if (ERROR(err))
+            {
+                return err;
+            }
+            else
+            {
+                ASSERT(false, "illegal logic state");
+            }
+        }
+        else if (err == kErrorLinkNotFound)
+        {
+            chain_p chain;
+            link_p link;
+
+            if (ERROR(err = APC_WQ_RegisterTGID_s(tgid, chain, link)))
+            {
+                return err;
+            }
+
+            if (ERROR(err = APC_WQ_RegisterPID_s(chain, pid, listhead, pidHandle)))
+            {
+                chain_deallocate_handle(link); // we don't actually need this. cleaned up on process exist
+                return err;
+            }
+        }
+        else if (ERROR(err))
+        {
+            return err;
+        }
+        else
+        {
+            ASSERT(false, "illegal logic state");
+        }
+    }
+
+    // Append work entry to list 
+    {
+        ODEWorkHandler ** pimpl;
+        
+        err = dyn_list_append(listhead, (void **)&pimpl);
+        if (ERROR(err))
+        {
+            if (pidHandle) // destory handle, if we created it.
+                chain_deallocate_handle(pidHandle);
+
+            return err;
+        }
+
+        *pimpl = impl;
+    }
+
+    // Boot task, if need be.
+    return ERROR(APC_WQ_TrySchedule_s(tsk, impl, listhead)) ? kFuckMe : kStatusOkay;
 }
 
 static void APC_PopComplete_s(task_k tsk, ODEWorkHandler * & job, bool & moreWorkPending, ODEWorkHandler * & next)
@@ -586,18 +958,29 @@ static void APC_PopComplete_s(task_k tsk, ODEWorkHandler * & job, bool & moreWor
     moreWorkPending = length != 0;
     if (moreWorkPending)
     {
-        if (ERROR(dyn_list_get_by_index(*listhead, 0, (void **)&next)))
+        if (ERROR(dyn_list_get_by_index(*listhead, 0, (void **)&pimpl)))
         {
             LogPrint(kLogError, "6: APC_PopComplete_s failed... shit. TODO: Reece: how should we handle this?");
             return;
         }
+
+        next = *pimpl;
     }
 }
 
-static void APC_FreeThreadStack(void * data)
+static void APC_FreeThreadStack_s(void * data)
 {
     error_t er;
     chain_p chain = *(chain_p *)data;
+
+    er = chain_iterator(chain, [](uint64_t hash, void * buffer, void * ctx) {
+        error_t    err;
+        APCStack * stack = (APCStack *)buffer;
+
+        APC_ReleaseStack_s(stack);
+
+    }, nullptr);
+    ASSERT(NO_ERROR(er), "iteration failure. Code: 0x%zx", er);
 
     ASSERT(NO_ERROR(er = chain_destory(chain)), "error 0x%zx", er);
 }
@@ -656,14 +1039,14 @@ static void APC_CleanupTask_s(task_k tsk)
         return;
     }
 
-    LogPrint(kLogDbg,  "cleaning up process %x (%i)", tsk, pid, tgid);
+    LogPrint(kLogDbg,  "cleaning up process %p (%i)", tsk, pid, tgid);
 
     if (NO_ERROR(chain_get(work_process_ips, tgid, &link, nullptr)))
         chain_deallocate_handle(link);
 
     if (NO_ERROR(chain_get(work_thread_stacks, tgid, &link, &entry)))
     {
-        APC_FreeThreadStack(entry);
+        APC_FreeThreadStack_s(entry);
         chain_deallocate_handle(link);
     }
 
@@ -699,83 +1082,68 @@ static void APC_PreemptThread_s(task_k task, pt_regs * registers, bool kick)
     LogPrint(kLogDbg, "APC: kicked/preempted usermode thread [%p / %i]", task, ProcessesGetPid(task));
 }
 
-static void APC_TryStoreSave(task_k task, pt_regs * restore)
+static RegRestoreQueue * APC_WS_GetItem(uint_t tgid, uint_t pid)
 {
     error_t    err;
+    chain_p  *pchain;
+    RegRestoreQueue  *queue;
+
+    if (ERROR(err = chain_get(work_restore, tgid, nullptr, (void **)&pchain)))
+    {
+        panic("APC_TryStoreSave_s: work restore item doesn't exist for thread group leader.");
+    }
+
+    if (ERROR(err = chain_get(*pchain, pid, nullptr, (void **)&queue)))
+    {
+        panic("APC_TryStoreSave_s: work restore item doesn't exist for thread..");
+    }
+
+    return queue;
+}
+
+static void APC_TryStoreSave_s(task_k task, pt_regs * restore)
+{
     uint_t     pid;
     uint_t     tgid;
-    chain_p  *pchain;
-    chain_p    chain;
-    pt_regs  *pregs;
+    RegRestoreQueue  *pqueue;
 
     tgid = ProcessesGetTgid(task);
     pid  = ProcessesGetPid(task);
 
-    // get or allocate array
-    // map<task pid, dynamic array<ODEWorkhandler *>>
-    if ((err = chain_get(work_restore, tgid, nullptr, (void **)&pchain)) == XENUS_ERROR_LINK_NOT_FOUND)
+    pqueue = APC_WS_GetItem(tgid, pid);
+
+    if (!pqueue->hasPreviousTask)
     {
-        chain_p chain;
-        chain_allocate(&chain);
-
-        // Append thread group entry map into root 
-        {
-            err = chain_allocate_link(work_restore, tgid, sizeof(chain_p), nullptr, nullptr, (void **)&pchain);
-            ASSERT(NO_ERROR(err), "couldn't create chain link");
-            *pchain = chain;
-        }
+        pqueue->hasPreviousTask = true;
+        pqueue->restore = *restore;
     }
-    else if (ERROR(err))
-    {
-        panicf("[1] chain error %zx", err);
-    }
-    else
-    {
-        // get map entry
-        if (NO_ERROR(err = chain_get(*pchain, pid, nullptr, (void **)&pregs)))
-        {
-            // PID exists
-            return;
-        } 
-
-        ASSERT(err != XENUS_ERROR_LINK_NOT_FOUND, "[2] chain error %zx", err)
-    }
-
-    chain = *pchain;
-
-    err = chain_allocate_link(chain, pid, sizeof(pt_regs), nullptr, nullptr, (void **)&pregs);
-    ASSERT(NO_ERROR(err), "couldn't allocate link. APC_TryStoreSave");
-    *pregs = *restore;
 }
 
 static void APC_RestoreUserState_s(task_k task, pt_regs * fallback)
 {  
-    error_t     err;
-    uint_t      pid;
-    uint_t      tgid;
-    chain_p  * pchain;
-    pt_regs  * pregs;
+    uint_t     pid;
+    uint_t     tgid;
+    RegRestoreQueue  *pqueue;
     pt_regs     regs;
 
     tgid = ProcessesGetTgid(task);
     pid  = ProcessesGetPid(task);
 
-    if (NO_ERROR(chain_get(work_restore, tgid, nullptr, (void **)&pchain)))
+    pqueue = APC_WS_GetItem(tgid, pid);
+
+    if (pqueue->hasPreviousTask)
     {
-        link_p link;
-        if (NO_ERROR(chain_get(*pchain, pid, &link, (void **)&pregs)))
-        {
-            regs = *pregs;
-            chain_deallocate_handle(link);
+        regs = pqueue->restore;
+        pqueue->hasPreviousTask = false;
 
-            LogPrint(kLogDbg, "APC: returning to usermode using stored registers - we had to deal with multiple items within the queue. RIP: %p", regs.rip);
-            APC_PreemptThread_s(task, &regs, false);
-            return;
-        }
+        LogPrint(kLogDbg, "APC: returning to usermode using stored registers - we had to deal with multiple items within the queue. RIP: %p", regs.rip);
+        APC_PreemptThread_s(task, &regs, false);
     }
-
-    LogPrint(kLogDbg, "APC: returning to usermode without using stored registers - the queue should be emtpy. RIP: %p", fallback->rip);
-    APC_PreemptThread_s(task, fallback, false);
+    else
+    {
+        LogPrint(kLogDbg, "APC: returning to usermode without using stored registers - the queue should be emtpy. RIP: %p", fallback->rip);
+        APC_PreemptThread_s(task, fallback, false);
+    }
 }
 
 static void APC_Complete_s(task_k task, size_t ret)
@@ -784,20 +1152,22 @@ static void APC_Complete_s(task_k task, size_t ret)
     ODEWorkHandler * next;
     ODEWorkHandler * cur;
 
+    next = nullptr;
+
     APC_PopComplete_s(task, cur, moreWorkPending, next);
-    ASSERT(cur, "didn't pop an item from the FIFO work queue");
 
     cur->Hit(ret);
 
     if (moreWorkPending)
     {
-        APC_TryStoreSave(task, &GetInfoForTask(task)->previous_user);
+        APC_TryStoreSave_s(task, &GetInfoForTask(task)->previous_user);
         APC_Run_s(task, next, false);
     }
     else
     {
         APC_RestoreUserState_s(task, &GetInfoForTask(task)->previous_user);
     }
+
 }
 
 static void APC_OnThreadExit_s(OPtr<OProcess> thread)
@@ -826,11 +1196,13 @@ void DeferredExecFinish(size_t ret)
     mutex_unlock(work_mutex);
 }
 
-static void APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
+static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
 {
+    error_t err;
     mutex_lock(work_mutex);
-    APC_AddPendingWork_s(tsk, impl);
+    err = APC_AddPendingWork_s(tsk, impl);
     mutex_unlock(work_mutex);
+    return err;
 }
 
 static void InitReturnStub_64()
@@ -884,7 +1256,7 @@ LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivab
     task_k handle;
     OPtr<OWorkQueue> wq;
 
-    if (target->IsDead())
+    if (!target.GetTypedObject())
         return kErrorIllegalBadArgument;
 
     if (ERROR(err = CreateWorkQueue(1, wq)))
