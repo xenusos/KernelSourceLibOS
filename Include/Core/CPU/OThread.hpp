@@ -8,7 +8,7 @@
 #include "OThread_Preemption.hpp"
 //#include "OSpinlock.hpp"
 #include "OThread_CPU.hpp"
-#include "OThread_Nice.hpp"
+#include "OThread_Nice.h"
 #include "OThread_Timing.hpp"
 
 #if defined(TGT_KRN_LINUX)

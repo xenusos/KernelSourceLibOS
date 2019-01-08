@@ -14,7 +14,7 @@
     <ClInclude Include="Include\Core\CPU\OSemaphore.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_CPU.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Linux.hpp" />
-    <ClInclude Include="Include\Core\CPU\OThread_Nice.hpp" />
+    <ClInclude Include="Include\Core\CPU\OThread_Nice.h" />
     <ClInclude Include="Include\Core\CPU\OThread_Preemption.hpp" />
     <ClInclude Include="Include\Core\CPU\OSpinlock.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread_Timing.hpp" />
@@ -67,6 +67,9 @@
   <ItemGroup>
     <ClInclude Include="Include\Core\Net\OTCPNetworking.hpp" />
     <ClCompile Include="Source\Core\CPU\CPU_Mem.cpp" />
+    <ClCompile Include="Source\Core\CPU\CPU_Nice.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Development|x64'">CompileAsC</CompileAs>
+    </ClCompile>
     <ClCompile Include="Source\Core\CPU\CPU_Preemption.cpp" />
     <ClCompile Include="Source\Core\CPU\CPU_Spinlocks.cpp" />
     <ClCompile Include="Source\Core\CPU\OMutex.cpp" />

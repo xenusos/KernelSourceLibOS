@@ -1,32 +1,21 @@
 #pragma once
 
-#define CONVERT_NICE_TO_KPRIO(n)  helper_nice_to_win_ish(n)
+#define CONVERT_NICE_TO_KPRIO(n)  helper_nice_to_win[n + 20]
 #define CONVERT_KPRIO_TO_NICE(n)  helper_win_to_nice[n]
 
-
-static int8_t helper_win_to_nice[31 + 1] = {
-	0, 19, 15, 10, 5, 3, 0, -2, -5, -7, -9, -12, -13, -14, -16, -17, -15, -17, -17, -17, -17, -17, -17, -17, -17, -18, -19, -19, -19, -20, -20, -20
-};
-
-static inline int8_t helper_nice_to_win(int8_t nice)
-{
-	for (int8_t i = 31 - 1; i != 0; i--)
-		if (helper_win_to_nice[i] == nice)
-			return i;
-	return -1;
-}
-
+LIBLINUX_SYM uint8_t helper_win_to_nice[31 + 1];
+LIBLINUX_SYM uint8_t helper_nice_to_win[40];
 
 /*
 LINUX: 
-	go fuck yourself. i dont want to think about these odd values
+	Supports nice and a higher res prio value
 
 XNU:
-	idfk. it supports posix nice values tho
+	Supports posix nice values tho - also has a higher res sched prio like linux
 
 POSIX:
 				 [most cpu time]  | [least cpu time]
-	NICE range:  -20              - 20
+	NICE range:  -20              - 19
 
 WINDOWS:
 	AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
@@ -92,6 +81,7 @@ Nice to Windows conversion:
 	yes, there is also some bias for windows threads with linux threads as they have to deal with more abstraction.
 
 	Win - Nice
+    0   - N/A
 	1   - 19   // Almost always preempt and fuck off. Thread is idle-ish
 	2   - 15   // IDLE_PRIORITY_CLASS/THREAD_PRIORITY_LOWEST
 	3   - 10   // IDLE_PRIORITY_CLASS/THREAD_PRIORITY_BELOW_NORMAL
@@ -108,7 +98,7 @@ Nice to Windows conversion:
 	14  - -16   																																											 ABOVE_NORMAL_PRIORITY_CLASS/THREAD_PRIORITY_ABOVE_NORMAL
 	15  - -17  // this is the heightest val for a normal windows thread	(officially "dynamic priorities")																					 ABOVE_NORMAL_PRIORITY_CLASS/THREAD_PRIORITY_HIGHEST
 	16  - -15  ///////////// "real time" stuff starts here /////////////
-	// I know this isn't what windows does, but really, an idle thread should never be allowed a lot of of wasted time.  Real time or not.
+	          // I know this isn't what windows does, but really, an idle thread should never be allowed a lot of of wasted time.  Real time or not.
 	17  - -17  // nothing really uses these values
 	18  - -17  // virtually unused
 	19  - -17  // virtually unused
