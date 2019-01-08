@@ -8,11 +8,13 @@
 #define LIB_OS_PRESENT
 
 #if defined(LIBLINUX_BUILDING)
-    #define LIBLINUX_SYM __declspec(dllexport) 
+    #define LIBLINUX_SYM extern __declspec(dllexport) 
+    #define LIBLINUX_CLS __declspec(dllexport) 
     #define LIBLINUX_ASM
 #else 
-    #define LIBLINUX_SYM __declspec(dllimport) 
-    #define LIBLINUX_ASM __declspec(dllimport) 
+    #define LIBLINUX_SYM extern __declspec(dllimport) 
+    #define LIBLINUX_CLS __declspec(dllimport) 
+    #define LIBLINUX_ASM extern __declspec(dllimport) 
 #endif
 
 #if defined(LIBLINUX_BUILDING) 

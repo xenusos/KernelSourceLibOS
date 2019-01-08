@@ -3,15 +3,21 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
-#include <libos.hpp>
+#include <xenus.h>
+
+#if defined(LIBLINUX_BUILDING)
+    #define LIBLINUX_SYM extern __declspec(dllexport) 
+#else 
+    #define LIBLINUX_SYM extern __declspec(dllimport) 
+#endif
 
 #include <Core/CPU/OThread_Nice.h>
 
-LIBLINUX_SYM uint8_t helper_win_to_nice[31 + 1] = {
+uint8_t helper_win_to_nice[31 + 1] = {
     0, 19, 15, 10, 5, 3, 0, -2, -5, -7, -9, -12, -13, -14, -16, -17, -15, -17, -17, -17, -17, -17, -17, -17, -17, -18, -19, -19, -19, -20, -20, -20
 };
 
-LIBLINUX_SYM uint8_t helper_nice_to_win[40] = 
+uint8_t helper_nice_to_win[40] = 
 {
     [0 - 20  + 20] =  29,
     [0 - 19  + 20] =  26,

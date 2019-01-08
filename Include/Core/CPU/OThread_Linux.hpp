@@ -1,7 +1,7 @@
 #pragma once
 
 class ITask;
-class LIBLINUX_SYM LinuxCurrent
+class LIBLINUX_CLS LinuxCurrent
 {
 public:
     LinuxCurrent();
