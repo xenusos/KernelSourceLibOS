@@ -195,12 +195,20 @@ ODEWorkHandler::~ODEWorkHandler()
 
 error_t ODEWorkHandler::AllocateStack()
 {
-    return APC_GetTaskStack_s(_tsk, _stack);
+    error_t ret;
+    mutex_lock(work_mutex);
+    ret = APC_GetTaskStack_s(_tsk, _stack);
+    mutex_unlock(work_mutex);
+    return ret;
 }
 
 error_t ODEWorkHandler::AllocateStub()
 {
-    return APC_GetProcessReturnStub_s(_tsk, _rtstub);
+    error_t ret;
+    mutex_lock(work_mutex);
+    ret = APC_GetProcessReturnStub_s(_tsk, _rtstub);
+    mutex_unlock(work_mutex);
+    return ret;
 }
 
 error_t ODEWorkHandler::MapToKernel()
@@ -829,7 +837,7 @@ static error_t APC_AddPendingWork_s(task_k tsk, ODEWorkHandler * impl)
         pid = ProcessesGetPid(tsk);
     }
 
-    // Preallocate register storage for the stack, if we decide to jump to another work item, rather than the callee
+    // Preallocate register storage for the thread. if we decide to jump to another work item rather than the callee, we need a place to store the original interrupted registers.
     {
         APC_WQ_PreallocateRegQueue(tgid, pid);
     }
