@@ -483,7 +483,7 @@ static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
     ORetardPtr<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < APC_STACK_PAGES; i++)
     {
         page_k page;
 
@@ -507,7 +507,7 @@ static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
         return err;
     }
 
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < APC_STACK_PAGES; i++)
     {
         error_t err;
 
