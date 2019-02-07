@@ -554,7 +554,7 @@ error_t _GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
             if ((id == ProcessesGetPid(cur)) && (id == ProcessesGetTgid(cur)))
             {
                 OProcess * proc;
-                
+
                 proc = new OProcessImpl(cur);
                 if (!proc)
                     return kErrorOutOfMemory;
@@ -564,7 +564,7 @@ error_t _GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
             }
 
             head = (list_head *)task_get_tasks(cur);
-            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
+            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_tasks(NULL)));
         } while (cur != srt);
     }
     return kErrorProcessPidInvalid;
@@ -612,7 +612,7 @@ error_t _GetProcessesByAll(ProcessIterator_cb callback, void * data)
             }
 
             head = (list_head *)task_get_tasks(cur);
-            cur = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
+            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_tasks(NULL)));
         } while (cur != srt);
     }
     return kStatusOkay;
