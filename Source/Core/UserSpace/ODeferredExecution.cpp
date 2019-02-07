@@ -516,7 +516,7 @@ static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
 
         if (ERROR(err))
         {
-            LogPrint(kLogError, "Couldn't insert page into builder interface, 0x%zx", err);
+            LogPrint(kLogError, "Couldn't insert page into builder, 0x%zx", err);
             goto errorFreePages;
         }
     }

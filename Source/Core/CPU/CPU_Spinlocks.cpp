@@ -14,7 +14,7 @@ void SpinLock_Lock(los_spinlock_t * lock)
     {
         while (*lock)
         {
-            SPINLOOP_BLOCK();
+            SPINLOOP_PROCYIELD();
         }
     }
 }

@@ -357,7 +357,7 @@ void RuntimeThreadPostContextSwitch()
         {
             while (!sync_thread_death.readable)
             {
-                SPINLOOP_BLOCK();
+                SPINLOOP_PROCYIELD();
             }
 
             if (sync_thread_death.pid == pid)

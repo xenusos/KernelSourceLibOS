@@ -13,9 +13,9 @@ static OLMemoryInterface * linux_memory = 0;
 #include "../../Processes/OProcesses.hpp"
 #define MEMORY_DEVICE "XenusMemoryMapper"
 
-void * special_map_fault;
-void * special_map_handle;
-vm_special_mapping_k special_map;
+static void * special_map_fault;
+static void * special_map_handle;
+static vm_special_mapping_k special_map;
 
 DEFINE_SYSV_FUNCTON_START(special_map_fault, size_t)
 const vm_special_mapping_k sm,
