@@ -26,7 +26,3 @@ bool OObject::IsDead()
 {
     return _is_dead;
 }
-
-// W-why don't you just use destructors and arbitrarily call delete, ya fucking retard?
-// a: because legacy design choices
-// b: "delete n" is ugly and the c++ consortium is filled with asininely brain dead retards who think their tenureship makes them more valuable to the C++ community than the actual compiler devs & the C++ users who keep this shit alive

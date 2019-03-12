@@ -94,8 +94,8 @@ error_t OLinuxFileImp::Read(void * buffer, size_t length, size_t & read, loff_t 
 error_t OLinuxFileImp::Delete()
 {
     error_t err;
-    ORetardPtr<OLinuxPathImpl> file_path;
-    ORetardPtr<OLinuxPathImpl> dir_path;
+    ODumbPointer<OLinuxPathImpl> file_path;
+    ODumbPointer<OLinuxPathImpl> dir_path;
 
     if (ERROR(err = _error))
         return err;

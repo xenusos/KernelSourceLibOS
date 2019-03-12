@@ -38,7 +38,7 @@ static chain_p work_restore;           // chain<tgid, chain<tid, pt_regs>
 static mutex_k work_mutex;
 static mutex_k work_watcher_mutex;
 
-static OPtr<OLMemoryInterface> OS_MemoryInterface;
+static OPtr<OLMemoryInterface> os_memoryinterface;
 
 static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
 static error_t APC_GetTaskStack_s(task_k tsk, APCStack & stack);
@@ -216,7 +216,7 @@ error_t ODEWorkHandler::MapToKernel()
     error_t err;
     OPtr<OLGenericMappedBuffer> map;
 
-    err = OS_MemoryInterface->NewBuilder(_kernel_map.desc);
+    err = os_memoryinterface->NewBuilder(_kernel_map.desc);
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't allocate builder, error 0x%xz", err);
@@ -233,7 +233,7 @@ error_t ODEWorkHandler::MapToKernel()
         return err;
     }
 
-    err = _kernel_map.desc->MapKernel(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
+    err = _kernel_map.desc->MapKernel(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't get map pages to kernel, error 0x%xz", err);
@@ -366,10 +366,10 @@ error_t ODEWorkHandler::Schedule()
 static error_t APC_MapReturnStub_s(task_k tsk, size_t & ret)
 {
     error_t err;
-    ORetardPtr<OLBufferDescription> desc;
+    ODumbPointer<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
-    err = OS_MemoryInterface->NewBuilder(desc);
+    err = os_memoryinterface->NewBuilder(desc);
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't allocate builder");
@@ -390,7 +390,7 @@ static error_t APC_MapReturnStub_s(task_k tsk, size_t & ret)
         return err;
     }
 
-    err = desc->MapUser(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE | OL_ACCESS_EXECUTE, kCacheNoCache));
+    err = desc->MapUser(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE | OL_ACCESS_EXECUTE, kCacheNoCache));
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't get map pages to user mode");
@@ -473,7 +473,7 @@ static void APC_ReleaseStack_s(APCStack * stack)
     {
         if (stack->pages[i])
         {
-            OS_MemoryInterface->FreePage(stack->pages[i]);
+            os_memoryinterface->FreePage(stack->pages[i]);
         }
     }
 }
@@ -481,14 +481,14 @@ static void APC_ReleaseStack_s(APCStack * stack)
 static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
 {
     error_t err;
-    ORetardPtr<OLBufferDescription> desc;
+    ODumbPointer<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
     for (int i = 0; i < APC_STACK_PAGES; i++)
     {
         page_k page;
 
-        page = OS_MemoryInterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
+        page = os_memoryinterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
 
         if (!page)
         {
@@ -501,7 +501,7 @@ static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
 
     stack.length = APC_STACK_PAGES << OS_PAGE_SHIFT;
  
-    err = OS_MemoryInterface->NewBuilder(desc);
+    err = os_memoryinterface->NewBuilder(desc);
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't allocate memory builder interface, 0x%zx", err);
@@ -528,7 +528,7 @@ static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
         goto errorFreePages;
     }
 
-    err = desc->MapUser(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
+    err = desc->MapUser(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't get map pages to kernel, 0x%zx", err);
@@ -1220,19 +1220,19 @@ static void InitReturnStub_64()
 
     size_t addr;
     error_t err;
-    ORetardPtr<OLBufferDescription> desc;
+    ODumbPointer<OLBufferDescription> desc;
     OPtr<OLGenericMappedBuffer> map;
 
-    work_returnstub_64 = OS_MemoryInterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
+    work_returnstub_64 = os_memoryinterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
     ASSERT(work_returnstub_64, "ODE: InitReturnStub_64, couldn't allocate return stub");
 
-    err = OS_MemoryInterface->NewBuilder(desc);
+    err = os_memoryinterface->NewBuilder(desc);
     ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't allocate builder");
 
     desc->PageInsert(0, work_returnstub_64);
 
     desc->SetupKernelAddress(addr);
-    err = desc->MapKernel(map, OS_MemoryInterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
+    err = desc->MapKernel(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
     ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't get map pages to kernel");
 
     err = map->GetVAStart(addr);
@@ -1246,7 +1246,7 @@ void InitDeferredCalls()
 {
     ProcessesAddExitHook(APC_OnThreadExit);
 
-    ASSERT(NO_ERROR(GetLinuxMemoryInterface(OS_MemoryInterface)), "ODE: InitDeferredCalls, couldn't get linux memory interface"); // TODO: assert
+    ASSERT(NO_ERROR(GetLinuxMemoryInterface(os_memoryinterface)), "ODE: InitDeferredCalls, couldn't get linux memory interface"); 
 
     InitReturnStub_64();
 

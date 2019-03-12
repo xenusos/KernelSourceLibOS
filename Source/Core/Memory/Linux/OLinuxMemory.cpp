@@ -292,7 +292,7 @@ error_t OLUserMappedBufferImpl::Remap(dyn_list_head_p pages, size_t count, OLPag
         vm_area_struct_set_vm_flags_size_t(_area, flags);
     }
 
-    // ramb our massive pages into the general vm area 
+    // ram our massive pages into the general vm area 
     {
         // insert pages into the PTE
         for (size_t i = 0; i < count; i++)
@@ -681,7 +681,6 @@ void OLMemoryInterfaceImpl::FreePage(page_k page)
     __free_pages(page, 0);
 }
 
-
 #if defined(AMD64)
 uint16_t * __cachemode2pte_tbl;// [_PAGE_CACHE_MODE_NUM];
 
@@ -693,7 +692,7 @@ static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
 }
 #endif
 
-pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
+static pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
 {
 #if defined(AMD64)
     pgprot_t prot;

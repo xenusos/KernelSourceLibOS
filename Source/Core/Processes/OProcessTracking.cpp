@@ -9,12 +9,12 @@
 
 #include <Core/CPU/OThread.hpp>
 
-mutex_k tracking_mutex;
-linked_list_head_p tracking_exit_cbs;
-linked_list_head_p tracking_start_cbs;
-chain_p tracking_locked;
+static mutex_k tracking_mutex;
+static linked_list_head_p tracking_exit_cbs;
+static linked_list_head_p tracking_start_cbs;
+static chain_p tracking_locked;
 
-void ProcessesExit(long exitcode)
+static void ProcessesExit(long exitcode)
 {
     link_p link;
     linked_list_entry_p entry;
@@ -43,7 +43,7 @@ void ProcessesExit(long exitcode)
     proc->Destory();
 }
 
-void ProcessesStart(task_k tsk)
+static void ProcessesStart(task_k tsk)
 {
     OProcess * proc;
 
@@ -158,14 +158,14 @@ exit:
     return ret;
 }
 
-void ProcessesRegisterTsk(task_k tsk)
+static void ProcessesRegisterTsk(task_k tsk)
 {
     ProcessesStart(tsk);
 
     threading_ntfy_singleshot_exit(ProcessesGetPid(tsk), ProcessesExit);
 }
 
-void ProcessesTryRegister(task_k tsk)
+static void ProcessesTryRegister(task_k tsk)
 {
     error_t er;
     

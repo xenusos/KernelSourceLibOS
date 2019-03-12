@@ -29,7 +29,7 @@ typedef struct PsudoFileInformation_s
         {
             struct
             {
-                uint64_t char_dev_id;
+                size_t char_dev_id;
             } devfs;
         };
     } pub;
@@ -86,7 +86,7 @@ public:
     PseudofileUserWrite_t write_cb;
     PseudofileUserRead_t  read_cb;
     PseudofileRelease_t   release_cb;
-    PseudofileOpen_t	  open_cb;
+    PseudofileOpen_t      open_cb;
 
 protected:
     void InvalidateImp()                               override;

@@ -3,18 +3,17 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
-
 #include <libos.hpp>
 
 #include <ITypes/IFileOperations.hpp>
 #include "OPseudoFile.hpp"
 
-mutex_k pfns_mutex;
-chain_p pseudo_file_handles;
-class_k psudo_file_class;
+static mutex_k pfns_mutex;
+static chain_p pseudo_file_handles;
+static class_k psudo_file_class;
 
-void FreeFileHandle(OPseudoFileImpl * out);
-void FreeCharDev(chardev_ref chardev);
+static void FreeFileHandle(OPseudoFileImpl * out);
+static void FreeCharDev(chardev_ref chardev);
 
 OPseudoFileImpl::OPseudoFileImpl(PsudoFileInformation_t & info)
 {
@@ -29,6 +28,7 @@ OPseudoFileImpl::OPseudoFileImpl(PsudoFileInformation_t & info)
 
 error_t OPseudoFileImpl::GetIdentifierBlob(const void ** buf, size_t & len)
 {
+    CHK_DEAD;
     uint64_t length;
     *buf = &_info;
     len = sizeof(_info.pub);
@@ -37,43 +37,51 @@ error_t OPseudoFileImpl::GetIdentifierBlob(const void ** buf, size_t & len)
 
 error_t OPseudoFileImpl::GetPath(const char ** path)
 {
+    CHK_DEAD;
     *path = _path;
     return kStatusOkay;
 }
 
 error_t OPseudoFileImpl::FileOkay(bool & status)
 {
+    CHK_DEAD;
     status = !_dead;
     return kStatusOkay;
 }
 
 void OPseudoFileImpl::OnOpen(PseudofileOpen_t cb)
 {
+    CHK_DEAD_RET_VOID;
     open_cb = cb;
 }
 
 void OPseudoFileImpl::OnRelease(PseudofileRelease_t cb)
 {
+    CHK_DEAD_RET_VOID;
     release_cb = cb;
 }
 
 void OPseudoFileImpl::OnUserRead(PseudofileUserRead_t cb)
 {
+    CHK_DEAD_RET_VOID;
     read_cb = cb;
 }
 
 void OPseudoFileImpl::OnUserWrite(PseudofileUserWrite_t cb)
 {
+    CHK_DEAD_RET_VOID;
     write_cb = cb;
 }
 
 PsudoFileInformation_p OPseudoFileImpl::GetInfo()
 {
+    CHK_DEAD_RET_NULL;
     return &_info;
 }
 
 uint64_t OPseudoFileImpl::GetCharDevId()
 {
+    CHK_DEAD_RET_ZERO;
     return _info.pub.devfs.char_dev_id;
 }
 
@@ -230,7 +238,7 @@ DEFINE_SYSV_END
 
 DEFINE_SYSV_FUNCTON_START(fop_seek, loff_t)
 file_k file,
-loff_t	offset,
+loff_t offset,
 int whence,
 void *pad,
 DEFINE_SYSV_FUNCTON_END_DEF(fop_seek, loff_t)
@@ -260,25 +268,15 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_seek, loff_t)
 }
 DEFINE_SYSV_END
 
-
-error_t AllocateNewFileHandle(OPseudoFileImpl ** out)
+static error_t GetNextFileId(size_t & id)
 {
     struct FileIterCtx_s
     {
         uint64_t i;
         bool found;
-    };
+    } cur;
 
-    error_t er;
-    uint64_t id;
-    OPseudoFileImpl * file;
-    OPseudoFileImpl ** handle_ref;
-    PsudoFileInformation_t info;
-
-    mutex_lock(pfns_mutex);
-
-    FileIterCtx_s cur;
-    for (uint64_t i = 0; i < UINT64_MAX; i++)
+    for (size_t i = 0; i < SIZE_T_MAX; i++)
     {
         cur.i = i;
         cur.found = false;
@@ -294,15 +292,33 @@ error_t AllocateNewFileHandle(OPseudoFileImpl ** out)
     }
 
     if (cur.found)
+        return kErrorOutOfUIDs;
+
+    id = cur.i;
+
+    return kStatusOkay;
+}
+
+static error_t AllocateNewFileHandle(OPseudoFileImpl ** out)
+{
+    error_t er;
+    size_t id;
+    OPseudoFileImpl * file;
+    OPseudoFileImpl ** handle_ref;
+    PsudoFileInformation_t info;
+
+    mutex_lock(pfns_mutex);
+
+    if (ERROR(er = GetNextFileId(id)))
     {
         mutex_unlock(pfns_mutex);
-        return kErrorOutOfMemory;
+        return er;
     }
 
+    info.pub.devfs.char_dev_id = id;
     info.pub.type = PsuedoFileType_e::ksLinuxCharDev;
-    info.pub.devfs.char_dev_id = cur.i;
 
-    if (ERROR(er = chain_allocate_link(pseudo_file_handles, cur.i, sizeof(size_t), NULL, &info.priv.file_handle, (void **)&handle_ref)))
+    if (ERROR(er = chain_allocate_link(pseudo_file_handles, id, sizeof(size_t), NULL, &info.priv.file_handle, (void **)&handle_ref)))
     {
         mutex_unlock(pfns_mutex);
         return er;
@@ -323,7 +339,7 @@ error_t AllocateNewFileHandle(OPseudoFileImpl ** out)
     return kStatusOkay;
 }
 
-void FreeFileHandle(OPseudoFileImpl * out)
+static void FreeFileHandle(OPseudoFileImpl * out)
 {
     mutex_lock(pfns_mutex);
 
@@ -336,7 +352,7 @@ void InitPseudoFiles()
 {
     lock_class_key temp;
 
-    psudo_file_class = __class_create(0/* fuck it. lets impersonate the linux kernel*/, "xenus", (lock_class_key_k)&temp);
+    psudo_file_class = __class_create(0/* Lets just impersonate the linux kernel*/, "xenus", (lock_class_key_k)&temp);
     if (LINUX_ERROR(psudo_file_class))
     {
         panic("couldn't register pseudofile class");
@@ -351,7 +367,7 @@ void InitPseudoFiles()
     ASSERT(pfns_mutex, "couldn't allocate file tracker mutex");
 }
 
-void FreeCharDev(chardev_ref chardev)
+static void FreeCharDev(chardev_ref chardev)
 {
     __unregister_chrdev(chardev->major, chardev->minor, 256, chardev->name);
     device_destroy(psudo_file_class, chardev->dev);
@@ -363,7 +379,7 @@ void FreeCharDev(chardev_ref chardev)
     dyncb_free_stub(chardev->handle_fops_seek);
 }
 
-error_t CreateCharDev(OPseudoFileImpl * file)
+static error_t CreateCharDev(OPseudoFileImpl * file)
 {
     l_int major;
     error_t ret;
@@ -405,13 +421,13 @@ error_t CreateCharDev(OPseudoFileImpl * file)
 
     if (major < 0)
     {
-        printf("Failed to register linux file - register chrdev: %i\n", major);
+        LogPrint(kLogError, "Failed to register linux file - register chrdev failed, major = %i (whatever that means... linux is awful)\n", major);
         return kErrorGenericFailure;
     }
 
     if (LINUX_ERROR(chardev->device = device_create(psudo_file_class, NULL, chardev->dev, nullptr, chardev->name)))
     {
-        printf("Internal Linux Error - couldn't register device");
+        LogPrint(kLogError, "Internal Linux Error - couldn't register device (%i, whatever that means... linux is awful)", chardev->device);
         return kErrorGenericFailure;
     }
 

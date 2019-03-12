@@ -129,7 +129,7 @@ uint_t ProcessesGetTgid(task_k tsk)
 
 void ProcessesConvertPath(void * path, char * buf, size_t length)
 {
-    ORetardPtr<OLinuxPathImpl> tpath;
+    ODumbPointer<OLinuxPathImpl> tpath;
     error_t er;
     if (!path)
     {

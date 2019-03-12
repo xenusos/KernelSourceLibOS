@@ -12,12 +12,12 @@
 
 OFileStatImp::OFileStatImp(uint64_t modified_time, uint64_t creation_time, uint64_t accessed_time, uint64_t file_length, uint64_t UNIX_mode, uint64_t user_id)
 {
-    _modified_time	= modified_time;
-    _creation_time	= creation_time;
-    _accessed_time	= accessed_time;
-    _file_length	= file_length;
-    _UNIX_mode		= UNIX_mode;
-    _user_id		= user_id;
+    _modified_time    = modified_time;
+    _creation_time    = creation_time;
+    _accessed_time    = accessed_time;
+    _file_length      = file_length;
+    _UNIX_mode        = UNIX_mode;
+    _user_id          = user_id;
 }
 
 uint64_t OFileStatImp::GetModifiedTime()
@@ -70,7 +70,7 @@ bool OFileStatImp::IsIPC()
     return (_UNIX_mode & DT_SOCK) || (_UNIX_mode & DT_CHR);
 }
 
-void	OFileStatImp::InvalidateImp()
+void    OFileStatImp::InvalidateImp()
 {
 
 }

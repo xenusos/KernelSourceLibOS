@@ -14,20 +14,20 @@ class OLinuxPathImpl : public OPath
 public:
     OLinuxPathImpl(vfsmount_k mnt, dentry_k dentry);
 
-    bool		IsEqualTo(const OPath * path)		override;
-    uint_t		ToString(char * str, uint_t length) override;
+    bool        IsEqualTo(const OPath * path)        override;
+    uint_t      ToString(char * str, uint_t length) override;
 
-    dentry_k	GetDEntry();
-    vfsmount_k	GetMount();
+    dentry_k    GetDEntry();
+    vfsmount_k  GetMount();
     
-    inode_k		ToINode();
-    void		ToPathPtr(path_k path);
+    inode_k     ToINode();
+    void        ToPathPtr(path_k path);
 
-    error_t		GetParent_1(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with files -> dirs
-    error_t		GetParent_2(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with dirs  -> dirs
+    error_t     GetParent_1(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with files -> dirs
+    error_t     GetParent_2(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with dirs  -> dirs
 
 protected:
-    void		InvalidateImp()	override;
+    void        InvalidateImp()    override;
 
 private:
     vfsmount_k _mnt;

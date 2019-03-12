@@ -16,7 +16,7 @@ public:
     void SnoozeNanoRange(uint64_t u, uint64_t mu);
 
     l_int GetRealPRIO();    /*  prio  */
-    l_int GetPrio();		/* static */
+    l_int GetPrio();        /* static */
 
     l_uint GetCPU();
 

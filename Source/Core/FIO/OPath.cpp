@@ -4,18 +4,17 @@
     License: All Rights Reserved J. Reece Wilson
 */  
 #include <libos.hpp>
-
 #include <ITypes\IPath.hpp>
 
 #include "OPath.hpp"
 
 OLinuxPathImpl::OLinuxPathImpl(vfsmount_k mnt, dentry_k dentry)
 {
-    _dentry	= dentry;
-    _mnt	= mnt;
+    _dentry    = dentry;
+    _mnt    = mnt;
     
     lockref_get((lockref_k)dentry_get_d_lockref(_dentry)); //__dget
-    mntget(_mnt);										   //mntget
+    mntget(_mnt);                                          //mntget
 }
 
 void OLinuxPathImpl::InvalidateImp()
@@ -72,7 +71,7 @@ bool OLinuxPathImpl::IsEqualTo(const OPath * path)
     return ((OLinuxPathImpl *)path)->_dentry == this->_dentry;
 }
 
-error_t	OLinuxPathImpl::GetParent_1(const OOutlivableRef<OLinuxPathImpl> & out)
+error_t OLinuxPathImpl::GetParent_1(const OOutlivableRef<OLinuxPathImpl> & out)
 {
     error_t err;
     dentry_k parent;
@@ -89,7 +88,7 @@ error_t	OLinuxPathImpl::GetParent_1(const OOutlivableRef<OLinuxPathImpl> & out)
     return err;
 }
 
-error_t	OLinuxPathImpl::GetParent_2(const OOutlivableRef<OLinuxPathImpl> & out)
+error_t OLinuxPathImpl::GetParent_2(const OOutlivableRef<OLinuxPathImpl> & out)
 {
     error_t err;
     dentry_k parent;

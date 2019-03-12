@@ -13,7 +13,7 @@ public:
 
     inline bool IsDead();
 protected:
-    inline void Invalidate();
+    inline void  Invalidate();
     virtual void InvalidateImp() {};
 private:
     bool _is_dead;
@@ -22,6 +22,8 @@ private:
 
 #define CHK_DEAD          do {if (IsDead()) return kErrorObjectDead; }  while (0)
 #define CHK_DEAD_RET_NULL do {if (IsDead()) return nullptr; }           while (0)
+#define CHK_DEAD_RET_ZERO do {if (IsDead()) return 0; }                 while (0)
+#define CHK_DEAD_RET_VOID do {if (IsDead()) return; }                   while (0)
 
 template<class T>
 class OPtr
@@ -31,13 +33,13 @@ public:
     inline OPtr(T * ahh);
     inline OPtr();
 
-    inline T *			GetTypedObject();
-    inline OObject *	GetObject();
+    inline T *       GetTypedObject();
+    inline OObject * GetObject();
 
-    inline void *		SetObject(void * obj, bool allow_destory);
-    inline T *			SetObject(T * obj, bool allow_destory);
+    inline void *    SetObject(void * obj, bool allow_destory);
+    inline T *       SetObject(T * obj, bool allow_destory);
 
-    inline T *			operator->();
+    inline T *       operator->();
 
     void Destory()
     {
@@ -65,12 +67,12 @@ template<class T>
 class OUncontrollableRef
 {
 public:
-    inline OUncontrollableRef()					: _has_optr(false), _has_generic(false), _optr(_optr_hack), _generic_ptr(_generic_hack) {}
-    inline OUncontrollableRef(OPtr<T> & ptr)	: _has_optr(true),  _has_generic(false), _optr(ptr),        _generic_ptr(_generic_hack) {}
-    inline OUncontrollableRef(T *& ptr)			: _has_optr(false), _has_generic(true),  _optr(_optr_hack), _generic_ptr(ptr)           {}
+    inline OUncontrollableRef()                    : _has_optr(false), _has_generic(false), _optr(_optr_hack), _generic_ptr(_generic_hack) {}
+    inline OUncontrollableRef(OPtr<T> & ptr)       : _has_optr(true),  _has_generic(false), _optr(ptr),        _generic_ptr(_generic_hack) {}
+    inline OUncontrollableRef(T *& ptr)            : _has_optr(false), _has_generic(true),  _optr(_optr_hack), _generic_ptr(ptr)           {}
 
-    inline void *	SetObject(void * obj)	const;
-    inline T *		SetObject(T * obj)		const;
+    inline void * SetObject(void * obj)  const;
+    inline T *    SetObject(T * obj)    const;
 protected:
     OPtr<T> _optr_hack;
     OPtr<T> & _optr;
@@ -84,19 +86,19 @@ protected:
 
 class OReferenceCounter;
 template<class T>
-class ORetardPtr
+class ODumbPointer
 {
 public:
-    inline ORetardPtr(T * object);
-    inline ORetardPtr();
-    inline ~ORetardPtr();
+    inline ODumbPointer(T * object);
+    inline ODumbPointer();
+    inline ~ODumbPointer();
 
     inline T* operator->();
     inline T& operator* ();
-    inline ORetardPtr<T>& operator=(const ORetardPtr<T>& predecessor);
-    inline ORetardPtr<T>& SwapValue(const ORetardPtr<T>& predecessor);
+    inline ODumbPointer<T>& operator=(const ODumbPointer<T>& predecessor);
+    inline ODumbPointer<T>& SwapValue(const ODumbPointer<T>& predecessor);
 
-    void Destory() { printf("Caught illegal destory call to a retard pointer. Did you think this was an O(s)Object? Legacy code?\n"); }
+    void Destory() { printf("Caught illegal destory call to a dumb pointer. Did you think this was an O(s)Object? Legacy code?\n"); }
 
     bool IsValid();
 protected:
@@ -109,20 +111,20 @@ protected:
 
     void Collect();
 };
-#include "ObjectsRetardPointer.imp"
+#include "ObjectsDumbPointer.imp"
 
 // Outlivable reference parameters, like uncontrollable references, assign values to an arbitrary pointer pointer. however, with these parameters, you are responsible for the objects life-span. 
 template<class T>
 class OOutlivableRef
 {
 public:
-    inline OOutlivableRef()                    : _has_generic(false), _has_optr(false), _has_retard(false), _optr(_optr_hack), _generic_ptr(_generic_hack), _retard_ptr(_retarded_hack) {}
-    inline OOutlivableRef(OPtr<T> & ptr)       : _has_generic(false), _has_optr(true),  _has_retard(false), _optr(ptr),        _generic_ptr(_generic_hack), _retard_ptr(_retarded_hack) {}
-    inline OOutlivableRef(ORetardPtr<T> & ptr) : _has_generic(false), _has_optr(false), _has_retard(true),  _optr(_optr_hack), _generic_ptr(_generic_hack), _retard_ptr(ptr)            {}
-    inline OOutlivableRef(T *& ptr)            : _has_generic(true),  _has_optr(false), _has_retard(false), _optr(_optr_hack), _generic_ptr(ptr),           _retard_ptr(_retarded_hack) {}
+    inline OOutlivableRef()                    : _has_generic(false), _has_optr(false), _has_dumb(false), _optr(_optr_hack), _generic_ptr(_generic_hack), _dumb_ptr(_dumbed_hack) {}
+    inline OOutlivableRef(OPtr<T> & ptr)       : _has_generic(false), _has_optr(true),  _has_dumb(false), _optr(ptr),        _generic_ptr(_generic_hack), _dumb_ptr(_dumbed_hack) {}
+    inline OOutlivableRef(ODumbPointer<T> & ptr) : _has_generic(false), _has_optr(false), _has_dumb(true),  _optr(_optr_hack), _generic_ptr(_generic_hack), _dumb_ptr(ptr)            {}
+    inline OOutlivableRef(T *& ptr)            : _has_generic(true),  _has_optr(false), _has_dumb(false), _optr(_optr_hack), _generic_ptr(ptr),           _dumb_ptr(_dumbed_hack) {}
 
-    inline void *		PassOwnership(void * obj)	const;
-    inline T *			PassOwnership(T * obj)		const;
+    inline void *        PassOwnership(void * obj)    const;
+    inline T *           PassOwnership(T * obj)       const;
 private:
     OPtr<T> _optr_hack;
     OPtr<T> & _optr;
@@ -132,9 +134,9 @@ private:
     T *& _generic_ptr;
     bool _has_generic;
 
-    ORetardPtr<T> _retarded_hack;
-    ORetardPtr<T> & _retard_ptr;
-    bool _has_retard;
+    ODumbPointer<T> _dumbed_hack;
+    ODumbPointer<T> & _dumb_ptr;
+    bool _has_dumb;
 };
 #include "ObjectsOutlivableRef.imp"
 

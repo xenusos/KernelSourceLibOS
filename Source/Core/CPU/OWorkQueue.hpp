@@ -6,21 +6,19 @@
 #include <Core/CPU/OWorkQueue.hpp>
 
 class OSimpleSemaphore;
-
-
 class OWorkQueueImpl : public OWorkQueue
 {
 public:
     OWorkQueueImpl(uint32_t start_count, mutex_k mutex, dyn_list_head_p list_a, dyn_list_head_p list_b);
 
-    error_t GetCount(uint32_t &) override;
-    error_t EndWork()            override;
-    error_t BeginWork()          override;
+    error_t GetCount(uint32_t &)            override;
+    error_t EndWork()                       override;
+    error_t BeginWork()                     override;
     error_t WaitAndAddOwner(uint32_t ms)    override;
-    error_t ReleaseOwner()       override;
+    error_t ReleaseOwner()                  override;
 
 protected:
-    void InvalidateImp()         override;
+    void InvalidateImp()                    override;
 
 private:
     error_t GoToSleep(uint32_t ms, bool workers);

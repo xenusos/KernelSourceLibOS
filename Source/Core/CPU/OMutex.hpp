@@ -1,5 +1,9 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
 #pragma once
-
 #include <Core/CPU/OMutex.hpp>
 
 class OMutexImpl : public OMutex

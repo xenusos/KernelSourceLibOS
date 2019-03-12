@@ -14,6 +14,10 @@ template<class T>
 T * OOutlivableRef<T>::PassOwnership(T * obj) const
 {
     bool found = false;
+	if (!obj)
+	{
+		return nullptr;
+	}
     if (this->_has_retard)
     {
         this->_retard_ptr.SwapValue(ORetardPtr<T>(obj));

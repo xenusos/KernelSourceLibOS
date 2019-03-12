@@ -106,7 +106,7 @@
     <None Include="Include\Base\Objects\ObjectsOutlivableRef.imp" />
     <None Include="Include\Base\Objects\ObjectsRef.imp" />
     <None Include="Include\Base\Objects\ObjectsReferenceCounter.imp" />
-    <None Include="Include\Base\Objects\ObjectsRetardPointer.imp" />
+    <None Include="Include\Base\Objects\ObjectsDumbPointer.imp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Include\Core\Net\Text.txt" />

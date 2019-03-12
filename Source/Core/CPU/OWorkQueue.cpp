@@ -3,8 +3,8 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
-
 #include <libos.hpp>
+#include <Utils/DateHelper.hpp>
 
 #include <Core/CPU/OSpinlock.hpp>
 
@@ -13,14 +13,6 @@
 #include <ITypes/IThreadStruct.hpp>
 #include <ITypes/ITask.hpp>
 
-static inline long MS_TO_JIFFIES(long ms)
-{
-    long HZ = kernel_information.KERNEL_FREQUENCY;
-    if (ms > 1000)
-        return HZ * ms / 1000;
-    else
-        return HZ / (1000 / ms);
-}
 
 struct WorkWaitingThreads
 {
@@ -30,14 +22,13 @@ struct WorkWaitingThreads
 
 OWorkQueueImpl::OWorkQueueImpl(uint32_t start_count, mutex_k mutex, dyn_list_head_p list_a, dyn_list_head_p list_b)
 {
-    _counter = 0;
-    _completed = 0;
-    _trigger_on = start_count;
+    _counter     = 0;
+    _completed   = 0;
+    _trigger_on  = start_count;
     _acquisition = mutex;
-    _waiters = list_a;
-    _workers = list_b;
+    _waiters     = list_a;
+    _workers     = list_b;
 }
-
 
 error_t OWorkQueueImpl::GetCount(uint32_t & out)
 {
@@ -96,7 +87,7 @@ error_t OWorkQueueImpl::GoToSleep(uint32_t ms, bool waiters)
 
     if (ms != -1)
     {
-        timeout = MAX(1, MS_TO_JIFFIES(ms));
+        timeout = MAX(1, MSToOSTicks(ms));
         timeoutable = true;
     }
     else

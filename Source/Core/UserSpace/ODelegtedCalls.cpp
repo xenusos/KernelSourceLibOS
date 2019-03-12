@@ -54,7 +54,7 @@ error_t AddKernelSymbol(const char * name, DelegatedCall_t fn)
     return kStatusOkay;
 }
 
-size_t DelegatedCallsGetBuffer(void * buf, size_t len)
+static size_t DelegatedCallsGetBuffer(void * buf, size_t len)
 {
     size_t cnt;
     size_t index;
@@ -103,7 +103,7 @@ exit:
     return index;
 }
 
-void DelegatedCallsHandlePull(xenus_syscall_p atten)
+static void DelegatedCallsHandlePull(xenus_syscall_p atten)
 {
     if (atten->arg_alpha && atten->arg_bravo)
     {
@@ -134,7 +134,7 @@ void DelegatedCallsHandlePull(xenus_syscall_p atten)
     }
 }
 
-void DelegatedCallsHandleCall(xenus_syscall_p atten)
+static void DelegatedCallsHandleCall(xenus_syscall_p atten)
 {
     DelegatedCallInstance_p fn;
     SysJob_s job;
@@ -161,7 +161,7 @@ void DelegatedCallsHandleCall(xenus_syscall_p atten)
     atten->response = 0;
 }
 
-void DelegatedCallsHandleDeferredExec(xenus_syscall_p atten)
+static void DelegatedCallsHandleDeferredExec(xenus_syscall_p atten)
 {
     DeferredExecFinish(atten->arg_alpha/*, atten->arg_bravo*/);
 }

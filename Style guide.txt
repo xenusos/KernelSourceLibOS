@@ -1,0 +1,6 @@
+lol...
+
+this project interacts with components using linux kernel headers, microsofts C++ style guide, googles style guide, my old C style guide, and my C++ style guide.
+just try to keep things uniform...
+
+writing clean code here is physically impossible

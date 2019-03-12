@@ -11,9 +11,9 @@
 #include "OPseudoFile.hpp"
 #include "../Processes/OProcessTracking.hpp"
 
-OPtr<OPseudoFile> registration_file;
+static OPtr<OPseudoFile> registration_file;
 
-void RegisterCurrent()
+static void RegisterCurrent()
 {
     threading_set_process_syscall_handler(DelegatedCallsSysCallHandler);
     thread_enable_cleanup();

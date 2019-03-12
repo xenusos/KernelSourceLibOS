@@ -12,14 +12,23 @@
 #define S_TO_MS(S)   ((S) * 1000)
 #define S_TO_NS(S)   ((S) * 1000000000)
 
-#define TIMESPEC_PTR_TO_MS(ptr)	(S_TO_MS(ptr->tv_sec) + NS_TO_MS(ptr->tv_nsec))
-#define TIMESPEC_TO_MS(ptr)		(S_TO_MS(ptr.tv_sec)  + NS_TO_MS(ptr.tv_nsec))
+#define TIMESPEC_PTR_TO_MS(ptr)    (S_TO_MS(ptr->tv_sec) + NS_TO_MS(ptr->tv_nsec))
+#define TIMESPEC_TO_MS(ptr)        (S_TO_MS(ptr.tv_sec)  + NS_TO_MS(ptr.tv_nsec))
 
-#define GET_TZ_MS		(DateHelpers::GetTimeZoneOffset())
-#define MS_APPEND_TZ(n)	((n) + GET_TZ_MS)
+#define GET_TZ_MS        (DateHelpers::GetTimeZoneOffset())
+#define MS_APPEND_TZ(n)    ((n) + GET_TZ_MS)
 
 #define GET_TIME_EPOCH  DateHelpers::GetUnixTime()
-#define GET_LOCAL_TIME	(MS_APPEND_TZ(GET_TIME_EPOCH))
+#define GET_LOCAL_TIME    (MS_APPEND_TZ(GET_TIME_EPOCH))
+
+static inline uint32_t MSToOSTicks(uint64_t ms)
+{
+    uint64_t HZ = kernel_information.KERNEL_FREQUENCY;
+    if (ms > 1000)
+        return uint32_t(HZ * ms / 1000);
+    else
+        return uint32_t(HZ / (1000 / ms));
+}
 
 struct time_info
 {

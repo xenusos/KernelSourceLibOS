@@ -3,7 +3,6 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
-
 #include <libos.hpp>
 
 #include <Core/CPU/OSpinlock.hpp>
@@ -12,21 +11,14 @@
 #include <ITypes/IThreadStruct.hpp>
 #include <ITypes/ITask.hpp>
 
+#include <Utils/DateHelper.hpp>
+
 #include "OSemaphore.hpp"
 struct SemaWaitingThreads
 {
     task_k thread;
     bool signal;
 };
-
-static inline long MS_TO_JIFFIES(long ms)
-{
-    long HZ = kernel_information.KERNEL_FREQUENCY;
-    if (ms > 1000)
-        return HZ * ms / 1000;
-    else
-        return HZ / (1000 / ms);
-}
 
 OCountingSemaphoreImpl::OCountingSemaphoreImpl(uint32_t start_count, uint32_t limit, mutex_k mutex, dyn_list_head_p list)
 {
@@ -103,7 +95,7 @@ error_t OCountingSemaphoreImpl::GoToSleep(uint32_t ms)
 
     if (ms != -1)
     {
-        timeout = MAX(1, MS_TO_JIFFIES(ms));
+        timeout = MAX(1, MSToOSTicks(ms));
         timeoutable = true;
     }
     else

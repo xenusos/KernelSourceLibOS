@@ -298,7 +298,7 @@ void InitThreading()
     ASSERT(thread_dealloc_mutex, "couldn't allocate mutex");
 }
 
-void RuntimeThreadExit(long exitcode)
+static void RuntimeThreadExit(long exitcode)
 {
     OThreadImp ** thread_handle;
     OThreadEP_t * ep_tracker;
@@ -342,7 +342,7 @@ void RuntimeThreadExit(long exitcode)
     mutex_unlock(thread_chain_mutex);
 }
 
-void RuntimeThreadPostContextSwitch()
+static void RuntimeThreadPostContextSwitch()
 {
     bool exit;
     uint32_t pid;
@@ -384,7 +384,7 @@ void RuntimeThreadPostContextSwitch()
     do_exit(exitcode);
 }
 
-int RuntimeThreadEP(void * data)
+static int RuntimeThreadEP(void * data)
 {
     thread_exit_cb_t * cb_arr;
     OThreadImp * instance;

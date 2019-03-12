@@ -5,7 +5,7 @@
 */
 
 template<class T>
-ORetardPtr<T>::ORetardPtr(T * object)
+ODumbPointer<T>::ODumbPointer(T * object)
 {
     _object			= object;
     _ref_counter	= new OReferenceCounter();
@@ -13,36 +13,33 @@ ORetardPtr<T>::ORetardPtr(T * object)
 }
 
 template<class T>
-ORetardPtr<T>::ORetardPtr()
+ODumbPointer<T>::ODumbPointer()
 {
-    // what type of retard thinks "we should never have any medium of object referencing", and that if you want an object variable, it must always be defined. 
-    // how about: "no, fuck you"?
-    // this is just a forward decleration
     _object			= nullptr;
     _ref_counter	= nullptr;
 }
 
 template<class T>
-ORetardPtr<T>::~ORetardPtr()
+ODumbPointer<T>::~ODumbPointer()
 {
     if (_ref_counter == nullptr) return;
     Collect();
 }
 
 template<class T>
-T* ORetardPtr<T>::operator->()
+T* ODumbPointer<T>::operator->()
 {
     return _object;
 }
 
 template<class T>
-ORetardPtr<T>& ORetardPtr<T>::operator=(const ORetardPtr<T>& predecessor)
+ODumbPointer<T>& ODumbPointer<T>::operator=(const ODumbPointer<T>& predecessor)
 {
     return this->SwapValue(predecessor);
 }
 
 template<class T>
-ORetardPtr<T>& ORetardPtr<T>::SwapValue(const ORetardPtr<T>& predecessor)
+ODumbPointer<T>& ODumbPointer<T>::SwapValue(const ODumbPointer<T>& predecessor)
 {
     if (this == &predecessor) return *this; //more c++ bullshit
     Collect();
@@ -53,22 +50,21 @@ ORetardPtr<T>& ORetardPtr<T>::SwapValue(const ORetardPtr<T>& predecessor)
     return *this;
 }
 
-// HURRDURR REFERENCES BECAUSE FUCK NORMS RIGHT?!?1?
-class CPPIsFuckingRetarded : public OObject
+class CPPIsAnnoying : public OObject
 {
     void InvalidateImp() override
     {	}
 };
 
 template<class T>
-T& ORetardPtr<T>::operator*()
+T& ODumbPointer<T>::operator*()
 {
-    panic("Learn to program like a real glowing cia man. Fuck Bjarne Stroustrup and fuck derefencing OS Objects. UPDATE 2018-08-29: Oh, and fuck trains. :'(");
-    return (T&)CPPIsFuckingRetarded();
+    panic("You can not dereference an OS Object");
+    return (T&)CPPIsAnnoying();
 }
 
 template<class T>
-void ORetardPtr<T>::Collect()
+void ODumbPointer<T>::Collect()
 {
     if (!_ref_counter)
         return;
@@ -81,7 +77,7 @@ void ORetardPtr<T>::Collect()
 }
 
 template<class T>
-bool ORetardPtr<T>::IsValid()
+bool ODumbPointer<T>::IsValid()
 { 
     return _object ? true : false;
 }

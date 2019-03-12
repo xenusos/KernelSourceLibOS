@@ -4,7 +4,6 @@
     License: All Rights Reserved J. Reece Wilson
 */  
 #include <libos.hpp>
-
 #include "OMutex.hpp"
 
 OMutexImpl::OMutexImpl(mutex_k mutex)

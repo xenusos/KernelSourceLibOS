@@ -9,6 +9,7 @@
 #define BUILTIN_CALL_EXTENDED 4
 #define BUTLTIN_CALL_NTFY_COMPLETE 5
 
-void DelegatedCallsSysCallHandler(xenus_syscall_ref atten);
+extern error_t AddKernelSymbol(const char * name, DelegatedCall_t fn);
+extern void DelegatedCallsSysCallHandler(xenus_syscall_ref atten);
 
-void InitDelegatedCalls();
+extern void InitDelegatedCalls();

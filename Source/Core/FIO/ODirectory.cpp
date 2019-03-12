@@ -50,7 +50,7 @@ error_t ODirectoryImp::UpDir(const OOutlivableRef<ODirectory> & dir)
     CHK_DEAD;
 
     error_t err;
-    ORetardPtr<OLinuxPathImpl> parent;
+    ODumbPointer<OLinuxPathImpl> parent;
 
     if (ERROR(err = _path->GetParent_2(OOutlivableRef<OLinuxPathImpl>(parent))))
         return err;
@@ -63,7 +63,7 @@ error_t ODirectoryImp::Delete()
     CHK_DEAD;
 
     error_t err;
-    ORetardPtr<OLinuxPathImpl> parent;
+    ODumbPointer<OLinuxPathImpl> parent;
 
 
     if (ERROR(err = _path->GetParent_2(OOutlivableRef<OLinuxPathImpl>(parent))))
@@ -218,15 +218,18 @@ error_t CreateDirectory(const OOutlivableRef<ODirectory> & dir, const char * pat
     error_t ret;
     dentry_k entry;
     path_k temp_path;
+    inode_k inode;
 
     if (!(path))
         return kErrorIllegalBadArgument;
     
-    ret			= kStatusOkay;
-    temp_path	= alloca(path_size());
-    entry		= kern_path_create(AT_FDCWD, path, temp_path, LOOKUP_DIRECTORY);
+    ret          = kStatusOkay;
+    temp_path    = alloca(path_size());
 
-    if (vfs_mkdir((inode_k)IDEntry(IPath(temp_path).GetDEntry()).GetVarINode().GetUInt(), entry, mode) != 0)
+    entry        = kern_path_create(AT_FDCWD, path, temp_path, LOOKUP_DIRECTORY);
+    inode        = (inode_k)IDEntry(IPath(temp_path).GetDEntry()).GetVarINode().GetUInt();
+
+    if (vfs_mkdir(inode, entry, mode) != 0)
         ret = XENUS_ERROR_INTERNAL_ERROR;
 
     done_path_create(temp_path, entry); //some cleanup is required, some ref counters need decrementing (ie path_put), etc

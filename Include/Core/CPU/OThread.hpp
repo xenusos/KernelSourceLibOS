@@ -23,7 +23,7 @@ public:
     virtual error_t GetThreadId(uint32_t & id)    = 0;
 
     virtual error_t IsAlive(bool &)               = 0; 
-    virtual error_t IsRunning(bool &)             = 0;	
+    virtual error_t IsRunning(bool &)             = 0;    
                                                   
     virtual error_t IsMurderable(bool &)          = 0; 
     virtual error_t TryMurder(long exit)          = 0; 
@@ -33,8 +33,8 @@ public:
                                                  
     virtual error_t GetName(const char *& str)    = 0;
 
-    virtual error_t IsFloatingHandle(bool &)	  = 0;
-    virtual error_t GetOSHandle(void *& handle)	  = 0;
+    virtual error_t IsFloatingHandle(bool &)      = 0;
+    virtual error_t GetOSHandle(void *& handle)   = 0;
 
     virtual void * GetData() = 0;
 };

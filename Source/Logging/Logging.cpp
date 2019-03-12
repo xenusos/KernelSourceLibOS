@@ -26,14 +26,14 @@ static const char * logging_levels[KInvalidLogLevel] =
 #define TS_LENGTH sizeof("????-??-??T??:??:??.???T??-?? PADDING")
 #define FN_LEN    (sizeof(LOG_DIR "/Log ??.txt") + TS_LENGTH)
 
-void LoggingGetTs(char * ts)
+static void LoggingGetTs(char * ts)
 {
     time_info now;
     DateHelpers::ParseTime(GET_LOCAL_TIME, now);
     DateHelpers::FormatNonStd(ts, TS_LENGTH, now, DateHelpers::GetTimeZoneOffset());
 }
 
-void LoggingAppendLine(const char * ln)
+static void LoggingAppendLine(const char * ln)
 {
     mutex_lock(logging_mutex);
     if (log_file)
@@ -45,7 +45,7 @@ void LoggingAppendLine(const char * ln)
     mutex_unlock(logging_mutex);
 }
 
-const char * LoggingGetLvlName(LoggingLevel_e lvl)
+static const char * LoggingLevelStringify(LoggingLevel_e lvl)
 {
     if (lvl >= KInvalidLogLevel)
         return "-_-_-_-";
@@ -62,12 +62,12 @@ void LoggingPrint(const char * mod, LoggingLevel_e lvl, const char * msg, va_lis
     LoggingGetTs(timestamp);
 
     vsnprintf(logging_tstr, PRINTF_MAX_STRING_LENGTH, msg, list);
-    snprintf(logging_tline, PRINTF_MAX_STRING_LENGTH, "%s [%-8s] <%s> %s", timestamp, LoggingGetLvlName(lvl), mod, logging_tstr);
+    snprintf(logging_tline, PRINTF_MAX_STRING_LENGTH, "%s [%-8s] <%s> %s", timestamp, LoggingLevelStringify(lvl), mod, logging_tstr);
 
     LoggingAppendLine(logging_tline);
 }
 
-void LoggingInitAllocations()
+static void LoggingInitAllocations()
 {
     log_file = nullptr;
 
@@ -75,13 +75,13 @@ void LoggingInitAllocations()
     ASSERT(logging_mutex, "failed to create logging mutex");
 
     logging_tline = (char *)malloc(PRINTF_MAX_STRING_LENGTH);
-    logging_tstr = (char *)malloc(PRINTF_MAX_STRING_LENGTH);
+    logging_tstr  = (char *)malloc(PRINTF_MAX_STRING_LENGTH);
 
     ASSERT(logging_tline, "couldn't allocate temp log line buffer");
     ASSERT(logging_tstr, "couldn't allocate temp log string buffer");
 }
 
-bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
+static bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
 {
     error_t err;
     if (ERROR(err = OpenDirectory(dir, LOG_DIR)))
@@ -95,7 +95,7 @@ bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
     return true;
 }
 
-void LoggingInitResetDir(ORetardPtr<ODirectory> dir)
+static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
 {
     error_t err;
     linked_list_head_p list;
@@ -122,7 +122,7 @@ void LoggingInitResetDir(ORetardPtr<ODirectory> dir)
 
     for (linked_list_entry_p cur = list->bottom; cur != NULL; cur = cur->next)
     {
-        ORetardPtr<OFile> file;
+        ODumbPointer<OFile> file;
         const char * path;
         char full[256];
         size_t len;
@@ -147,7 +147,7 @@ void LoggingInitResetDir(ORetardPtr<ODirectory> dir)
     linked_list_destory(list);
 }
 
-void LoggingInitCreateFile()
+static void LoggingInitCreateFile()
 {
     error_t err;
     char filename[FN_LEN];
@@ -164,7 +164,7 @@ void LoggingInitCreateFile()
 
 void LoggingInit()
 {
-    ORetardPtr<ODirectory> dir;
+    ODumbPointer<ODirectory> dir;
 
     LoggingInitAllocations();
 
