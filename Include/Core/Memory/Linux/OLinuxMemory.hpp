@@ -19,53 +19,8 @@ enum OLCacheType
     kCacheWriteThrough   = 3, // read cache, write cache and physical
     kCacheWriteProtected = 4  // read cache, write physical
 };
-// PPC and X86 have more
-// driver devs just dont need access to them... such makes our job easier
-
-struct OLPageEntry
-{
-    pgprot_t prot;
-    size_t access;
-    OLCacheType cache;
-};
-
-// Describes mapped memory
-class OLGenericMappedBuffer : public OObject
-{
-public:
-    virtual error_t GetVAStart(size_t &)                            = 0;
-    virtual error_t GetVAEnd(size_t &)                              = 0;
-    virtual error_t GetLength(size_t &)                             = 0;
-    virtual error_t Unmap()                                         = 0;
-    virtual void    DisableUnmapOnFree()                            = 0;
-};
-
-// Describes a virtual buffer [or two if shared between user and kernel] pre-PTE allocation
-class OLBufferDescription : public OObject
-{
-public:
-    // Add/remove/modify pages in virtual buffer
-    virtual bool    PageIsPresent(size_t idx)                       = 0;
-    virtual error_t PageInsert   (size_t idx, page_k page)          = 0;
-    virtual error_t PagePhysAddr (size_t idx, phys_addr_t & addr)   = 0;
-    virtual error_t PageCount    (size_t & count)                   = 0;
-
-    // Temporarily access pages within this descriptior
-    virtual error_t PageMap      (size_t idx, void * & addr)        = 0;
-    virtual void    PageUnmap    (void * addr)                      = 0;
-
-    // Map
-    virtual error_t SetupKernelAddress(size_t & address)            = 0;
-    virtual error_t SetupUserAddress(task_k task, size_t & address) = 0;
-     // OUncontrollableRef -> life is controlled by OLBufferDescriptions container [or lack thereof]
-    virtual error_t MapKernel(const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry pte) = 0; 
-    virtual error_t MapUser  (const OUncontrollableRef<OLGenericMappedBuffer> kernel, OLPageEntry pte) = 0;
-
-    // Remap
-    virtual error_t UpdateKernel(OLPageEntry pte)                    = 0;
-    virtual error_t UpdateUser  (OLPageEntry pte)                    = 0;
-    virtual error_t UpdateAll   (OLPageEntry pte)                    = 0;
-};
+// PPC and X86 have a lot more cache types
+// driver devs just dont need to use them
 
 enum OLPageLocation
 {
@@ -75,23 +30,82 @@ enum OLPageLocation
     kPageNormal      // ZONE_NORMAL  
 };
 
+struct OLPageEntryMeta
+{
+    pgprot_t prot;
+    size_t access;
+    OLCacheType cache;
+};
+
+enum OLPageEntryType
+{
+    kPageEntryByAddress,
+    kPageEntryByPage,
+    kPageEntryDummy
+};
+
+struct OLPageEntry : OLPageEntryMeta
+{
+    OLPageEntryType type;
+    union
+    {
+        phys_addr_t address;
+        page_k page;
+    };
+};
+
+// Describes a virtual buffer [or two if shared between user and kernel] pre-PTE allocation
+class OLMemoryAllocation : public OObject
+{
+public:
+    // Important notes:
+    //  The following functions are O(N) NOT O(log(n)) or better - relative to injected pages, not ::SizeInPages() 
+    //  You may not insert NULL or physical addresses into the kernel; you may use the OLVirtualAddressSpace interface for phys -> kernel mapping.
+
+    virtual bool    PageIsPresent (size_t idx)                                                          = 0;
+    virtual error_t PageInsert    (size_t idx, OLPageEntry page)                                        = 0;
+    virtual error_t PagePhysAddr  (size_t idx, phys_addr_t & addr)                                      = 0;
+    virtual error_t PageGetMapping(size_t idx, OLPageEntry & page)                                      = 0;
+                                                                                                        
+    virtual size_t SizeInPages()                                                                        = 0;
+    virtual size_t SizeInBytes()                                                                        = 0;
+                                                                                                        
+    virtual size_t GetStart()                                                                           = 0;
+    virtual size_t GetEnd()                                                                             = 0;
+
+    virtual void   FreeAddressSpace()                                                                   = 0;
+};
+
+class OLVirtualAddressSpace : public OObject
+{
+public:
+
+    virtual page_k * AllocatePages(OLPageLocation location, size_t cnt, size_t flags = 0)               = 0;
+    virtual void         FreePages(page_k * pages)                                                      = 0;
+
+    virtual error_t        MapPhys(phys_addr_t phys, size_t pages, size_t & address, void * & context)  = 0;
+    virtual error_t      UnmapPhys(void * context)                                                      = 0;
+    
+    virtual error_t        MapPage(page_k page, size_t pages, size_t & address, void * & context)       = 0;
+    virtual error_t      UnmapPage(void * context)                                                      = 0;
+
+    virtual error_t NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation) = 0;
+};
+
 class OLMemoryInterface
 {
 public:
-    virtual OLPageLocation GetPageLocation(size_t max)                                = 0;           // nvidya demands ranges of (0, (1 << adapter bits) - 1) 
-                                                                                                     // lets be nice to them
-    virtual page_k AllocatePage(OLPageLocation location, size_t flags = 0)            = 0;
-    virtual void   FreePage(page_k page)                                              = 0;
-                                                                                      
-    virtual phys_addr_t   PhysPage(page_k page)                                       = 0;
-    virtual void *         MapPage(page_k page)                                       = 0;
-    virtual void         UnmapPage(void * virt)                                       = 0;
-                                                                                      
-    virtual void        UpdatePageEntryCache (OLPageEntry &, OLCacheType cache)       = 0;
-    virtual void        UpdatePageEntryAccess(OLPageEntry &, size_t access)           = 0;
-    virtual OLPageEntry CreatePageEntry(size_t access, OLCacheType cache)             = 0;
+    virtual OLPageLocation GetPageLocation(size_t max)                                             = 0;           // nvidya demands ranges of (0, (1 << adapter bits) - 1) 
+                                                                                                                  // lets be nice to them
 
-    virtual error_t NewBuilder(const OOutlivableRef<OLBufferDescription> builder)     = 0;
+    virtual phys_addr_t   PhysPage(page_k page)                                                    = 0;
+
+    virtual void        UpdatePageEntryCache (OLPageEntryMeta &, OLCacheType cache)                = 0;
+    virtual void        UpdatePageEntryAccess(OLPageEntryMeta &, size_t access)                    = 0;
+    virtual OLPageEntryMeta CreatePageEntry(size_t access, OLCacheType cache)                      = 0;
+
+    virtual error_t GetKernelAddressSpace(const OUncontrollableRef<OLVirtualAddressSpace> builder) = 0;
+    virtual error_t GetUserAddressSpace(const OUncontrollableRef<OLVirtualAddressSpace> builder)   = 0;
 
   //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, size_t length) = 0;
   //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, page_k page)   = 0;
@@ -105,26 +119,5 @@ public:
 // 
 //  MSDN docs just state "idk man- PAGED BUFFERS" without actually defining what makes dma buffers from a dma device special
 //  the dxgk subsystem just allocates generic NC PTEs given an MDL 
-//
-//  we could implement an OLDmaBuffer to be safe, but since 90% of Xenus is x86_64 only, there is no point
-//class OLDmaBuffer
-//{
-//public:
-//    virtual error_t GetVirtualAddress(void * & mapped)        = 0;
-//    virtual error_t GetPhysicalAddress(dma_addr_t & addr)     = 0;
-//                                                              
-//    // DMA sync stubs to be used alongside GetVirtualAddress  
-//    virtual void PreWrite()                                   = 0;
-//    virtual void PostWrite()                                  = 0;
-//    virtual void PreRead()                                    = 0;
-//    virtual void PostWrite()                                  = 0;
-//    // or use:                                                
-//                                                              
-//    // DMA Access stubs                                       
-//    virtual error_t Write(const void * buffer, size_t length) = 0;
-//    virtual error_t Read(void * buffer, size_t length)        = 0;
-//
-//    virtual void Deallocate() = 0;
-//};
 
 LIBLINUX_SYM error_t GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> interface);

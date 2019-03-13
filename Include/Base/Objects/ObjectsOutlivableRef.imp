@@ -18,9 +18,9 @@ T * OOutlivableRef<T>::PassOwnership(T * obj) const
 	{
 		return nullptr;
 	}
-    if (this->_has_retard)
+    if (this->_has_dumb)
     {
-        this->_retard_ptr.SwapValue(ORetardPtr<T>(obj));
+        this->_dumb_ptr.SwapValue(ODumbPointer<T>(obj));
         found = true;
     }
     if (this->_has_optr)

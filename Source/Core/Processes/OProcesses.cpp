@@ -461,7 +461,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     void * map;
     error_t ret;
     OLMemoryInterface * lm;
-    OLPageEntry protection;
+    OLPageEntryMeta protection;
 
     ret = kStatusOkay;
 
