@@ -31,6 +31,116 @@ DEFINE_SYSV_END
 
 
 
+
+#if defined(AMD64)
+uint16_t * __cachemode2pte_tbl;// [_PAGE_CACHE_MODE_NUM];
+
+static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
+{
+    if (pcm == 0)
+        return 0;
+    return __cachemode2pte_tbl[pcm];
+}
+#endif
+
+static pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
+{
+#if defined(AMD64)
+    pgprot_t prot;
+    prot.pgprot_ = 0;
+
+    switch (cache)
+    {
+    case kCacheCache:
+    {
+        // _PAGE_CACHE_MODE_WB = no op
+        return prot;
+    }
+    case kCacheNoCache:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_UC);
+        return prot;
+    }
+    case kCacheWriteCombined:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WC);
+        return prot;
+    }
+    case kCacheWriteThrough:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WT);
+        return prot;
+    }
+    case kCacheWriteProtected:
+    {
+        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WP);
+        return prot;
+    }
+    default:
+    {
+        panicf("Bad protection id %i", cache);
+    }
+    }
+#else
+    pgprot_noncached(vm_page_prot)
+        pgprot_writecombine(vm_page_prot)
+        pgprot_dmacoherent(vm_page_prot)
+#endif
+        return prot;
+}
+
+void OLMemoryInterfaceImpl::UpdatePageEntryCache(OLPageEntryMeta &entry, OLCacheType cache)
+{
+    entry.prot.pgprot_ |= CacheTypeToCacheModeToProt(cache).pgprot_;
+}
+
+void OLMemoryInterfaceImpl::UpdatePageEntryAccess(OLPageEntryMeta &entry, size_t access)
+{
+    size_t vmflags;
+    vmflags = 0;
+
+    if (access & OL_ACCESS_EXECUTE)
+        vmflags |= VM_EXEC;
+
+    if (access & OL_ACCESS_READ)
+        vmflags |= VM_READ;
+
+    if (access & OL_ACCESS_WRITE)
+        vmflags |= VM_WRITE;
+
+    vmflags |= VM_SHARED; // _PAGE_RW is required even when not writing.
+                          // udmabuf also uses this logic alongside similar x86 cache logic
+    entry.prot.pgprot_ |= vm_get_page_prot(vmflags).pgprot_;
+    entry.access = access;
+}
+
+OLPageEntryMeta OLMemoryInterfaceImpl::CreatePageEntry(size_t access, OLCacheType cache)
+{
+    OLPageEntryMeta entry = { 0 };
+    UpdatePageEntryAccess(entry, access);
+    UpdatePageEntryCache(entry, cache);
+    return entry;
+}
+
+error_t OLMemoryInterfaceImpl::NewBuilder(const OOutlivableRef<OLBufferDescription> builder)
+{
+    dyn_list_head_p pages;
+
+    pages = DYN_LIST_CREATE(page_k);
+
+    if (!pages)
+        return kErrorOutOfMemory;
+
+    if (!builder.PassOwnership(new OLBufferDescriptionImpl(pages)))
+    {
+        dyn_list_destory(pages);
+        return kErrorOutOfMemory;
+    }
+
+    return kStatusOkay;
+}
+
+
 error_t GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> interface)
 {
     //interface.SetObject(nullptr);

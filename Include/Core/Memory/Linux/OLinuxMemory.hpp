@@ -62,54 +62,52 @@ public:
     //  The following functions are O(N) NOT O(log(n)) or better - relative to injected pages, not ::SizeInPages() 
     //  You may not insert NULL or physical addresses into the kernel; you may use the OLVirtualAddressSpace interface for phys -> kernel mapping.
 
-    virtual bool    PageIsPresent (size_t idx)                                                          = 0;
-    virtual error_t PageInsert    (size_t idx, OLPageEntry page)                                        = 0;
-    virtual error_t PagePhysAddr  (size_t idx, phys_addr_t & addr)                                      = 0;
-    virtual error_t PageGetMapping(size_t idx, OLPageEntry & page)                                      = 0;
-                                                                                                        
-    virtual size_t SizeInPages()                                                                        = 0;
-    virtual size_t SizeInBytes()                                                                        = 0;
-                                                                                                        
-    virtual size_t GetStart()                                                                           = 0;
-    virtual size_t GetEnd()                                                                             = 0;
-
-    virtual void   FreeAddressSpace()                                                                   = 0;
+    virtual bool    PageIsPresent (size_t idx)                                                                      = 0;
+    virtual error_t PageInsert    (size_t idx, OLPageEntry page)                                                    = 0;
+    virtual error_t PagePhysAddr  (size_t idx, phys_addr_t & addr)                                                  = 0;
+    virtual error_t PageGetMapping(size_t idx, OLPageEntry & page)                                                  = 0;
+                                                                                                                    
+    virtual size_t  SizeInPages   ()                                                                                = 0;
+    virtual size_t  SizeInBytes   ()                                                                                = 0;
+                                                                                                                       
+    virtual size_t  GetStart      ()                                                                                = 0;
+    virtual size_t  GetEnd        ()                                                                                = 0;
+                                                                                                                    
+    virtual void    ForceLinger   ()                                                                                = 0;
 };
 
 class OLVirtualAddressSpace : public OObject
 {
 public:
 
-    virtual page_k * AllocatePages(OLPageLocation location, size_t cnt, size_t flags = 0)               = 0;
-    virtual void         FreePages(page_k * pages)                                                      = 0;
+    virtual page_k * AllocatePages(OLPageLocation location, size_t cnt, size_t flags = 0)                           = 0;
+    virtual void     FreePages    (page_k * pages)                                                                  = 0;
+                                                                                                                    
+    virtual error_t  MapPhys      (phys_addr_t phys, size_t pages, size_t & address, void * & context)              = 0;
+    virtual error_t  UnmapPhys    (void * context)                                                                  = 0;
+                                                                                                                    
+    virtual error_t  MapPage      (page_k page, size_t pages, size_t & address, void * & context)                   = 0;
+    virtual error_t  UnmapPage    (void * context)                                                                  = 0;
 
-    virtual error_t        MapPhys(phys_addr_t phys, size_t pages, size_t & address, void * & context)  = 0;
-    virtual error_t      UnmapPhys(void * context)                                                      = 0;
-    
-    virtual error_t        MapPage(page_k page, size_t pages, size_t & address, void * & context)       = 0;
-    virtual error_t      UnmapPage(void * context)                                                      = 0;
-
-    virtual error_t NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation) = 0;
+    virtual error_t  NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation) = 0;
 };
 
 class OLMemoryInterface
 {
 public:
-    virtual OLPageLocation GetPageLocation(size_t max)                                             = 0;           // nvidya demands ranges of (0, (1 << adapter bits) - 1) 
-                                                                                                                  // lets be nice to them
-
-    virtual phys_addr_t   PhysPage(page_k page)                                                    = 0;
-
-    virtual void        UpdatePageEntryCache (OLPageEntryMeta &, OLCacheType cache)                = 0;
-    virtual void        UpdatePageEntryAccess(OLPageEntryMeta &, size_t access)                    = 0;
-    virtual OLPageEntryMeta CreatePageEntry(size_t access, OLCacheType cache)                      = 0;
-
-    virtual error_t GetKernelAddressSpace(const OUncontrollableRef<OLVirtualAddressSpace> builder) = 0;
-    virtual error_t GetUserAddressSpace(const OUncontrollableRef<OLVirtualAddressSpace> builder)   = 0;
-
-  //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, size_t length) = 0;
-  //virtual error_t AllocateDMA(const OOutlivableRef<OLDmaBuffer> dma, page_k page)   = 0;
-
+    virtual OLPageLocation  GetPageLocation      (size_t max)                                                       = 0;
+    virtual size_t          GetPageRegionStart   (OLPageLocation location)                                          = 0; 
+    virtual size_t          GetPageRegionEnd     (OLPageLocation location)                                          = 0;
+                                                                                                                        
+                                                                                                                    
+    virtual phys_addr_t     PhysPage             (page_k page)                                                      = 0;
+                                                                                                                     
+    virtual void            UpdatePageEntryCache (OLPageEntryMeta &, OLCacheType cache)                             = 0;
+    virtual void            UpdatePageEntryAccess(OLPageEntryMeta &, size_t access)                                 = 0;
+    virtual OLPageEntryMeta CreatePageEntry      (size_t access, OLCacheType cache)                                 = 0;
+                                                                                                                    
+    virtual error_t         GetKernelAddressSpace(const OUncontrollableRef<OLVirtualAddressSpace> builder)          = 0;
+    virtual error_t         GetUserAddressSpace  (const OUncontrollableRef<OLVirtualAddressSpace> builder)          = 0;
 };
 
 // about dma:
