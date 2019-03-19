@@ -4,7 +4,6 @@
     License: All Rights Reserved J. Reece Wilson
 */
 #pragma once
-
 #include <Core/Memory/Linux/OLinuxMemory.hpp>
 
 class OLMemoryManager

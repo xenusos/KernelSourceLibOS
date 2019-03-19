@@ -250,6 +250,6 @@ void FreeLinuxPages(page_k * pages)
 
 void InitMMIOHelper()
 {
-    phys_base        = *(uint64_t *)      kallsyms_lookup_name("phys_base");
-    page_offset_base = *(l_unsigned_long*)kallsyms_lookup_name("page_offset_base");
+    phys_base        = *(uint64_t *)       kallsyms_lookup_name("phys_base");
+    page_offset_base = *(l_unsigned_long*) kallsyms_lookup_name("page_offset_base");
 }

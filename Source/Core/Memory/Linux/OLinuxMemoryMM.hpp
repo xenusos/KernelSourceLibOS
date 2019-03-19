@@ -1,3 +1,8 @@
+/*
+    Purpose: x86_64 linux memory interfaces
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
 #pragma once
 
 // Do note: these are not apart of the public API

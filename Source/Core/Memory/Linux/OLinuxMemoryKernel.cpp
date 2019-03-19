@@ -16,7 +16,6 @@ static l_unsigned_long page_offset_base = 0;
 static page_k          kernel_dummy_page;
 static sysv_fptr_t     ioremap_page_range;
 
-
 struct AddressSpaceKernelContext
 {
     size_t address;

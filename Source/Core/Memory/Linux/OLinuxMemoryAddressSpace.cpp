@@ -6,7 +6,6 @@
 #include <libos.hpp>
 #include "OLinuxMemory.hpp"
 
-
 OLMemoryAllocationImpl::OLMemoryAllocationImpl(OLMemoryManager * mngr, void * region, size_t start, size_t end, size_t size, size_t pages)
 {
     _start  = start;
@@ -17,7 +16,6 @@ OLMemoryAllocationImpl::OLMemoryAllocationImpl(OLMemoryManager * mngr, void * re
     _region = region;
 }
 
-
 void    OLMemoryAllocationImpl::SetTrapHandler(OLTrapHandler_f cb, void * data)
 {
     _inject->SetCallbackHandler(_region, cb, data);
@@ -25,42 +23,42 @@ void    OLMemoryAllocationImpl::SetTrapHandler(OLTrapHandler_f cb, void * data)
 
 bool    OLMemoryAllocationImpl::PageIsPresent(size_t idx)
 {
-
+    return false;
 }
 
 error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
 {
-
+    return kErrorNotImplemented;
 }
 
 error_t OLMemoryAllocationImpl::PagePhysAddr(size_t idx, phys_addr_t & addr)
 {
-
+    return kErrorNotImplemented;
 }
 
 error_t OLMemoryAllocationImpl::PageGetMapping(size_t idx, OLPageEntry & page)
 {
-
+    return kErrorNotImplemented;
 }
 
 size_t  OLMemoryAllocationImpl::SizeInPages()
 {
-
+    return kErrorNotImplemented;
 }
 
 size_t  OLMemoryAllocationImpl::SizeInBytes()
 {
-
+    return kErrorNotImplemented;
 }
 
 size_t  OLMemoryAllocationImpl::GetStart()
 {
-
+    return 0;
 }
 
 size_t  OLMemoryAllocationImpl::GetEnd()
 {
-
+    return 0;
 }
 
 void    OLMemoryAllocationImpl::ForceLinger()
@@ -75,11 +73,6 @@ void OLMemoryAllocationImpl::InvalidateImp()
         return;
 
     _inject->FreeZone(_region);
-}
-
-void* __cdecl operator new(size_t idc, void * placement)
-{
-    return placement;
 }
 
 error_t GetNewMemAllocation(bool kern, task_k task, size_t start, size_t pages, OLMemoryAllocation * & out)

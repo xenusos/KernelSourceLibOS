@@ -28,7 +28,6 @@ struct AddressSpaceUserPrivate
         OLTrapHandler_f callback;
     } fault_cb;
     OLMemoryAllocation * space;
-    vm_area_struct_k area; // this should never be invalidated unless someone else in our vm area is fucking with us.  TODO: consider using find_vma 
 };
 
 DEFINE_SYSV_FUNCTON_START(special_map_fault, l_int)
@@ -104,9 +103,10 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
 
         // https://elixir.bootlin.com/linux/v4.14.106/source/mm/mprotect.c#L514
         // this could have been a pretty big YIKES!
+        // note: on error, no free up operation is needed. callee owns mm & get_unmapped_area doesn't actually take owership of the area until we install the map/create a vma
         area = _install_special_mapping(mm, (l_unsigned_long)address, length, VM_GROWSUP /* | VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | */ | VM_SHARED, mapping);
         if (!area)
-            goto error; // no free up needed. callee owns mm & get_unmapped_area doesn't actually take owership of the area until we install the map
+            goto error; 
 
         ProcessesReleaseMM_Write(mm);
     }
@@ -119,7 +119,6 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
     context->space = space;
     context->pages = pages;
     context->task = tsk;
-    context->area = area;
 
     olength = length;
     ostart  = address;
@@ -175,8 +174,6 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     l_unsigned_long flags;
     page_k page;
 
-    vm_area_struct_set_vm_page_prot_uint64(context->area, entry.prot.pgprot_);
-
     flags = mm_struct_get_flags_size_t(mm);
 
     if (flags & 7 != prot & 7)
@@ -192,7 +189,9 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     flags |= VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | VM_SHARED;
     flags |= VM_GROWSUP;
     flags |= prot;
-    vm_area_struct_set_vm_flags_size_t(context->area, flags);
+    vm_area_struct_set_vm_flags_size_t(cur, flags);
+
+    vm_area_struct_set_vm_page_prot_uint64(cur, entry.prot.pgprot_);
 
     if (entry.type == kPageEntryByAddress)
     {
@@ -310,7 +309,7 @@ error_t OLMemoryManagerUser::RemoveAt(void * instance, void * map)
 
 OLUserVirtualAddressSpaceImpl::OLUserVirtualAddressSpaceImpl(task_k task)
 {
-    if (task)
+    if (!task)
     {
         LogPrint(kLogWarning, "OLUserspaceAddressSpace constructor called with null process instance... using OSThread (a/k/a current)");
         task = OSThread;
@@ -339,21 +338,25 @@ void OLUserVirtualAddressSpaceImpl::FreePages(page_k * pages)
 error_t  OLUserVirtualAddressSpaceImpl::MapPhys(phys_addr_t phys, size_t pages, size_t & address, void * & context)
 {
     // TODO:
+    return kErrorNotImplemented;
 }
 
 error_t  OLUserVirtualAddressSpaceImpl::UnmapPhys(void * context)
 {
     // TODO:
+    return kErrorNotImplemented;
 }
 
 error_t  OLUserVirtualAddressSpaceImpl::MapPage(page_k page, size_t pages, size_t & address, void * & context)
 {
     // TODO:
+    return kErrorNotImplemented;
 }
 
 error_t  OLUserVirtualAddressSpaceImpl::UnmapPage(void * context)
 {
     // TODO:
+    return kErrorNotImplemented;
 }
 
 error_t OLUserVirtualAddressSpaceImpl::NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation)
@@ -371,6 +374,6 @@ error_t OLUserVirtualAddressSpaceImpl::NewDescriptor(size_t start, size_t pages,
 
 void InitUserVMMemory()
 {
-    user_dummy_page = alloc_pages_current(GFP_KERNEL, 0);
-    do_mprotect_pkey = kallsyms_lookup_name("do_mprotect_pkey");
+    user_dummy_page  = alloc_pages_current(GFP_KERNEL, 0);
+    do_mprotect_pkey = (sysv_fptr_t) kallsyms_lookup_name("do_mprotect_pkey");
 }
