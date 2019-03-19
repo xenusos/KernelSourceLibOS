@@ -479,7 +479,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     if (!buffer)
         return kErrorIllegalBadArgument;
 
-    pages      = (length / kernel_information.LINUX_PAGE_SIZE) + 1;
+    pages      = (length / OS_PAGE_SIZE) + 1;
     page_array = (page_k *)zalloc(pages * sizeof(page_k));
 
     if (!page_array)
@@ -489,7 +489,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     if (!mm)
         return kErrorInternalError;
 
-    start = (user_addr_t)(size_t(address) & (kernel_information.LINUX_PAGE_MASK));
+    start = (user_addr_t)(size_t(address) & (OS_PAGE_MASK));
 
     if (OSThread == _tsk)
         TODO = get_user_pages_fast((l_unsigned_long)start, pages, read ? 0 : 1, page_array);

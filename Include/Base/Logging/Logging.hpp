@@ -11,6 +11,7 @@
 enum LoggingLevel_e
 {
     kLogInfo,
+    kLogVerbose,
     kLogWarning,
     kLogError,
     kLogDbg,

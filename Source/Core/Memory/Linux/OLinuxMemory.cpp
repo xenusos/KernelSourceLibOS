@@ -6,34 +6,29 @@
 #define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>
 #include "OLinuxMemory.hpp"
+#include "OLinuxMemoryMM.hpp"
 
-static l_unsigned_long page_offset_base = 0;
-static OLMemoryInterface * linux_memory = 0;
-
-#include "../../Processes/OProcesses.hpp"
-#define MEMORY_DEVICE "XenusMemoryMapper"
-
-static void * special_map_fault;
-static void * special_map_handle;
-static vm_special_mapping_k special_map;
-
-DEFINE_SYSV_FUNCTON_START(special_map_fault, size_t)
-const vm_special_mapping_k sm,
-vm_area_struct_k vma,
-vm_fault_k vmf,
-void * pad,
-DEFINE_SYSV_FUNCTON_END_DEF(special_map_fault, size_t)
+struct LinuxPageEntry 
 {
-    LogPrint(LoggingLevel_e::kLogError, "something bad happened. fault at @ %p in task_struct %p", vm_fault_get_address_size_t(vmf), OSThread);
-    SYSV_FUNCTON_RETURN(0)
-}
-DEFINE_SYSV_END
+    OLPageEntry entry;
+    void * priv;
+};
 
+static const size_t PAGE_REGION_AMD64_NORMAL_START = 4llu * 1024llu * 1024llu * 1024llu;
+static const size_t PAGE_REGION_AMD64_NORMAL_END   = 0xFFFFFFFFFFFFFFFF;
 
+static const size_t PAGE_REGION_AMD64_4GIB_START   = 16 * 1024 * 1024;
+static const size_t PAGE_REGION_AMD64_4GIB_END     = (4llu * 1024llu * 1024llu * 1024llu) - 1;
 
+static const size_t PAGE_REGION_AMD64_DMA_START    = 0;
+static const size_t PAGE_REGION_AMD64_DMA_END      = (16 * 1024 * 1024) - 1;
+
+static OLVirtualAddressSpace * memory_kernelspace = nullptr;
+
+OLMemoryInterface *          g_memory_interface = nullptr;
 
 #if defined(AMD64)
-uint16_t * __cachemode2pte_tbl;// [_PAGE_CACHE_MODE_NUM];
+static uint16_t * __cachemode2pte_tbl;// [_PAGE_CACHE_MODE_NUM];
 
 static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
 {
@@ -122,54 +117,116 @@ OLPageEntryMeta OLMemoryInterfaceImpl::CreatePageEntry(size_t access, OLCacheTyp
     return entry;
 }
 
-error_t OLMemoryInterfaceImpl::NewBuilder(const OOutlivableRef<OLBufferDescription> builder)
+OLPageLocation  OLMemoryInterfaceImpl::GetPageLocation   (size_t max)               
 {
-    dyn_list_head_p pages;
+#if defined(AMD64)
+    // These values are K**i**B 
+    // Citiation: https://elixir.bootlin.com/linux/latest/source/arch/x86/mm/init.c#L881
 
-    pages = DYN_LIST_CREATE(page_k);
+    // Everything above 4GiB is ZONE_NORMAL [can't extract from kernel - no symbol excluding high_memory is exported]
+    // Citiation: Truly limited peripherals use memory taken from ZONE_DMA; most of the rest work with ZONE_NORMAL memory. In the 64-bit world, however, things are a little different. There is no need for high memory on such systems, so ZONE_HIGHMEM simply does not exist, and ZONE_NORMAL contains everything above ZONE_DMA. Having (almost) all of main memory contained within ZONE_NORMAL simplifies a lot of things.
+    // Citiation: https://lwn.net/Articles/91870/
 
-    if (!pages)
-        return kErrorOutOfMemory;
+    if (max >= PAGE_REGION_AMD64_NORMAL_START)
+        return kPageNormal;
 
-    if (!builder.PassOwnership(new OLBufferDescriptionImpl(pages)))
-    {
-        dyn_list_destory(pages);
-        return kErrorOutOfMemory;
-    }
-
-    return kStatusOkay;
+    if (max >= PAGE_REGION_AMD64_4GIB_START)
+        return kPageDMA4GB;
+  
+    if (max >= PAGE_REGION_AMD64_DMA_START)
+        return kPageDMAVeryLow;
+#endif
+    return kPageInvalid;
 }
 
+size_t OLMemoryInterfaceImpl::GetPageRegionStart(OLPageLocation location)
+{
+#if defined(AMD64)
+    switch (location)
+    {
+         case kPageDMAVeryLow:
+         {
+             return PAGE_REGION_AMD64_DMA_START;
+         }
+         case kPageDMA4GB:
+         {
+             return PAGE_REGION_AMD64_4GIB_START;
+         }
+         case kPageNormal:
+         {
+             return PAGE_REGION_AMD64_NORMAL_START;
+         }
+         case kPageInvalid:
+         default:
+         {
+             return -1;
+         }
+    }
+#endif
+}
+
+size_t OLMemoryInterfaceImpl::GetPageRegionEnd(OLPageLocation location)
+{
+#if defined(AMD64)
+    switch (location)
+    {
+         case kPageDMAVeryLow:
+         {
+             return PAGE_REGION_AMD64_DMA_END;
+         }
+         case kPageDMA4GB:
+         {
+             return PAGE_REGION_AMD64_4GIB_END;
+         }
+         case kPageNormal:
+         {
+             return PAGE_REGION_AMD64_NORMAL_END;
+         }
+         case kPageInvalid:
+         default:
+         {
+             return -1;
+         }
+    }
+#endif
+}
+
+phys_addr_t OLMemoryInterfaceImpl::PhysPage(page_k page)
+{
+    return phys_addr_t(linux_page_to_pfn(page) << kernel_information.LINUX_PAGE_SHIFT);
+}
+
+error_t OLMemoryInterfaceImpl::GetKernelAddressSpace(const OUncontrollableRef<OLVirtualAddressSpace> builder)
+{
+    builder.SetObject(memory_kernelspace);
+    return memory_kernelspace == nullptr ? kErrorInternalError : kStatusOkay;
+}
+
+error_t OLMemoryInterfaceImpl::GetUserAddressSpace(task_k task, const OOutlivableRef<OLVirtualAddressSpace> builder)
+{
+    if (!builder.PassOwnership(new OLUserVirtualAddressSpaceImpl(task)))
+        return kErrorOutOfMemory;
+    return kStatusOkay;
+}
 
 error_t GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> interface)
 {
-    //interface.SetObject(nullptr);
-    return kStatusOkay;
+    interface.SetObject(g_memory_interface);
+    return g_memory_interface == nullptr ? kErrorInternalError : kStatusOkay;
 }
 
-void InitMemorySpecialMap()
-{
-    error_t err;
-
-    special_map = zalloc(vm_special_mapping_size());
-    ASSERT(special_map, "allocate special mapping handler");
-
-    err = dyncb_allocate_stub(SYSV_FN(special_map_fault), 4, NULL, &special_map_fault, &special_map_handle);
-    ASSERT(NO_ERROR(err), "couldn't create Xenus memory map fault handler");
-
-    vm_special_mapping_set_fault_size_t(special_map, size_t(special_map_fault));
-    vm_special_mapping_set_name_size_t(special_map,  size_t("XenusMemoryArea"));
-}
 
 void InitMemmory()
 {
-    InitMemorySpecialMap();
+    InitUserVMMemory();
+    InitMMIOHelper();
+    InitUserVMMemory();
 
-    page_offset_base = *(l_unsigned_long*)kallsyms_lookup_name("page_offset_base");
-    ASSERT(special_map, "couldn't allocate special mapping struct");
+    g_memory_interface = new OLMemoryInterfaceImpl();
+    ASSERT(g_memory_interface, "couldn't allocate static memory interface");
 
-    //linux_memory = new OLMemoryInterfaceImpl();
-    //ASSERT(linux_memory, "couldn't allocate static memory interface");
+    memory_kernelspace = new OLKernelVirtualAddressSpaceImpl();
+    ASSERT(memory_kernelspace, "couldn't allocate static kernel VM memory interface");
 
 #if defined(AMD64)
     __cachemode2pte_tbl = (uint16_t *)kallsyms_lookup_name("__cachemode2pte_tbl");
