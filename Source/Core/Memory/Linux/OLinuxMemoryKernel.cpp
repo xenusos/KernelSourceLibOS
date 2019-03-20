@@ -156,9 +156,9 @@ error_t  OLKernelVirtualAddressSpaceImpl::UnmapPhys(void * context)
     return kStatusOkay;
 }
 
-error_t  OLKernelVirtualAddressSpaceImpl::MapPage(page_k page, size_t pages, size_t & address, void * & context)
+error_t  OLKernelVirtualAddressSpaceImpl::MapPage(page_k page, size_t & address, void * & context)
 {
-    return MapPhys(pfn_to_phys(page_to_pfn(page)), pages, address, context);
+    return MapPhys(pfn_to_phys(page_to_pfn(page)), 1, address, context);
 }
 
 error_t  OLKernelVirtualAddressSpaceImpl::UnmapPage(void * context)
@@ -181,7 +181,7 @@ error_t OLKernelVirtualAddressSpaceImpl::NewDescriptor(size_t start, size_t page
 
 void InitKernVMMemory()
 {
-    page_offset_base = *(l_unsigned_long*)kallsyms_lookup_name("page_offset_base");
-    ioremap_page_range = (sysv_fptr_t) kallsyms_lookup_name("ioremap_page_range");
-    kernel_dummy_page = alloc_pages_current(GFP_KERNEL, 0);
+    page_offset_base   = *(l_unsigned_long*) kallsyms_lookup_name("page_offset_base");
+    ioremap_page_range = (sysv_fptr_t)       kallsyms_lookup_name("ioremap_page_range");
+    kernel_dummy_page  = alloc_pages_current(GFP_KERNEL, 0);
 }

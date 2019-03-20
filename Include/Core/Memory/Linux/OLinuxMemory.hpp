@@ -85,7 +85,6 @@ public:
     virtual void    SetTrapHandler(OLTrapHandler_f cb, void * data)                                                      = 0;
 
     virtual void    ForceLinger   ()                                                                                     = 0;
-
 };
 
 class OLVirtualAddressSpace : public OObject
@@ -98,7 +97,7 @@ public:
     virtual error_t  MapPhys      (phys_addr_t phys, size_t pages, size_t & address, void * & context)                   = 0;
     virtual error_t  UnmapPhys    (void * context)                                                                       = 0;
                                                                                                                          
-    virtual error_t  MapPage      (page_k page, size_t pages, size_t & address, void * & context)                        = 0;
+    virtual error_t  MapPage      (page_k page, size_t & address, void * & context)                                      = 0;
     virtual error_t  UnmapPage    (void * context)                                                                       = 0;
                                                                                                                          
     virtual error_t  NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation)      = 0;
@@ -107,10 +106,10 @@ public:
 class OLMemoryInterface : public OObject
 {
 public:
+
     virtual OLPageLocation  GetPageLocation      (size_t max)                                                            = 0;
     virtual size_t          GetPageRegionStart   (OLPageLocation location)                                               = 0; 
     virtual size_t          GetPageRegionEnd     (OLPageLocation location)                                               = 0;
-                                                                                                                             
                                                                                                                          
     virtual phys_addr_t     PhysPage             (page_k page)                                                           = 0;
                                                                                                                           

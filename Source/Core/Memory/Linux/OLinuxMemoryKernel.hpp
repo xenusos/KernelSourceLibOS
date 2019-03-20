@@ -29,8 +29,8 @@ public:
 
     error_t  MapPhys      (phys_addr_t phys, size_t pages, size_t & address, void * & context)             override;
     error_t  UnmapPhys    (void * context)                                                                 override;
-
-    error_t  MapPage      (page_k page, size_t pages, size_t & address, void * & context)                  override;
+    
+    error_t  MapPage      (page_k page, size_t & address, void * & context)                override;
     error_t  UnmapPage    (void * context)                                                                 override;
 
     error_t  NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation) override;

@@ -178,7 +178,6 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
 
     if (flags & 7 != prot & 7)
     {
-
         panicf("Ok. so... we depend on mprotect to split and merge VMAs to inject pages into userspace\n"
                "this is great because vma merging, splitting, creation, etc is a major pain in the ass \n"
                "here's the problem: we tried to inject a page of protection %i that doesn't match its vma flags of %i (prot: %i)", prot, flags, flags & 7);
@@ -347,7 +346,7 @@ error_t  OLUserVirtualAddressSpaceImpl::UnmapPhys(void * context)
     return kErrorNotImplemented;
 }
 
-error_t  OLUserVirtualAddressSpaceImpl::MapPage(page_k page, size_t pages, size_t & address, void * & context)
+error_t  OLUserVirtualAddressSpaceImpl::MapPage(page_k page, size_t & address, void * & context)
 {
     // TODO:
     return kErrorNotImplemented;
