@@ -11,7 +11,7 @@
 #include <Core/CPU/OWorkQueue.hpp>
 #include "ODeferredExecution.hpp"
 
-#include <Core/Memory/Linux/OLinuxMemory.hpp>
+#include "../Memory/Linux/OLinuxMemory.hpp"
 #include "../Processes/OProcesses.hpp"
 #include "../../Utils/RCU.hpp"
 
@@ -37,8 +37,6 @@ static chain_p work_process_ips;       // chain<tgid, size_t>>
 static chain_p work_restore;           // chain<tgid, chain<tid, pt_regs>
 static mutex_k work_mutex;
 static mutex_k work_watcher_mutex;
-
-static OPtr<OLMemoryInterface> os_memoryinterface;
 
 static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
 static error_t APC_GetTaskStack_s(task_k tsk, APCStack & stack);
@@ -189,8 +187,8 @@ ODEWorkHandler::~ODEWorkHandler()
     if (_tsk)
         ProcessesTaskDecrementCounter(_tsk);
 
-    if (_kernel_map.desc.GetTypedObject())
-        _kernel_map.desc->Destory();
+    if (_kernel_map.allocation.GetTypedObject())
+        _kernel_map.allocation->Destory();
 }
 
 error_t ODEWorkHandler::AllocateStack()
@@ -214,39 +212,41 @@ error_t ODEWorkHandler::AllocateStub()
 error_t ODEWorkHandler::MapToKernel()
 {
     error_t err;
-    OPtr<OLGenericMappedBuffer> map;
+    OLVirtualAddressSpace * vas;
 
-    err = os_memoryinterface->NewBuilder(_kernel_map.desc);
+    err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<OLVirtualAddressSpace>(vas));
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't allocate builder, error 0x%xz", err);
+        LogPrint(kLogError, "Couldn't allocate builder, error 0x%zx", err);
         return err;
     }
 
-    for (int i = 0; i < APC_STACK_PAGES; i++)
-        _kernel_map.desc->PageInsert(i, _stack.pages[i]); // TODO assert
-
-    err = _kernel_map.desc->SetupKernelAddress(_kernel_map.address);
+    err = vas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<OLMemoryAllocation>(_kernel_map.allocation));
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't setup kernel address for map, error 0x%xz", err);
+        LogPrint(kLogError, "Couldn't allocate descriptor, error 0x%zx", err);
         return err;
     }
 
-    err = _kernel_map.desc->MapKernel(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
-    if (ERROR(err))
+    for (size_t i = 0; i < APC_STACK_PAGES; i++)
     {
-        LogPrint(kLogError, "Couldn't get map pages to kernel, error 0x%xz", err);
-        return err;
+        error_t err;
+        OLPageEntry entry;
+
+        entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
+        entry.type = kPageEntryByPage;
+        entry.page = _stack.pages[i];
+
+        err = _kernel_map.allocation->PageInsert(i, entry);
+        if (ERROR(err))
+        {
+            LogPrint(kLogError, "couoldn't insert page into kerel 0x%zx", err);
+            return err;
+        }
     }
 
-    err = map->GetVAEnd(_kernel_map.sp);
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "aa");
-        return err;
-    }
-
+    _kernel_map.address = _kernel_map.allocation->GetStart();
+    _kernel_map.sp      = _kernel_map.allocation->GetEnd();
     return kStatusOkay;
 }
 
@@ -283,6 +283,7 @@ void ODEWorkHandler::ParseRegisters(pt_regs & regs)
 
     regs.rsp = rsp;
     regs.rip = _work.address;
+
 
     if (_work.cc == kODESysV)
     {
@@ -366,38 +367,32 @@ error_t ODEWorkHandler::Schedule()
 static error_t APC_MapReturnStub_s(task_k tsk, size_t & ret)
 {
     error_t err;
-    ODumbPointer<OLBufferDescription> desc;
-    OPtr<OLGenericMappedBuffer> map;
+    OLPageEntry entry;
+    ODumbPointer<OLMemoryAllocation> desc;
+    ODumbPointer<OLVirtualAddressSpace> vas;
 
-    err = os_memoryinterface->NewBuilder(desc);
+    err = g_memory_interface->GetUserAddressSpace(tsk, OOutlivableRef<OLVirtualAddressSpace>(vas));
+    if (ERROR(err))
+        return err;
+
+    err = vas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(desc));
+    if (ERROR(err))
+        return err;
+
+    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
+    entry.type = kPageEntryByPage;
+    entry.page = work_returnstub_64;
+
+    err = desc->PageInsert(0, entry);
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't allocate builder");
+        LogPrint(kLogError, "Couldn't insert page into builder, 0x%zx", err);
         return err;
     }
+    
+    ret = desc->GetStart();
 
-    err = desc->PageInsert(0, work_returnstub_64);
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "Couldn't insert page");
-        return err;
-    }
-
-    err = desc->SetupUserAddress(tsk, ret);
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "couldn't setup address");
-        return err;
-    }
-
-    err = desc->MapUser(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE | OL_ACCESS_EXECUTE, kCacheNoCache));
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "Couldn't get map pages to user mode");
-        return err;
-    }
-     
-    map->DisableUnmapOnFree(); // release Xenus shit, allow task GC, keep VA mapping
+    desc->ForceLinger(); // do not free, when we return to the caller
     return kStatusOkay;
 }
 
@@ -469,50 +464,47 @@ static error_t APC_GetProcessReturnStub_s(task_k tsk, size_t & ret)
 
 static void APC_ReleaseStack_s(APCStack * stack)
 {
-    for (int i = 0; i < APC_STACK_PAGES; i++)
-    {
-        if (stack->pages[i])
-        {
-            os_memoryinterface->FreePage(stack->pages[i]);
-        }
-    }
+    error_t err;
+    ODumbPointer<OLVirtualAddressSpace> vas;
+
+    err = g_memory_interface->GetUserAddressSpace(stack->tsk, OOutlivableRef<OLVirtualAddressSpace>(vas));
+    ASSERT(NO_ERROR(err), "GetUserAddressSpace failed: 0x%zx", err);
+
+    vas->FreePages(stack->pages);
 }
 
 static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
 {
     error_t err;
-    ODumbPointer<OLBufferDescription> desc;
-    OPtr<OLGenericMappedBuffer> map;
+    page_k * pages;
+    ODumbPointer<OLMemoryAllocation> desc;
+    ODumbPointer<OLVirtualAddressSpace> vas;
 
-    for (int i = 0; i < APC_STACK_PAGES; i++)
-    {
-        page_k page;
-
-        page = os_memoryinterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
-
-        if (!page)
-        {
-            err = kErrorOutOfMemory;
-            goto errorFreePages;
-        }
-
-        stack.pages[i] = page;
-    }
-
-    stack.length = APC_STACK_PAGES << OS_PAGE_SHIFT;
- 
-    err = os_memoryinterface->NewBuilder(desc);
+    err = g_memory_interface->GetUserAddressSpace(tsk, OOutlivableRef<OLVirtualAddressSpace>(vas));
     if (ERROR(err))
-    {
-        LogPrint(kLogError, "Couldn't allocate memory builder interface, 0x%zx", err);
         return err;
-    }
 
-    for (int i = 0; i < APC_STACK_PAGES; i++)
+    err = vas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<OLMemoryAllocation>(desc));
+    if (ERROR(err))
+        return err;
+
+    pages = vas->AllocatePages(kPageNormal, 6, false, OL_PAGE_ZERO);
+    if (!pages)
+        return kErrorOutOfMemory;
+
+    stack.tsk    = tsk;
+    stack.pages  = pages;
+    stack.length = APC_STACK_PAGES << OS_PAGE_SHIFT;
+
+    for (size_t i = 0; i < APC_STACK_PAGES; i++)
     {
-        error_t err;
+        OLPageEntry entry;
 
-        err = desc->PageInsert(i, stack.pages[i]);
+        entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
+        entry.type = kPageEntryByPage;
+        entry.page = pages[i];
+
+        err = desc->PageInsert(i, entry);
 
         if (ERROR(err))
         {
@@ -521,39 +513,13 @@ static error_t APC_AllocateStack_s(task_k tsk, APCStack & stack)
         }
     }
 
-    err = desc->SetupUserAddress(tsk, stack.mapped.address);
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "apc couldn't reserve user address, 0x%zx", err);
-        goto errorFreePages;
-    }
+    stack.mapped.top    = desc->GetEnd();
+    stack.mapped.bottom = desc->GetStart();
 
-    err = desc->MapUser(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "Couldn't get map pages to kernel, 0x%zx", err);
-        goto errorFreePages;
-    }
-
-    err = map->GetVAEnd(stack.mapped.top);
-    if (ERROR(err))
-    {
-        goto errorFreePages;
-    }
-
-    err = map->GetVAStart(stack.mapped.bottom);
-    if (ERROR(err))
-    {
-        goto errorFreePages;
-    }
-
-    map->DisableUnmapOnFree(); // release Xenus shit, allow task GC, keep VA mapping
+    desc->ForceLinger(); // do not free, when we return to the caller
     return kStatusOkay;
 
 errorFreePages:
-
-    if (map.GetTypedObject())
-        map->Destory();
 
     APC_ReleaseStack_s(&stack);
     return err;
@@ -1129,7 +1095,7 @@ static void APC_TryStoreSave_s(task_k task, pt_regs * restore)
 }
 
 static void APC_RestoreUserState_s(task_k task, pt_regs * fallback)
-{  
+{
     uint_t     pid;
     uint_t     tgid;
     RegRestoreQueue  *pqueue;
@@ -1220,33 +1186,33 @@ static void InitReturnStub_64()
 
     size_t addr;
     error_t err;
-    ODumbPointer<OLBufferDescription> desc;
-    OPtr<OLGenericMappedBuffer> map;
+    OLVirtualAddressSpace * vas;
+    OLMemoryAllocation * alloc;
+    OLPageEntry entry;
 
-    work_returnstub_64 = os_memoryinterface->AllocatePage(kPageNormal, OL_PAGE_ZERO);
+    err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<OLVirtualAddressSpace>(vas));
+    ASSERT(NO_ERROR(err), "fatal error: couldn't get kernel address space interface: %zx", err);
+
+    err = vas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(alloc));
+    ASSERT(NO_ERROR(err), "fatal error: couldn't allocate kernel address VM area: %zx", err);
+
+    work_returnstub_64 = alloc_pages_current(GFP_KERNEL, 0);
     ASSERT(work_returnstub_64, "ODE: InitReturnStub_64, couldn't allocate return stub");
 
-    err = os_memoryinterface->NewBuilder(desc);
-    ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't allocate builder");
+    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
+    entry.type = kPageEntryByPage;
+    entry.page = work_returnstub_64;
 
-    desc->PageInsert(0, work_returnstub_64);
+    err = alloc->PageInsert(0, entry);
+    ASSERT(NO_ERROR(err), "fatal error: couldn't insert page into kernel: %zx", err);
 
-    desc->SetupKernelAddress(addr);
-    err = desc->MapKernel(map, os_memoryinterface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache));
-    ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't get map pages to kernel");
-
-    err = map->GetVAStart(addr);
-    ASSERT(NO_ERROR(err), "ODE: InitReturnStub_64, Couldn't get VA start");
-
-    memcpy((void *)addr, x86_64, sizeof(x86_64));
+    memcpy((void *)alloc->GetStart(), x86_64, sizeof(x86_64));
 }
 
 
 void InitDeferredCalls()
 {
     ProcessesAddExitHook(APC_OnThreadExit);
-
-    ASSERT(NO_ERROR(GetLinuxMemoryInterface(os_memoryinterface)), "ODE: InitDeferredCalls, couldn't get linux memory interface"); 
 
     InitReturnStub_64();
 

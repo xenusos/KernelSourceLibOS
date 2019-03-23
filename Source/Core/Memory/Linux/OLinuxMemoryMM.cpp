@@ -67,8 +67,14 @@ page_k virt_to_page(kernel_pointer_t address)
     return pfn_to_page(virt_to_pfn(address));
 }
 
-static int clipPageCount(int count, int & order)
+static int pagesToOrder(int count, int & order)
 {
+    if (count == 1)
+    {
+        order = 0;
+        return 1;
+    }
+
     for (int i = 0; i < 31; i++)
     {
         int pages = (1 << i);
@@ -78,20 +84,21 @@ static int clipPageCount(int count, int & order)
             return pages;
         }
     }
+
     panicf("Couldn't find order for %i pages", count);
     return 0;
 }
-
-bool LinuxAllocateContigArray(page_k * arry, size_t cnt, size_t flags)
+ 
+static bool LinuxAllocateContigArray(page_k * arry, size_t cnt, size_t flags)
 {
     page_k page;
     int order;
     pfn_t pfn;
     size_t total;
 
-    total = clipPageCount(cnt, order);
+    total = pagesToOrder(cnt, order);
 
-    page  = alloc_pages_current(flags, order);
+    page  = alloc_pages_current(flags | __GFP_COMP, order);
     if (!page)
         return false;
 
@@ -113,7 +120,7 @@ bool LinuxAllocateContigArray(page_k * arry, size_t cnt, size_t flags)
     return true;
 }
 
-bool LinuxAllocatePages(page_k * arry, size_t cnt, size_t flags)
+static bool LinuxAllocatePages(page_k * arry, size_t cnt, size_t flags)
 {
     for (size_t i = 0; i < cnt; i++)
     {
@@ -233,7 +240,7 @@ void FreeLinuxPages(page_k * pages)
 
     if (meta.contig)
     {
-        clipPageCount(meta.length, order);
+        pagesToOrder(meta.length, order);
 
         __free_pages(pages[0], order);
     }

@@ -353,7 +353,7 @@ void InitPseudoFiles()
     lock_class_key temp;
 
     psudo_file_class = __class_create(0/* Lets just impersonate the linux kernel*/, "xenus", (lock_class_key_k)&temp);
-    if (LINUX_ERROR(psudo_file_class))
+    if (LINUX_PTR_ERROR(psudo_file_class))
     {
         panic("couldn't register pseudofile class");
         return;
@@ -425,7 +425,7 @@ static error_t CreateCharDev(OPseudoFileImpl * file)
         return kErrorGenericFailure;
     }
 
-    if (LINUX_ERROR(chardev->device = device_create(psudo_file_class, NULL, chardev->dev, nullptr, chardev->name)))
+    if (LINUX_PTR_ERROR(chardev->device = device_create(psudo_file_class, NULL, chardev->dev, nullptr, chardev->name)))
     {
         LogPrint(kLogError, "Internal Linux Error - couldn't register device (%i, whatever that means... linux is awful)", chardev->device);
         return kErrorGenericFailure;

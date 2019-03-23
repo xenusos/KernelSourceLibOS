@@ -129,7 +129,7 @@ error_t ODirectoryImp::Iterate(void(* iterator)(ODirectory * directory, const ch
 
     dirfile = filp_open(path, kFileDirOnly, 0777);
     
-    if (LINUX_ERROR(dirfile))
+    if (LINUX_PTR_ERROR(dirfile))
         return kErrorInternalError;
 
     iterate_dir(dirfile, dctx);
@@ -203,7 +203,7 @@ error_t   OpenDirectory(const OOutlivableRef<ODirectory> & dir, const char * pat
     if (!(path))
         return kErrorIllegalBadArgument;
 
-    if (LINUX_ERROR(filp = filp_open(path, kFileDirOnly, 0777)))
+    if (LINUX_PTR_ERROR(filp = filp_open(path, kFileDirOnly, 0777)))
         return kErrorInternalError;
 
     if (!(dir.PassOwnership(new ODirectoryImp(IFile(filp).GetPath()))))

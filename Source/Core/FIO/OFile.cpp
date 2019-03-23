@@ -32,7 +32,7 @@ OLinuxFileImp::OLinuxFileImp(const char * file, uint64_t flags, umode_t mode)
         return;
     }
 
-    if (LINUX_ERROR(_filp))
+    if (LINUX_PTR_ERROR(_filp))
     {
         _linux_error = (uint64_t)_filp;
         _filp        = nullptr;

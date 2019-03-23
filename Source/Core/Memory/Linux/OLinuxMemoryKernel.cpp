@@ -14,7 +14,6 @@ OLMemoryManagerKernel g_krnvm_manager;
 
 static l_unsigned_long page_offset_base = 0;
 static page_k          kernel_dummy_page;
-static sysv_fptr_t     ioremap_page_range;
 
 struct AddressSpaceKernelContext
 {
@@ -62,6 +61,7 @@ error_t OLMemoryManagerKernel::FreeZone(void * priv)
 
     vunmap((const void *)context->address);
     delete context;
+    return kStatusOkay;
 }
 
 error_t OLMemoryManagerKernel::InsertAt(void * instance, size_t index, void ** map, OLPageEntry entry)
@@ -93,7 +93,7 @@ error_t OLMemoryManagerKernel::InsertAt(void * instance, size_t index, void ** m
         //int ioremap_page_range(unsigned long addr, unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
         // QWORD, QWORD, PHYSADDR/QWORD, pgprot_t (QWORD)
 
-        ret = (l_int)ez_linux_caller(ioremap_page_range, adr, end, (size_t)entry.address, entry.prot.pgprot_, 0, 0, 0, 0, 0, 0, 0, 0);
+        ret = ioremap_page_range(adr, end, entry.address, entry.meta.prot); //(l_int)ez_linux_caller(ioremap_page_range, adr, end, (size_t)entry.address, entry.prot.pgprot_, 0, 0, 0, 0, 0, 0, 0, 0);
        
         if (ret != 0) // 0 on OK
             return kErrorInternalError;
@@ -106,12 +106,16 @@ error_t OLMemoryManagerKernel::InsertAt(void * instance, size_t index, void ** m
         if (entry.type == kPageEntryByPage)
         {
             page = entry.page;
-            prot = entry.prot;
+            prot = entry.meta.prot;
         }
         else if (entry.type == kPageEntryDummy)
         {
             page = kernel_dummy_page;
             prot = g_memory_interface->CreatePageEntry(0, kCacheNoCache).prot;
+        }
+        else
+        {
+            panic("..");
         }
 
         ret = map_kernel_range_noflush(adr, OS_PAGE_SIZE, prot, &page);
@@ -129,6 +133,7 @@ error_t OLMemoryManagerKernel::InsertAt(void * instance, size_t index, void ** m
 error_t OLMemoryManagerKernel::RemoveAt(void * instance, void * map)
 {
     unmap_kernel_range_noflush((size_t)map, OS_PAGE_SIZE);
+    return kStatusOkay;
 }
 
 page_k * OLKernelVirtualAddressSpaceImpl::AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags)
@@ -182,6 +187,5 @@ error_t OLKernelVirtualAddressSpaceImpl::NewDescriptor(size_t start, size_t page
 void InitKernVMMemory()
 {
     page_offset_base   = *(l_unsigned_long*) kallsyms_lookup_name("page_offset_base");
-    ioremap_page_range = (sysv_fptr_t)       kallsyms_lookup_name("ioremap_page_range");
     kernel_dummy_page  = alloc_pages_current(GFP_KERNEL, 0);
 }

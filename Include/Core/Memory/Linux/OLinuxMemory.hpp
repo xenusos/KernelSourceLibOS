@@ -46,8 +46,9 @@ enum OLPageEntryType
     kPageEntryDummy
 };
 
-struct OLPageEntry : OLPageEntryMeta
+struct OLPageEntry
 {
+    OLPageEntryMeta meta;
     OLPageEntryType type;
     union
     {
@@ -69,8 +70,7 @@ class OLMemoryAllocation : public OObject
 public:
     // Important notes:
     //  The following functions are O(N) NOT O(log(n)) or better - relative to injected pages, not ::SizeInPages() 
-    //  You may not insert NULL or physical addresses into the kernel; you may use the OLVirtualAddressSpace interface for phys -> kernel mapping.
-
+    //  ~~REDACTED YOU CAN NOW INSERT DUMMY PAGES AND PHYS REGIONS INTO THE KERNEL VM~~ 
     virtual bool    PageIsPresent (size_t idx)                                                                           = 0;
     virtual error_t PageInsert    (size_t idx, OLPageEntry page)                                                         = 0;
     virtual error_t PagePhysAddr  (size_t idx, phys_addr_t & addr)                                                       = 0;

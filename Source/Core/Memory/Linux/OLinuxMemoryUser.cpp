@@ -11,7 +11,6 @@
 
 OLMemoryManagerUser g_usrvm_manager;
 static page_k       user_dummy_page;
-static sysv_fptr_t  do_mprotect_pkey;
 
 struct AddressSpaceUserPrivate
 {
@@ -31,10 +30,10 @@ struct AddressSpaceUserPrivate
 };
 
 DEFINE_SYSV_FUNCTON_START(special_map_fault, l_int)
-const vm_special_mapping_k sm,
-vm_area_struct_k vma,
-vm_fault_k vmf,
-void * pad,
+    const vm_special_mapping_k sm,
+    vm_area_struct_k vma,
+    vm_fault_k vmf,
+    void * pad,
 DEFINE_SYSV_FUNCTON_END_DEF(special_map_fault, l_int)
 {
     AddressSpaceUserPrivate * priv;
@@ -46,7 +45,7 @@ DEFINE_SYSV_FUNCTON_END_DEF(special_map_fault, l_int)
         l_int ret;
         IVMFault fault(vmf);
         
-        ret = priv->fault_cb.callback(priv->space, fault.GetVarCowPage().GetUInt(), fault, priv->fault_cb.context);
+        ret = priv->fault_cb.callback(priv->space, fault.GetVarAddress().GetUInt(), fault, priv->fault_cb.context);
         SYSV_FUNCTON_RETURN(ret)
     }
 
@@ -104,7 +103,7 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
         // https://elixir.bootlin.com/linux/v4.14.106/source/mm/mprotect.c#L514
         // this could have been a pretty big YIKES!
         // note: on error, no free up operation is needed. callee owns mm & get_unmapped_area doesn't actually take owership of the area until we install the map/create a vma
-        area = _install_special_mapping(mm, (l_unsigned_long)address, length, VM_GROWSUP /* | VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | */ | VM_SHARED, mapping);
+        area = _install_special_mapping(mm, (l_unsigned_long)address, length, 0, mapping);
         if (!area)
             goto error; 
 
@@ -124,6 +123,7 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
     ostart  = address;
     oend    = address + olength;
 
+    *priv = context;
     return kStatusOkay;
 
 error:
@@ -143,20 +143,22 @@ error_t OLMemoryManagerUser::FreeZone(void * priv)
     AddressSpaceUserPrivate * context;
 
     context = (AddressSpaceUserPrivate *)priv;
+    
+    {
+        mm = ProcessesAcquireMM(context->task);
+        if (!mm)
+            return kErrorInternalError;
 
-    mm = ProcessesAcquireMM(context->task);
+        vm_munmap_ex(mm, context->address, context->length); //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
 
-    if (!mm)
-        return kErrorInternalError;
-
-    //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
-    vm_munmap_ex(mm, context->address, context->length);
-
-    ProcessesMMDecrementCounter(mm);
-
+        ProcessesMMDecrementCounter(mm);
+    }
+    
     dyncb_free_stub(context->special_map_handle);
     free(context->special_map);
     delete context;
+    
+    return kStatusOkay;
 }
 
 void OLMemoryManagerUser::SetCallbackHandler(void * priv, OLTrapHandler_f cb, void * data)
@@ -174,27 +176,18 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     l_unsigned_long flags;
     page_k page;
 
-    flags = mm_struct_get_flags_size_t(mm);
+    flags = vm_area_struct_get_vm_flags_size_t(cur);
 
-    if (flags & 7 != prot & 7)
+    if ((flags & 7) != (prot & 7))
     {
         panicf("Ok. so... we depend on mprotect to split and merge VMAs to inject pages into userspace\n"
-               "this is great because vma merging, splitting, creation, etc is a major pain in the ass \n"
-               "here's the problem: we tried to inject a page of protection %i that doesn't match its vma flags of %i (prot: %i)", prot, flags, flags & 7);
+              "this is great because vma merging, splitting, creation, etc is a major pain in the ass\n"
+              "here's the problem: we tried to inject a page of protection %i that doesn't match its vma flags of %i (prot: %i)", prot, flags, flags & 7);
     }
-
-    flags = mm_struct_get_def_flags_size_t(mm);
-    flags |= VM_DONTEXPAND | VM_SOFTDIRTY;
-    flags |= VM_MAYWRITE | VM_MAYREAD | VM_MAYEXEC | VM_SHARED;
-    flags |= VM_GROWSUP;
-    flags |= prot;
-    vm_area_struct_set_vm_flags_size_t(cur, flags);
-
-    vm_area_struct_set_vm_page_prot_uint64(cur, entry.prot.pgprot_);
 
     if (entry.type == kPageEntryByAddress)
     {
-        if (remap_pfn_range(cur, address, phys_to_pfn(entry.address).val, OS_PAGE_SIZE, entry.prot))
+        if (remap_pfn_range(cur, address, phys_to_pfn(entry.address).val, OS_PAGE_SIZE, entry.meta.prot))
             return false;
 
         return true;
@@ -210,6 +203,10 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
         // we should also use pkeys!
         page = user_dummy_page;
     }
+    else
+    {
+        panic("illegal page entry type");
+    }
 
     if (vm_insert_page(cur, address, page))
         return false;
@@ -224,16 +221,16 @@ static l_unsigned_long GetMProtectProt(OLPageEntry entry)
     if (entry.type == kPageEntryDummy)
         return 0;
 
-    if (entry.access & OL_ACCESS_READ)
+    if (entry.meta.access & OL_ACCESS_READ)
         prot |= VM_READ;
 
-    if (entry.access & OL_ACCESS_WRITE)
+    if (entry.meta.access & OL_ACCESS_WRITE)
     {
         prot |= VM_READ;
         prot |= VM_WRITE;
     }
 
-    if (entry.access & OL_ACCESS_EXECUTE)
+    if (entry.meta.access & OL_ACCESS_EXECUTE)
     {
         prot |= VM_READ;
         prot |= VM_EXEC;
@@ -242,53 +239,95 @@ static l_unsigned_long GetMProtectProt(OLPageEntry entry)
     return prot;
 }
 
-error_t OLMemoryManagerUser::InsertAt(void * instance, size_t index, void ** map, OLPageEntry entry)
+static error_t UpdateMProtectAllowance(task_k task, size_t address, l_unsigned_long prot)
 {
-    mm_struct_k mm;
-    size_t offset;
-    size_t address;
-    l_unsigned_long prot;
-    l_int ret;
     vm_area_struct_k cur;
-    AddressSpaceUserPrivate * context;
+    mm_struct_k mm;
+    size_t flags;
 
-    context = (AddressSpaceUserPrivate *)instance;
+    mm = ProcessesAcquireMM_Write(task);
+    if (!mm)
+        return kErrorInternalError;
+
+    cur = find_vma(mm, address);
+    if (!cur)
+    {
+        ProcessesReleaseMM_Write(mm);
+        return kErrorInternalError;
+    }
+
+    flags = vm_area_struct_get_vm_flags_size_t(cur);
+    flags &= VM_MAYREAD;
+    flags &= VM_MAYWRITE;
+    flags &= VM_MAYEXEC;
+
+    flags |= VM_GROWSUP;
+
+    flags |= prot & VM_WRITE ? VM_MAYWRITE : 0;
+    flags |= prot & VM_READ ? VM_MAYREAD : 0;
+    flags |= prot & VM_READ ? VM_MAYEXEC : 0;
+
+    vm_area_struct_set_vm_flags_size_t(cur, flags);
+    ProcessesReleaseMM_Write(mm);
+    return kStatusOkay;
+}
+
+static error_t UpdatePageEntry(AddressSpaceUserPrivate * context, size_t address, l_unsigned_long prot, OLPageEntry entry)
+{
+    vm_area_struct_k cur;
+    mm_struct_k mm;
 
     mm = ProcessesAcquireMM_Write(context->task);
     if (!mm)
         return kErrorInternalError;
+
+    cur = find_vma(mm, address);
+    if (!cur)
+    {
+        ProcessesReleaseMM_Write(mm);
+        return kErrorInternalError;
+    }
+
+    InjectPage(context, mm, cur, address, prot, entry);
+    ProcessesReleaseMM_Write(mm);
+    return kStatusOkay;
+}
+
+error_t OLMemoryManagerUser::InsertAt(void * instance, size_t index, void ** map, OLPageEntry entry)
+{
+    size_t offset;
+    size_t address;
+    l_unsigned_long prot;
+    l_int ret;
+    error_t err;
+    AddressSpaceUserPrivate * context;
+
+    context = (AddressSpaceUserPrivate *)instance;
 
     prot    = GetMProtectProt(entry);
 
     offset  = index << OS_PAGE_SHIFT;
     address = offset + context->address;
 
-    // mprotect will merge and split the vmas by protection for us :DDD
-    ret = ez_linux_caller(do_mprotect_pkey, address, OS_PAGE_SIZE, prot, 0xffffffffffffffff, 0, 0, 0, 0, 0, 0, 0, 0);
-    if (!ret)
+    // this is kinda dangerous but this hack will do for now
+    err = UpdateMProtectAllowance(context->task, address, prot);
+    if (ERROR(err))
+        return err;
+
+    // split/merge/update prot
+    ret = do_mprotect_pkey(context->task, address, OS_PAGE_SIZE, prot, -1);
+    if (LINUX_INT_ERROR(ret))
     {
-        LogPrint(kLogError, "mprotect failed!");
-        goto error;
+        LogPrint(kLogError, "mprotect failed! %x", ret);
+        return kErrorInternalError;
     }
 
-    cur = find_vma(mm, address);
-    if (!cur)
-    {
-        LogPrint(kLogError, "VMA not found!");
-        goto error;
-    }
+    err = UpdatePageEntry(context, address, prot, entry);
+    if (ERROR(err))
+        return err;
 
-    InjectPage(context, mm, cur, address, prot, entry);
-
-okay:
     *map = (void *)address;
-
-    ProcessesReleaseMM_Write(mm);
     return kStatusOkay;
-
-error:
-    ProcessesReleaseMM_Write(mm);
-    return kErrorInternalError;
 }
 
 error_t OLMemoryManagerUser::RemoveAt(void * instance, void * map)
@@ -303,7 +342,7 @@ error_t OLMemoryManagerUser::RemoveAt(void * instance, void * map)
     
     entry.type = kPageEntryDummy;
 
-    return this->InsertAt(instance, (context->address - address) >> OS_PAGE_SHIFT, &idc, entry);
+    return this->InsertAt(instance, (address - context->address) >> OS_PAGE_SHIFT, &idc, entry);
 }
 
 OLUserVirtualAddressSpaceImpl::OLUserVirtualAddressSpaceImpl(task_k task)
@@ -374,5 +413,4 @@ error_t OLUserVirtualAddressSpaceImpl::NewDescriptor(size_t start, size_t pages,
 void InitUserVMMemory()
 {
     user_dummy_page  = alloc_pages_current(GFP_KERNEL, 0);
-    do_mprotect_pkey = (sysv_fptr_t) kallsyms_lookup_name("do_mprotect_pkey");
 }

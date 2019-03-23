@@ -10,7 +10,7 @@
 
 #define APC_STACK_PAGES CONFIG_APC_STACK_PAGES
 
-class OLBufferDescription;
+class OLMemoryAllocation;
 
 class ODEWorkHandler;
 class ODEWorkJobImpl : public ODEWorkJob
@@ -51,8 +51,9 @@ private:
 
 struct APCStack
 {
-    page_k pages[APC_STACK_PAGES];
-    size_t length;
+    task_k   tsk;
+    page_k * pages;
+    size_t   length;
     struct
     {
         union
@@ -92,7 +93,7 @@ private:
     {
         size_t   sp;
         size_t   address;
-        OPtr<OLBufferDescription> desc;
+        OPtr<OLMemoryAllocation> allocation;
     } _kernel_map; 
 
     size_t _rtstub;

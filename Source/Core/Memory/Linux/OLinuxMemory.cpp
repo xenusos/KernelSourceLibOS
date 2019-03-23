@@ -86,6 +86,10 @@ static pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
 
 void OLMemoryInterfaceImpl::UpdatePageEntryCache(OLPageEntryMeta &entry, OLCacheType cache)
 {
+    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheCache).pgprot_;
+    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheWriteCombined).pgprot_;
+    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheWriteThrough).pgprot_;
+    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheWriteProtected).pgprot_;
     entry.prot.pgprot_ |= CacheTypeToCacheModeToProt(cache).pgprot_;
 }
 
@@ -105,6 +109,7 @@ void OLMemoryInterfaceImpl::UpdatePageEntryAccess(OLPageEntryMeta &entry, size_t
 
     vmflags |= VM_SHARED; // _PAGE_RW is required even when not writing.
                           // udmabuf also uses this logic alongside similar x86 cache logic
+    entry.prot.pgprot_ &= ~vm_get_page_prot(VM_WRITE | VM_READ | VM_EXEC).pgprot_;
     entry.prot.pgprot_ |= vm_get_page_prot(vmflags).pgprot_;
     entry.access = access;
 }
@@ -133,7 +138,7 @@ OLPageLocation  OLMemoryInterfaceImpl::GetPageLocation   (size_t max)
     if (max >= PAGE_REGION_AMD64_4GIB_START)
         return kPageDMA4GB;
   
-    if (max >= PAGE_REGION_AMD64_DMA_START)
+//    if (max >= PAGE_REGION_AMD64_DMA_START)
         return kPageDMAVeryLow;
 #endif
     return kPageInvalid;
