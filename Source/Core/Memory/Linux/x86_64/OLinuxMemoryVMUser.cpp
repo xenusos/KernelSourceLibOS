@@ -268,7 +268,7 @@ static error_t UpdateMProtectAllowance(task_k task, size_t address, l_unsigned_l
 
     flags |= prot & VM_WRITE ? VM_MAYWRITE : 0;
     flags |= prot & VM_READ ? VM_MAYREAD : 0;
-    flags |= prot & VM_READ ? VM_MAYEXEC : 0;
+    flags |= prot & VM_EXEC ? VM_MAYEXEC : 0;
 
     vm_area_struct_set_vm_flags_size_t(cur, flags);
     ProcessesReleaseMM_Write(mm);
