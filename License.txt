@@ -1,10 +1,18 @@
+LEGAL:
+
 Copyright 2016-2019 Reece Wilson (license@reece.sx)
 
 Permission is hereby granted, free of charge, to any non-commercial entity obtaining a copy of this software, binaries, associated documentation and resource files (the "Software"), to deal in the Software under this license. 
-This license permits any non-commercial entity the rights to use, copy, modify, merge, publish, and/or distribute copies of the Software, subject to the following conditions:
+This license permits any non-commercial entity the rights to use, copy, modify, publish, and/or distribute copies of the Software, subject to the following conditions:
+1/3 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+2/3 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+3/3 The Software is never used in a commercial environment.
+ALL LICENSEES THAT INTEND TO CREATE DERIVATIVE WORKS AND MERGE SUCH WORKS TO THE XENUS GIT REPOSITORIES OPERATED BY REECE, INCLUDING BUT NOT LIMITED TO THE REPOSITORIES FOUND AT https://github.com/xenusos, CAN DO SO AT THE COST OF GRANTING A LICENSE TO ALL ENTITIES PERMITTING COMMERCIAL USE OF THE RELEVANT GIT PATCHES, DERIVED SOURCE, AND DERIVED BINARIES
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+SIMPLIFIED:
 
-This software is never used in a commercial environment.
+ You may modify the Software.
+ You may redistribute the Software, in whole or in part, providing that you include a copy of this license.
+ You must not use the Software in a commercial environment without a license that compensates the original developers and/or contributors.
+ If you intend to contribute, you must allow all entities to use your git patches in a commercial envrionment; allowing those that manage the Xenus project to arbitrarily setup commercial licensing and fundraising campaigns to compensate the original developers and/or contributors accordingly.
