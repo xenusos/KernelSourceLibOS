@@ -5,7 +5,6 @@
 */
 #define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>
-#include "OLinuxMemory.hpp"
 #include "OLinuxMemoryMM.hpp"
 
 #define __START_KERNEL_map	_AC(0xffffffff80000000, UL)
@@ -122,12 +121,11 @@ static bool LinuxAllocateContigArray(page_k * arry, size_t cnt, size_t flags)
 
 static bool LinuxAllocatePages(page_k * arry, size_t cnt, size_t flags)
 {
+    page_k page;
+
     for (size_t i = 0; i < cnt; i++)
     {
-        page_k page;
-
         page = alloc_pages_current(flags, 0);
-
         if (!page)
             goto error;
 
@@ -139,9 +137,9 @@ static bool LinuxAllocatePages(page_k * arry, size_t cnt, size_t flags)
 error:
     for (size_t i = 0; i < cnt; i++)
     {
-        page_k page = arry[i];
-
-        if (!page) continue;
+        page = arry[i];
+        if (!page) 
+            continue;
 
         __free_pages(page, 0);
     }

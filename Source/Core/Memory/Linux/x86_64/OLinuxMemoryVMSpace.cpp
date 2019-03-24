@@ -4,7 +4,9 @@
     License: All Rights Reserved J. Reece Wilson
 */
 #include <libos.hpp>
-#include "OLinuxMemory.hpp"
+#include "OLinuxMemoryVM.hpp"
+
+#include "../OLinuxMemory.hpp"
 #include "OLinuxMemoryMM.hpp"
 
 struct TrackedPageEntry
@@ -14,6 +16,22 @@ struct TrackedPageEntry
     void * vm;
     OLMemoryAllocationImpl * requester;
 };
+
+static void CleanUpPageEntry(uint64_t hash, void * buffer)
+{
+    TrackedPageEntry * entry;
+    OLMemoryAllocationImpl * requester;
+    error_t err;
+
+    entry = (TrackedPageEntry *)buffer;
+    requester = entry->requester;
+
+    if (requester->IsLingering())
+        return;
+
+    err = requester->GetMM()->RemoveAt(entry->vm, entry->handle);
+    ASSERT(NO_ERROR(err), "couldn't remove VM entry %zx", err);
+}
 
 OLMemoryAllocationImpl::OLMemoryAllocationImpl(chain_p chain, OLMemoryManager * mngr, void * region, size_t start, size_t end, size_t size, size_t pages)
 {
@@ -34,27 +52,14 @@ void    OLMemoryAllocationImpl::SetTrapHandler(OLTrapHandler_f cb, void * data)
 
 bool    OLMemoryAllocationImpl::PageIsPresent(size_t idx)
 {
+    if (idx >= _pages)
+        return false;
+
     if (ERROR(chain_get(_entries, idx, NULL, NULL)))
         return false;
+    
     return true;
 }
-
-void CleanUpPageEntry(uint64_t hash, void * buffer)
-{
-    TrackedPageEntry * entry;
-    OLMemoryAllocationImpl * requester;
-    error_t err;
-   
-    entry     = (TrackedPageEntry *)buffer;
-    requester = entry->requester;
-
-    if (requester->IsLingering())
-        return;
-
-    err = requester->GetMM()->RemoveAt(entry->vm, entry->handle);
-    ASSERT(NO_ERROR(err), "couldn't remove VM entry %zx", err);
-}
-
 error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
 {
     error_t err;
@@ -62,14 +67,15 @@ error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
     link_p link;
     TrackedPageEntry * entry;
 
-    // TODO: check in rnage
+    if (idx >= _pages)
+        return kErrorPageOutOfRange;
 
     err = chain_get(_entries, idx, &link, (void **) &entry);
 
-    if ((ERROR(err)) && (err != XENUS_ERROR_LINK_NOT_FOUND))
+    if ((ERROR(err)) && (err != kErrorLinkNotFound))
         return err;
 
-    if (err == XENUS_ERROR_LINK_NOT_FOUND)
+    if (err == kErrorLinkNotFound)
     {
         err = chain_allocate_link(_entries, idx, sizeof(TrackedPageEntry), CleanUpPageEntry, &link, (void **)&entry);
     
@@ -106,7 +112,10 @@ error_t OLMemoryAllocationImpl::PagePhysAddr(size_t idx, phys_addr_t & addr)
     OLPageEntry page;
 
     addr = (void *)0xDEADBEEFDEADBEEF;
-    
+
+    if (idx >= _pages)
+        return kErrorPageOutOfRange;
+
     if (ERROR(err = PageGetMapping(idx, page)))
         return err;
 

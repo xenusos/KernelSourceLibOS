@@ -1,12 +1,15 @@
 /*
-    Purpose: x86_64 linux memory interfaces
+    Purpose: OLinuxMemory implementation
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
 #define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>
 #include "OLinuxMemory.hpp"
-#include "OLinuxMemoryMM.hpp"
+#if defined(AMD64)
+#include "x86_64/OLinuxMemoryVM.hpp"
+#include "x86_64/OLinuxMemoryMM.hpp"
+#endif
 
 struct LinuxPageEntry 
 {
@@ -14,6 +17,7 @@ struct LinuxPageEntry
     void * priv;
 };
 
+#if defined(AMD64)
 static const size_t PAGE_REGION_AMD64_NORMAL_START = 4llu * 1024llu * 1024llu * 1024llu;
 static const size_t PAGE_REGION_AMD64_NORMAL_END   = 0xFFFFFFFFFFFFFFFF;
 
@@ -22,6 +26,7 @@ static const size_t PAGE_REGION_AMD64_4GIB_END     = (4llu * 1024llu * 1024llu *
 
 static const size_t PAGE_REGION_AMD64_DMA_START    = 0;
 static const size_t PAGE_REGION_AMD64_DMA_END      = (16 * 1024 * 1024) - 1;
+#endif
 
 static OLVirtualAddressSpace * memory_kernelspace = nullptr;
 
@@ -117,8 +122,8 @@ void OLMemoryInterfaceImpl::UpdatePageEntryAccess(OLPageEntryMeta &entry, size_t
 OLPageEntryMeta OLMemoryInterfaceImpl::CreatePageEntry(size_t access, OLCacheType cache)
 {
     OLPageEntryMeta entry = { 0 };
-    UpdatePageEntryAccess(entry, access);
     UpdatePageEntryCache(entry, cache);
+    UpdatePageEntryAccess(entry, access);
     return entry;
 }
 
@@ -168,6 +173,7 @@ size_t OLMemoryInterfaceImpl::GetPageRegionStart(OLPageLocation location)
          }
     }
 #endif
+    return -1;
 }
 
 size_t OLMemoryInterfaceImpl::GetPageRegionEnd(OLPageLocation location)
@@ -194,11 +200,16 @@ size_t OLMemoryInterfaceImpl::GetPageRegionEnd(OLPageLocation location)
          }
     }
 #endif
+    return -1;
 }
 
 phys_addr_t OLMemoryInterfaceImpl::PhysPage(page_k page)
 {
+#if defined(AMD64)
     return phys_addr_t(linux_page_to_pfn(page) << kernel_information.LINUX_PAGE_SHIFT);
+#else
+    return phys_addr_t(-1);
+#endif
 }
 
 error_t OLMemoryInterfaceImpl::GetKernelAddressSpace(const OUncontrollableRef<OLVirtualAddressSpace> builder)
@@ -209,9 +220,12 @@ error_t OLMemoryInterfaceImpl::GetKernelAddressSpace(const OUncontrollableRef<OL
 
 error_t OLMemoryInterfaceImpl::GetUserAddressSpace(task_k task, const OOutlivableRef<OLVirtualAddressSpace> builder)
 {
+#if defined(AMD64)
     if (!builder.PassOwnership(new OLUserVirtualAddressSpaceImpl(task)))
         return kErrorOutOfMemory;
     return kStatusOkay;
+#endif
+    return kErrorNotImplemented;
 }
 
 error_t GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> interface)
@@ -223,9 +237,11 @@ error_t GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> inte
 
 void InitMemmory()
 {
+#if defined(AMD64)
     InitUserVMMemory();
+    InitKernVMMemory();
     InitMMIOHelper();
-    InitUserVMMemory();
+#endif
 
     g_memory_interface = new OLMemoryInterfaceImpl();
     ASSERT(g_memory_interface, "couldn't allocate static memory interface");

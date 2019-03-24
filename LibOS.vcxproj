@@ -48,11 +48,11 @@
     <ClInclude Include="Source\Core\FIO\OFile.hpp" />
     <ClInclude Include="Source\Core\FIO\OFileStat.hpp" />
     <ClInclude Include="Source\Core\FIO\OPath.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemoryAddressSpace.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemoryKernel.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMSpace.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMKernel.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemory.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemoryMM.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemoryUser.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryMM.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMUser.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\OLinuxStack.hpp" />
     <ClInclude Include="Source\Core\Net\OTCPNetworking.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcesses.hpp" />
@@ -80,10 +80,10 @@
     <ClCompile Include="Source\Core\CPU\OSemaphore.cpp" />
     <ClCompile Include="Source\Core\CPU\OWorkQueue.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemory.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemoryAddressSpace.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemoryKernel.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemoryMM.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemoryUser.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMSpace.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMKernel.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryMM.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMUser.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\OLinuxStack.cpp" />
     <ClCompile Include="Source\Core\Net\OTCPNetworking.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcesses.cpp" />
@@ -115,6 +115,7 @@
     <None Include="Include\Base\Objects\ObjectsRef.imp" />
     <None Include="Include\Base\Objects\ObjectsReferenceCounter.imp" />
     <None Include="Include\Base\Objects\ObjectsDumbPointer.imp" />
+    <None Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVM.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Include\Core\Net\Text.txt" />

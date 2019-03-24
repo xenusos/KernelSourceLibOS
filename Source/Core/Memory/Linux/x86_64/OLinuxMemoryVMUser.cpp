@@ -5,9 +5,11 @@
 */
 #define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>
-#include "OLinuxMemory.hpp"
+#include "OLinuxMemoryVM.hpp"
+
 #include "OLinuxMemoryMM.hpp"
-#include "../../Processes/OProcesses.hpp"
+#include "../OLinuxMemory.hpp"
+#include "../../../Processes/OProcesses.hpp"
 
 OLMemoryManagerUser g_usrvm_manager;
 static page_k       user_dummy_page;
@@ -37,20 +39,24 @@ DEFINE_SYSV_FUNCTON_START(special_map_fault, l_int)
 DEFINE_SYSV_FUNCTON_END_DEF(special_map_fault, l_int)
 {
     AddressSpaceUserPrivate * priv;
+    IVMFault fault(vmf);
+    size_t address;
     
     priv = (AddressSpaceUserPrivate *)SYSV_GET_DATA;
+
+    address = vm_fault_get_address_size_t(vmf);
 
     if (priv->fault_cb.callback)
     {
         l_int ret;
-        IVMFault fault(vmf);
         
-        ret = priv->fault_cb.callback(priv->space, fault.GetVarAddress().GetUInt(), fault, priv->fault_cb.context);
+        ret = priv->fault_cb.callback(priv->space, address, fault, priv->fault_cb.context);
         SYSV_FUNCTON_RETURN(ret)
     }
 
-    LogPrint(LoggingLevel_e::kLogError, "something bad happened. fault at @ %p in task_struct %p", vm_fault_get_address_size_t(vmf), OSThread);
-    SYSV_FUNCTON_RETURN(0)
+    LogPrint(LoggingLevel_e::kLogError, "Xenus Memory Fault at %p in task_struct %p", address, OSThread);
+    LogPrint(LoggingLevel_e::kLogError, " Flags: %zx", fault.GetVarFlags().GetUInt());
+    SYSV_FUNCTON_RETURN(VM_FAULT_ERROR)
 }
 DEFINE_SYSV_END
 
@@ -100,9 +106,6 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
         if (!address)
             goto error;
 
-        // https://elixir.bootlin.com/linux/v4.14.106/source/mm/mprotect.c#L514
-        // this could have been a pretty big YIKES!
-        // note: on error, no free up operation is needed. callee owns mm & get_unmapped_area doesn't actually take owership of the area until we install the map/create a vma
         area = _install_special_mapping(mm, (l_unsigned_long)address, length, 0, mapping);
         if (!area)
             goto error; 
@@ -412,5 +415,5 @@ error_t OLUserVirtualAddressSpaceImpl::NewDescriptor(size_t start, size_t pages,
 
 void InitUserVMMemory()
 {
-    user_dummy_page  = alloc_pages_current(GFP_KERNEL, 0);
+    user_dummy_page  = alloc_pages_current(GFP_USER, 0);
 }

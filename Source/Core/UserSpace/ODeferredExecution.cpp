@@ -379,7 +379,7 @@ static error_t APC_MapReturnStub_s(task_k tsk, size_t & ret)
     if (ERROR(err))
         return err;
 
-    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
+    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE | OL_ACCESS_EXECUTE, kCacheNoCache);
     entry.type = kPageEntryByPage;
     entry.page = work_returnstub_64;
 

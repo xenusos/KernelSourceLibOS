@@ -5,10 +5,10 @@
 */
 #define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>
-#include "OLinuxMemory.hpp"
-#include "OLinuxMemoryMM.hpp"
+#include "OLinuxMemoryVM.hpp"
 
-#include "../../Processes/OProcesses.hpp"
+#include "OLinuxMemoryMM.hpp"
+#include "../OLinuxMemory.hpp"
 
 OLMemoryManagerKernel g_krnvm_manager;
 

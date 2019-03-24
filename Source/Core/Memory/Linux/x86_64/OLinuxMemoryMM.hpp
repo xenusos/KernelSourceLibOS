@@ -4,6 +4,7 @@
     License: All Rights Reserved J. Reece Wilson
 */
 #pragma once
+#include <Core/Memory/Linux/OLinuxMemory.hpp>
 
 // Do note: these are not apart of the public API
 // If a module *really* needs low level linux stuff, it can share our routines
