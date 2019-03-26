@@ -7,8 +7,8 @@
 #include <libos.hpp>
 #include "ORegistration.hpp"
 
-#include "ODelegtedCalls.hpp"
-#include "OPseudoFile.hpp"
+#include "DelegatedCalls/ODelegtedCalls.hpp"
+#include "Files/OPseudoFile.hpp"
 #include "../Processes/OProcessTracking.hpp"
 
 static OPtr<OPseudoFile> registration_file;

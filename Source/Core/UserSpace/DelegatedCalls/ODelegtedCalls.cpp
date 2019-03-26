@@ -6,9 +6,8 @@
 #include <libos.hpp>
 
 #include "ODelegtedCalls.hpp"
-#include "OPseudoFile.hpp"
-#include "ODeferredExecution.hpp"
-#include "../Processes/OProcesses.hpp"
+#include "../DeferredExecution/ODeferredExecution.hpp"
+#include "../../Processes/OProcesses.hpp"
 
 #include <Core/CPU/OThread.hpp>
 
@@ -39,7 +38,7 @@ error_t AddKernelSymbol(const char * name, DelegatedCall_t fn)
         return kErrorIllegalBadArgument;
 
     mutex_lock(delegated_mutex);
-    
+
     if (ERROR(er = dyn_list_append(delegated_fns, (void **)&inst)))
     {
         mutex_unlock(delegated_mutex);

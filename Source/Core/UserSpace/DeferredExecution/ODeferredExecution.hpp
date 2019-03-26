@@ -38,31 +38,21 @@ protected:
     void InvalidateImp()                                           override;
                                                                    
 private:
-    ODEWorkHandler * _worker;
-    ODEWork _work;
-    task_k _task;
-    bool _execd;
-    bool _dispatched;
-    size_t _response;
     OPtr<OWorkQueue> _workqueue;
-    ODECompleteCallback_f _cb;
-    void * _cb_ctx;
-};
-
-struct APCStack
-{
-    task_k   tsk;
-    page_k * pages;
-    size_t   length;
+    task_k           _task        = {0};
+    ODEWorkHandler * _worker      = nullptr;
+    ODEWork          _work        = {0};
     struct
     {
-        union
-        {
-            size_t address;
-            size_t bottom;
-        };
-        size_t top;
-    } mapped;
+        bool   execd;
+        bool   dispatched;
+        size_t response;
+    } _state                      = {0};
+    struct
+    {
+        ODECompleteCallback_f func;
+        void * data;
+    } _callback                   = {0};
 };
 
 class ODEWorkHandler 
@@ -78,27 +68,12 @@ public:
     void Die();
     void ParseRegisters(pt_regs & regs);
 
-    error_t AllocateStack();
-    error_t AllocateStub();
-    error_t MapToKernel();
-    error_t Construct();
 private:
-    ODEWorkJobImpl * _parant;
-    ODEWork _work;
-    task_k _tsk;
+    ODEWorkJobImpl * _parant = nullptr;
+    ODEWork          _work   = {0};
+    task_k           _tsk    = nullptr;
     
-    APCStack _stack;
-
-    struct
-    {
-        size_t   sp;
-        size_t   address;
-        OPtr<OLMemoryAllocation> allocation;
-    } _kernel_map; 
-
-    size_t _rtstub;
 };
-
 
 LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkJobImpl> out);
 

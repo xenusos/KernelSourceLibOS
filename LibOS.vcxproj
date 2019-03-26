@@ -57,6 +57,13 @@
     <ClInclude Include="Source\Core\Net\OTCPNetworking.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcesses.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcessTracking.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODECriticalSection.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODeferredExecution.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEReturn.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEThread.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DelegatedCalls\ODelegtedCalls.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\Files\OPseudoFile.hpp" />
     <ClInclude Include="Source\Core\UserSpace\ORegistration.hpp" />
     <ClInclude Include="Source\Logging\Logging.hpp" />
     <ClInclude Include="Source\Utils\DateHelper.hpp" />
@@ -85,6 +92,13 @@
     <ClCompile Include="Source\Core\Net\OTCPNetworking.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcesses.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcessTracking.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODECriticalSection.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODeferredExecution.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEReturn.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEThread.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DelegatedCalls\ODelegtedCalls.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\Files\OPseudoFile.cpp" />
     <ClCompile Include="Source\Core\UserSpace\ORegistration.cpp" />
     <ClCompile Include="Source\Entrypoint.cpp" />
     <ClCompile Include="Source\Core\FIO\ODirectory.cpp" />

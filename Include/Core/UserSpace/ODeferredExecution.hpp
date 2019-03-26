@@ -3,6 +3,7 @@
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson
 */
+#pragma once
 class OProcessThread;
 
 struct ODEParameters

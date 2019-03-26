@@ -7,8 +7,9 @@
 
 #include "Logging/Logging.hpp"
 
-#include "Core/UserSpace/OPseudoFile.hpp"
-#include "Core/UserSpace/ODelegtedCalls.hpp"
+#include "Core/UserSpace/Files/OPseudoFile.hpp"
+#include "Core/UserSpace/DeferredExecution/ODeferredExecution.hpp"
+#include "Core/UserSpace/DelegatedCalls/ODelegtedCalls.hpp"
 #include "Core/Processes/OProcesses.hpp"
 #include "Core/Memory/Linux/OLinuxMemory.hpp"
 #include "Core/Processes/OProcessTracking.hpp"
