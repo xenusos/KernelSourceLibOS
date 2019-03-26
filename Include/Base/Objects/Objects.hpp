@@ -101,6 +101,12 @@ public:
     void Destory() { printf("Caught illegal destory call to a dumb pointer. Did you think this was an O(s)Object? Legacy code?\n"); }
 
     bool IsValid();
+
+    // Sometimes, you may find yourself in a scenario whereby you want to use a reference counted object through a context
+    // IE: function pointer callback
+    // These manual functions allow for temporary by pointer operations 
+    void IncrementUsage(); 
+    void DecrementUsage();
 protected:
     OReferenceCounter * _ref_counter;
     union

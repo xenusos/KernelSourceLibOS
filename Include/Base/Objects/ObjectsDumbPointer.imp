@@ -81,3 +81,15 @@ bool ODumbPointer<T>::IsValid()
 { 
     return _object ? true : false;
 }
+    
+template<class T>
+void ODumbPointer<T>::IncrementUsage()
+{
+    _ref_counter->Reference();
+}
+
+template<class T>
+void ODumbPointer<T>::DecrementUsage()
+{
+    Collect();
+}
