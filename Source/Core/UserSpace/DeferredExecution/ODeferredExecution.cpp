@@ -19,7 +19,6 @@ static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
 
 ODEWorkJobImpl::ODEWorkJobImpl(task_k task, OPtr<OWorkQueue> workqueue)
 {
-    LogFunction;
     _worker           = nullptr;
     _state.execd      = false;
     _state.dispatched = false;
@@ -34,7 +33,6 @@ ODEWorkJobImpl::ODEWorkJobImpl(task_k task, OPtr<OWorkQueue> workqueue)
 
 error_t ODEWorkJobImpl::SetWork(ODEWork & work)
 {
-    LogFunction;
     CHK_DEAD;
     _work = work;
     return kStatusOkay;
@@ -42,7 +40,6 @@ error_t ODEWorkJobImpl::SetWork(ODEWork & work)
 
 error_t ODEWorkJobImpl::Schedule()
 {
-    LogFunction;
     CHK_DEAD;
     error_t err;
     
@@ -62,7 +59,6 @@ error_t ODEWorkJobImpl::Schedule()
 
 error_t ODEWorkJobImpl::HasDispatched(bool & dispatched) 
 {
-    LogFunction;
     CHK_DEAD;
     dispatched = _state.dispatched;
     return kStatusOkay;
@@ -70,7 +66,6 @@ error_t ODEWorkJobImpl::HasDispatched(bool & dispatched)
 
 error_t ODEWorkJobImpl::HasExecuted(bool & executed)
 {
-    LogFunction;
     CHK_DEAD;
     executed = _state.execd;
     return kStatusOkay;
@@ -78,7 +73,6 @@ error_t ODEWorkJobImpl::HasExecuted(bool & executed)
 
 error_t ODEWorkJobImpl::WaitExecute(uint32_t ms)               
 {
-    LogFunction;
     CHK_DEAD;
     error_t err;
     if (STRICTLY_OKAY(err = _workqueue->WaitAndAddOwner(ms)))
@@ -88,7 +82,6 @@ error_t ODEWorkJobImpl::WaitExecute(uint32_t ms)
 
 error_t ODEWorkJobImpl::AwaitExecute(ODECompleteCallback_f cb, void * context)
 {
-    LogFunction;
     CHK_DEAD;
     if (_callback.func)
         return kErrorInternalError;
@@ -99,7 +92,6 @@ error_t ODEWorkJobImpl::AwaitExecute(ODECompleteCallback_f cb, void * context)
 
 error_t ODEWorkJobImpl::GetResponse(size_t & ret)
 {
-    LogFunction;
     CHK_DEAD;
     ret = _state.response;
     return kStatusOkay;
@@ -107,7 +99,6 @@ error_t ODEWorkJobImpl::GetResponse(size_t & ret)
 
 void ODEWorkJobImpl::InvalidateImp()
 {
-    LogFunction;
     mutex_lock(work_watcher_mutex);
     if (_worker)
         _worker->Fuckoff();
@@ -121,27 +112,23 @@ void ODEWorkJobImpl::InvalidateImp()
 
 void ODEWorkJobImpl::Fuckoff()
 {
-    LogFunction;
     _worker = nullptr;
 }
 
 void ODEWorkJobImpl::Trigger(size_t response)
 {
-    LogFunction;
     _state.response = response;
     _state.execd    = true;
 }
 
 void ODEWorkJobImpl::GetCallback(ODECompleteCallback_f & callback, void * & context)
 {
-    LogFunction;
     callback = _callback.func;
     context  = _callback.data;
 }
 
 ODEWorkHandler::ODEWorkHandler(task_k tsk, ODEWorkJobImpl * worker)
 {
-    LogFunction;
      _tsk             = tsk;
      _parant          = worker;
      ProcessesTaskIncrementCounter(_tsk);
@@ -149,14 +136,12 @@ ODEWorkHandler::ODEWorkHandler(task_k tsk, ODEWorkJobImpl * worker)
 
 ODEWorkHandler::~ODEWorkHandler()
 {
-    LogFunction;
     if (_tsk)
         ProcessesTaskDecrementCounter(_tsk);
 }
 
 void ODEWorkHandler::ParseRegisters(pt_regs & regs)
 {
-    LogFunction;
     regs.rip = _work.address;
 
     if (_work.cc == kODESysV)
@@ -177,13 +162,11 @@ void ODEWorkHandler::ParseRegisters(pt_regs & regs)
 
 void ODEWorkHandler::Fuckoff()
 {
-    LogFunction;
     _parant = nullptr;
 }
 
 void ODEWorkHandler::Hit(size_t response)
 {
-    LogFunction;
     ODECompleteCallback_f callback = nullptr;
     void * context                 = nullptr;
     
@@ -204,7 +187,6 @@ void ODEWorkHandler::Hit(size_t response)
 
 void ODEWorkHandler::Die()
 {
-    LogFunction;
     mutex_lock(work_watcher_mutex);
     if (_parant)
     {
@@ -222,7 +204,6 @@ error_t ODEWorkHandler::SetWork(ODEWork & work)
 
 error_t ODEWorkHandler::Schedule()
 {
-    LogFunction;
     error_t err;
 
     if (!_tsk)
@@ -241,7 +222,6 @@ error_t ODEWorkHandler::Schedule()
 
 static void APC_OnThreadExit(OPtr<OProcess> thread)
 {
-    LogFunction;
     void * handle;
     error_t err;
 
@@ -256,7 +236,6 @@ static void APC_OnThreadExit(OPtr<OProcess> thread)
 
 void DeferredExecFinish(size_t ret)
 {
-    LogFunction;
     error_t err;
     ODEImplPIDThread * thread;
 
@@ -277,7 +256,6 @@ void DeferredExecFinish(size_t ret)
 
 static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
 {
-    LogFunction;
     error_t err;
     ODEImplPIDThread * thread;
 
@@ -301,7 +279,6 @@ static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
 
 void InitDeferredCalls()
 {
-    LogFunction;
     ProcessesAddExitHook(APC_OnThreadExit);
 
     InitDEReturn();

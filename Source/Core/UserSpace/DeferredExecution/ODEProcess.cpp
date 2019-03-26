@@ -16,7 +16,6 @@ static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplP
 
 ODEImplProcess::ODEImplProcess(task_k task, chain_p pids)
 {
-    LogFunction;
     _pids = pids;
     _task = task;
 
@@ -25,13 +24,11 @@ ODEImplProcess::ODEImplProcess(task_k task, chain_p pids)
 
 size_t ODEImplProcess::GetReturnAddress()
 {
-    LogFunction;
     return _returnAddress;
 }
 
 ODEImplPIDThread * ODEImplProcess::GetOrCreateThread(task_k task)
 {
-    LogFunction;
     error_t err;
     size_t pid;
     ODEImplPIDThread ** handle;
@@ -59,7 +56,6 @@ ODEImplPIDThread * ODEImplProcess::GetOrCreateThread(task_k task)
 
 error_t ODEImplProcess::GetThread(task_k task, ODEImplPIDThread * & thread)
 {
-    LogFunction;
     error_t err;
     size_t pid;
     ODEImplPIDThread ** handle;
@@ -77,7 +73,6 @@ error_t ODEImplProcess::GetThread(task_k task, ODEImplPIDThread * & thread)
 
 void ODEImplProcess::MapReturnStub()
 {
-    LogFunction;
     error_t err;
     ODumbPointer<OLVirtualAddressSpace> usrVas;
     OPtr<OLMemoryAllocation> usrAlloc;
@@ -108,7 +103,6 @@ static void DeallocateThreadByHandle(uint64_t hash, void * buffer)
 
 static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplProcess * process, ODEImplPIDThread * & thread)
 {
-    LogFunction;
     error_t err;
     link_p link;
     ODEImplPIDThread ** handle;
@@ -147,7 +141,6 @@ static void DeallocateProcessByHandle(uint64_t hash, void * buffer)
 
 static error_t AllocateDEProcess(task_k task, size_t tgid, ODEImplProcess * & out)
 {
-    LogFunction;
     error_t err;
     link_p link;
     ODEImplProcess ** handle;
@@ -179,7 +172,6 @@ static error_t AllocateDEProcess(task_k task, size_t tgid, ODEImplProcess * & ou
 
 error_t GetDEProcess(ODEImplProcess * & out, task_k task)
 {
-    LogFunction;
     error_t err;
     size_t pid, tgid;
     ODEImplProcess ** handle;
@@ -204,7 +196,6 @@ error_t GetDEProcess(ODEImplProcess * & out, task_k task)
 
 void FreeDEProcess(task_k task)
 {
-    LogFunction;
     error_t err;
     link_p link;
     size_t pid, tgid;

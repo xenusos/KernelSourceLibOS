@@ -26,7 +26,6 @@ static linux_thread_info * GetInfoForTask(task_k tsk)
 
 ODEImplPIDThread::ODEImplPIDThread(ODEImplProcess * parent)
 {
-    LogFunction;
     _proc = parent;
 }
 
@@ -53,13 +52,11 @@ error_t ODEImplPIDThread::Init()
 
 void ODEImplPIDThread::UpdatePidHandle(task_k task)
 {
-    LogFunction;
     _task = task;
 }
 
 error_t ODEImplPIDThread::AppendWork(ODEWorkHandler * handler)
 {
-    LogFunction;
     error_t err;
     size_t count;
     ODEWorkHandler ** entry;
@@ -81,7 +78,6 @@ error_t ODEImplPIDThread::AppendWork(ODEWorkHandler * handler)
 
 void ODEImplPIDThread::NtfyJobFinished(size_t ret)
 {
-    LogFunction;
     bool hasNext;
     ODEWorkHandler * next = nullptr;
     ODEWorkHandler * cur  = nullptr;
@@ -112,7 +108,6 @@ void ODEImplPIDThread::NtfyJobFinished(size_t ret)
 
 void ODEImplPIDThread::SaveState(pt_regs_p state)
 {
-    LogFunction;
     if (_userState.hasPreviousTask)
         return;
 
@@ -122,13 +117,11 @@ void ODEImplPIDThread::SaveState(pt_regs_p state)
 
 DEStack * ODEImplPIDThread::GetStack()
 {
-    LogFunction;
     return &_stack;
 }
 
 error_t ODEImplPIDThread::AllocateStack()
 {
-    LogFunction;
     error_t err;
     OLVirtualAddressSpace * krnVas;
     ODumbPointer<OLVirtualAddressSpace> usrVas;
@@ -223,7 +216,6 @@ error_t ODEImplPIDThread::AllocatePendingWork()
 
 void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNextJob, ODEWorkHandler * & nextJob)
 {
-    LogFunction;
     error_t err;
     size_t length;
     ODEWorkHandler ** cur;
@@ -257,7 +249,6 @@ void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNe
 
 void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
 {
-    LogFunction;
     linux_thread_info * info;
 
     info = GetInfoForTask(_task);
@@ -277,7 +268,6 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
 
 void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
 {
-    LogFunction;
     pt_regs regs = { 0 };
     size_t rsp, krsp;
 
@@ -296,7 +286,6 @@ void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
 
 error_t GetDEThread(ODEImplPIDThread * & thread, task_k task)
 {
-    LogFunction;
     ODEImplProcess * proc;
     error_t err;
 
@@ -313,7 +302,6 @@ error_t GetDEThread(ODEImplPIDThread * & thread, task_k task)
 
 error_t GetOrCreateDEThread(ODEImplPIDThread * & thread, task_k task)
 {
-    LogFunction;
     ODEImplProcess * proc;
     error_t err;
 
