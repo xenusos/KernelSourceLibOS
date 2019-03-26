@@ -68,9 +68,7 @@ typedef l_int(* OLTrapHandler_f)(OPtr<OLMemoryAllocation> space, size_t address,
 class OLMemoryAllocation : public OObject
 {
 public:
-    // Important notes:
-    //  The following functions are O(N) NOT O(log(n)) or better - relative to injected pages, not ::SizeInPages() 
-    //  ~~REDACTED YOU CAN NOW INSERT DUMMY PAGES AND PHYS REGIONS INTO THE KERNEL VM~~ 
+
     virtual bool    PageIsPresent (size_t idx)                                                                           = 0;
     virtual error_t PageInsert    (size_t idx, OLPageEntry page)                                                         = 0;
     virtual error_t PagePhysAddr  (size_t idx, phys_addr_t & addr)                                                       = 0;
