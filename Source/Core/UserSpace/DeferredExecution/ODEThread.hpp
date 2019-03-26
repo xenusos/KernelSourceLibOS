@@ -44,7 +44,7 @@ public:
     ODEImplPIDThread(ODEImplProcess * parent);
     ~ODEImplPIDThread();
 
-    error_t           Init();
+    error_t           Init(task_k task);
 
     void              UpdatePidHandle(task_k task);
 

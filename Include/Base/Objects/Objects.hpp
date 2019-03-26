@@ -102,9 +102,9 @@ public:
 
     bool IsValid();
 
-    // Sometimes, you may find yourself in a scenario whereby you want to use a reference counted object through a context
-    // IE: function pointer callback
     // These manual functions allow for temporary by pointer operations 
+    // Sometimes you may find yourself in a scenario where one may need to use a reference counted object through an anonymous context pointer
+    // IE: function pointer ...(*)(..., void * context)
     void IncrementUsage(); 
     void DecrementUsage();
 protected:

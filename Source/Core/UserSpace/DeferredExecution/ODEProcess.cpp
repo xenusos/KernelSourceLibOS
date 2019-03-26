@@ -120,7 +120,7 @@ static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplP
         return kErrorOutOfMemory;
     }
 
-    err = thread->Init();
+    err = thread->Init(task);
     if (ERROR(err))
     {
         chain_deallocate_handle(link);
@@ -128,7 +128,6 @@ static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplP
         return err;
     }
 
-    thread->UpdatePidHandle(task);
     return kStatusOkay;
 }
 

@@ -35,9 +35,11 @@ ODEImplPIDThread::~ODEImplPIDThread()
         dyn_list_destory(_workPending);
 }
 
-error_t ODEImplPIDThread::Init()
+error_t ODEImplPIDThread::Init(task_k task)
 {
     error_t err;
+
+    _task = task;
 
     err = AllocateStack();
     if (ERROR(err))
