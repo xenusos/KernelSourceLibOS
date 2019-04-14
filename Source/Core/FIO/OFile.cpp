@@ -105,7 +105,7 @@ error_t OLinuxFileImp::Delete()
 
     if (ERROR(err = file_path->GetParent_1(dir_path)))
         return err;
-
+    
     vfs_unlink(dir_path->ToINode(), file_path->GetDEntry(), nullptr);
     InvalidateImp();
     return err;

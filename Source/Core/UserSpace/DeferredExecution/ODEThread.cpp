@@ -191,12 +191,12 @@ error_t ODEImplPIDThread::AllocateStack()
     }
     
     _stack.user.allocation   = usrAlloc;
-    _stack.user.start        = usrAlloc->GetStart();
-    _stack.user.end          = usrAlloc->GetEnd();
+    _stack.user.allocStart   = usrAlloc->GetStart();
+    _stack.user.allocEnd     = usrAlloc->GetEnd();
 
     _stack.kernel.allocation = krnAlloc;
-    _stack.kernel.start      = krnAlloc->GetStart();
-    _stack.kernel.end        = krnAlloc->GetEnd();
+    _stack.kernel.allocStart = krnAlloc->GetStart();
+    _stack.kernel.allocEnd   = krnAlloc->GetEnd();
     return kStatusOkay;
 
 error:
@@ -211,7 +211,7 @@ error_t ODEImplPIDThread::AllocatePendingWork()
     _workPending = DYN_LIST_CREATE(ODEWorkHandler *);
     
     if (!_workPending)
-        return kErrorNotImplemented;
+        return kErrorOutOfMemory;
 
     return kStatusOkay;
 }
@@ -271,18 +271,33 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
 void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
 {
     pt_regs regs = { 0 };
-    size_t rsp, krsp;
+    size_t ursp, krsp = 0;
 
-    rsp  = _stack.user.top;
-    krsp = _stack.kernel.sp;
+    ursp = _stack.user.stackTop;
+    krsp = _stack.kernel.stackTop;
 
-    rsp  -= sizeof(size_t);
+    ursp -= sizeof(size_t);
     krsp -= sizeof(size_t);
 
-    *(size_t*)krsp = (size_t)_proc->GetReturnAddress();
+    *(size_t*)krsp = _proc->GetReturnAddress();
 
-    regs.rsp = rsp;
+    regs.rsp = ursp;
+    
     exec->ParseRegisters(regs);
+    
+    if (regs.rsp != ursp)
+    {
+        if ((regs.rsp < _stack.user.allocStart) || (regs.rsp > _stack.user.allocEnd))
+        {
+            LogPrint(kLogWarning, "On parse request, a DE handler opted to use a stack pointer that we didn't allocate. ");
+            LogPrint(kLogWarning, "Experimental calling convention?");
+        }
+        else
+        {
+            LogPrint(kLogVerbose, "A DE parse registers request altered the stack pointer; this may be expected behaviour for 32-bit calling conventions");
+        }
+    }
+
     PreemptExecution(&regs, kick);
 }
 

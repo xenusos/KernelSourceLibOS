@@ -85,6 +85,7 @@ error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
     else
     {
         err = _inject->RemoveAt(entry->vm, entry->handle);
+
         if (ERROR(err))
             goto fatalErrorRemoveHandle;
     }

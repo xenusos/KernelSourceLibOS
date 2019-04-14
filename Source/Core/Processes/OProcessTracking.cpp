@@ -170,10 +170,12 @@ static void ProcessesTryRegister(task_k tsk)
     error_t er;
     
     mutex_lock(tracking_mutex);
-    ASSERT(NO_ERROR(er = chain_allocate_link(tracking_locked, ProcessesGetPid(tsk), 2, NULL, NULL, NULL)), "couldn't register thread pid / ProcessesRegisterTsk");
+    er = chain_allocate_link(tracking_locked, ProcessesGetPid(tsk), 2, NULL, NULL, NULL);
     mutex_unlock(tracking_mutex);
 
-    if (er != XENUS_STATUS_LINK_ALREADY_PRESENT)
+    ASSERT(NO_ERROR(er), "couldn't register thread pid / ProcessesRegisterTsk");
+
+    if (er != kStatusLinkPresent)
         ProcessesRegisterTsk(tsk);
 }
 

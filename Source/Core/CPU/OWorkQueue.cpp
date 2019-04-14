@@ -13,6 +13,7 @@
 #include <ITypes/IThreadStruct.hpp>
 #include <ITypes/ITask.hpp>
 
+#include "LinuxSleeping.hpp"
 
 struct WorkWaitingThreads
 {
@@ -20,14 +21,14 @@ struct WorkWaitingThreads
     bool signal;
 };
 
-OWorkQueueImpl::OWorkQueueImpl(uint32_t start_count, mutex_k mutex, dyn_list_head_p list_a, dyn_list_head_p list_b)
+OWorkQueueImpl::OWorkQueueImpl(uint32_t workItems, mutex_k mutex, dyn_list_head_p listWorkers, dyn_list_head_p listWaiters)
 {
-    _counter     = 0;
+    _activeWork  = 0;
     _completed   = 0;
-    _trigger_on  = start_count;
+    _workItems   = workItems;
     _acquisition = mutex;
-    _waiters     = list_a;
-    _workers     = list_b;
+    _waiters     = listWorkers;
+    _workers     = listWaiters;
 }
 
 error_t OWorkQueueImpl::GetCount(uint32_t & out)
@@ -44,9 +45,9 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
 
     mutex_lock(_acquisition);
 
-    _InterlockedIncrement(&_owners);
+    _owners++;
 
-    if (_completed == _trigger_on)
+    if (_completed == _workItems)
     {
         mutex_unlock(_acquisition);
         return kStatusOkay;
@@ -56,106 +57,83 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
 
     if (ERROR(err) || (err == kStatusTimeout))
     {
-        _InterlockedDecrement(&_owners);
+        _owners--;
     }
 
     mutex_unlock(_acquisition);
     return err;
 }
 
+static bool WorkerThreadIsWaking(void * context)
+{
+    WorkWaitingThreads * ctx = (WorkWaitingThreads *)context;
+    return ctx->signal;
+}
+
+error_t OWorkQueueImpl::NewThreadContext(WorkWaitingThreads * context, bool waiters)
+{
+    CHK_DEAD;
+    error_t err;
+    dyn_list_head_p list;
+    WorkWaitingThreads ** lentry;
+
+    list = waiters ? _waiters : _workers;
+
+    err = dyn_list_append_ex(list, (void **)&lentry, nullptr);
+    if (ERROR(err))
+        return err;
+
+    *lentry = context;
+    return kStatusOkay;
+}
+
 error_t OWorkQueueImpl::GoToSleep(uint32_t ms, bool waiters)
 {
     CHK_DEAD;
     WorkWaitingThreads entry;
-    WorkWaitingThreads **lentry;
-    uint_t ustate;
     error_t err;
-    ITask tsk(OSThread);
-    size_t idx;
-    int64_t timeout;
-    bool timeoutable;
+    bool signald;
 
-    ustate = tsk.GetVarState().GetUInt();
-
-    if (ERROR(err = dyn_list_append_ex(waiters ? _waiters : _workers, (void **)&lentry, &idx)))
+    // create new context
+    err = NewThreadContext(&entry, waiters);
+    if (ERROR(err))
         return err;
 
-    *lentry = &entry;
-
-    entry.thread = OSThread;
-    entry.signal = false;
-
-    if (ms != -1)
-    {
-        timeout = MAX(1, MSToOSTicks(ms));
-        timeoutable = true;
-    }
-    else
-    {
-        timeoutable = false;
-    }
-
-    while (1)
-    {
-        // Check if semaphore unlocked
-        if (entry.signal)
-            break;
-
-        if ((timeoutable) && (timeout == 0))
-            break;
-
-        // Sleep
-        mutex_unlock(_acquisition);
-        {
-            if (!timeoutable)
-            {
-                tsk.GetVarState().Set((uint_t)TASK_INTERRUPTIBLE);
-                schedule();
-            }
-            else
-            {
-                timeout = schedule_timeout_interruptible(timeout);
-            }
-        }
-        mutex_lock(_acquisition);
-    }
-
-    tsk.GetVarState().Set(ustate);
+    // go to sleep 
+    mutex_unlock(_acquisition);
+    signald = LinuxSleep(ms, WorkerThreadIsWaking, &entry);
+    mutex_lock(_acquisition);
     
-    if ((timeoutable) && (timeout == 0))
-        return kStatusTimeout;
-    
-    return kStatusOkay;
+    return !signald ? kStatusTimeout : kStatusOkay;
 }
 
 error_t OWorkQueueImpl::ContExecution(bool waiters)
 {
+    CHK_DEAD;
     error_t err;
-    WorkWaitingThreads **entry;
     size_t threads;
     dyn_list_head_p list;
+    WorkWaitingThreads ** entry;
 
     list = waiters ? _waiters : _workers;
 
-    if (ERROR(err = dyn_list_entries(list, &threads)))
+    err = dyn_list_entries(list, &threads);
+    if (ERROR(err))
         return err;
 
-    for (uint32_t i = 0; i < threads; i++)
+    for (size_t i = 0; i < threads; i++)
     {
-        if (ERROR(err = dyn_list_get_by_index(list, 0, (void **)&entry)))
-        {
-            LogPrint(kLogError, "couldn't obtain waiting thread... using this semaphore might result in lethal results");
-            return err;
-        }
+        task_k thread;
 
+        err = dyn_list_get_by_index(list, 0, (void **)&entry);
+        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: 0x%zx)", err);
+
+        thread = (*entry)->thread;
         (*entry)->signal = true;
-        wake_up_process((*entry)->thread);
+        LinuxPokeThread(thread);
 
-        if (ERROR(err = dyn_list_remove(list, 0)))
-        {
-            LogPrint(kLogError, "couldn't obtain remove thread entry... using this semaphore might result in lethal results");
-            return err;
-        }
+        err = dyn_list_remove(list, 0);
+        ASSERT(NO_ERROR(err), "couldn't remove thread by index (error: 0x%zx)", err);
     }
     
     return kStatusOkay;
@@ -165,53 +143,71 @@ error_t OWorkQueueImpl::BeginWork()
 {
     CHK_DEAD;
     uint32_t next;
+
     mutex_lock(_acquisition);
-    if (_counter == _trigger_on)
-        GoToSleep(-1, false);
-    _InterlockedIncrement(&_counter); // x++ should be atomic, but i dont trust msvc
+    {
+        if (_activeWork == _workItems) // note: active workers never decrements - it only resets to zero once all owners have been released 
+            GoToSleep(-1, false);
+     
+        _activeWork++; 
+    }
     mutex_unlock(_acquisition);
+
     return kStatusOkay;
 }
 
 error_t OWorkQueueImpl::EndWork()
 {
     CHK_DEAD;
+
     mutex_lock(_acquisition);
-    if (_InterlockedIncrement(&_completed) == _trigger_on)
-        ContExecution(true);
+    {
+        if ((++_completed) == _workItems)
+            ContExecution(true);
+    }
     mutex_unlock(_acquisition);
+
     return kStatusOkay;
 }
 
 error_t OWorkQueueImpl::ReleaseOwner()
 {
     CHK_DEAD;
-    size_t owners;
 
     mutex_lock(_acquisition);
-    owners = _owners;
-
-    if (owners == 0)
     {
-        mutex_unlock(_acquisition);
-        return kErrorTooManyReleases;
-    }
+        if (_owners == 0)
+        {
+            mutex_unlock(_acquisition);
+            LogPrint(kLogError, "OWorkQueueImpl::ReleaseOwner - someone tried to release an owner that doesn't exist");
+            return kErrorTooManyReleases;
+        }
 
-    _owners = --owners;
-
-    if (owners == 0)
-    {
-        _counter   = 0;
-        _completed = 0;
-        ContExecution(false);
+        if ((--_owners) == 0)
+        {
+            _activeWork = 0;
+            _completed  = 0;
+            ContExecution(false);
+        }
     }
     mutex_unlock(_acquisition);
+
     return kStatusOkay;
 }
 
 void OWorkQueueImpl::InvalidateImp()
 {
-    // TODO: bug on workers length || waiters length
+    error_t err;
+    size_t count;
+
+    err = dyn_list_entries(_workers, &count);
+    ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: 0x%zx)", err);
+    ASSERT(count == 0, "destoryed work queue with work threads waiting");
+
+    err = dyn_list_entries(_waiters, &count);
+    ASSERT(NO_ERROR(err), "couldn't obtain length of job dispatchers (error: 0x%zx)", err);
+    ASSERT(count == 0, "destoryed work queue with job dispatcher threads waiting");
+
     dyn_list_destory(_workers);
     dyn_list_destory(_waiters);
     mutex_destroy(_acquisition);
@@ -219,44 +215,43 @@ void OWorkQueueImpl::InvalidateImp()
 
 error_t CreateWorkQueue(size_t cont, const OOutlivableRef<OWorkQueue> out)
 {
-    dyn_list_head_p list;
-    dyn_list_head_p list_a;
+    dyn_list_head_p listPrimary;
+    dyn_list_head_p listSecondary;
     mutex_k mutex;
     OSimpleSemaphore * sema;
 
     if (cont > UINT32_MAX)
         return kErrorIllegalSize;
 
-    list = DYN_LIST_CREATE(WorkWaitingThreads*);
+    listPrimary = DYN_LIST_CREATE(WorkWaitingThreads*);
 
-    if (!list)
+    if (!listPrimary)
         return kErrorOutOfMemory;
 
     mutex = mutex_init();
 
     if (!mutex)
     {
-        dyn_list_destory(list);
+        dyn_list_destory(listPrimary);
         return kErrorOutOfMemory;
     }
 
-    list_a = DYN_LIST_CREATE(WorkWaitingThreads*);
+    listSecondary = DYN_LIST_CREATE(WorkWaitingThreads*);
 
-    if (!list_a)
+    if (!listSecondary)
     {
-        dyn_list_destory(list);
+        dyn_list_destory(listPrimary);
         mutex_destroy(mutex);
         return kErrorOutOfMemory;
     }
 
-    if (!out.PassOwnership(new OWorkQueueImpl(cont, mutex, list_a, list)))
+    if (!out.PassOwnership(new OWorkQueueImpl(cont, mutex, listSecondary, listPrimary)))
     {
-        dyn_list_destory(list);
-        dyn_list_destory(list_a);
+        dyn_list_destory(listPrimary);
+        dyn_list_destory(listSecondary);
         mutex_destroy(mutex);
         return kErrorOutOfMemory;
     }
 
     return kStatusOkay;
 }
-

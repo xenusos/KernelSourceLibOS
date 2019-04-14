@@ -52,5 +52,5 @@ static inline void LogPrintEx(const char * mod, LoggingLevel_e lvl, const char *
     #define LOG_MOD_ LOG_MOD
 #endif 
 
-#define LogPrint(lvl, msg, ...) LogPrintEx(LOG_MOD_, lvl, msg, __VA_ARGS__);
-#define LogFunction do { LogPrint(kLogDbg, "FUNCTION: " __FUNCTION__); } while (0)
+#define LogPrint(lvl, msg, ...) do { LogPrintEx(LOG_MOD_, lvl, msg, __VA_ARGS__);  } while (0)
+#define LogFunction             do { LogPrint(kLogDbg, "FUNCTION: " __FUNCTION__); } while (0)

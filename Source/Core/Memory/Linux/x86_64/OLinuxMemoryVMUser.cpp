@@ -106,7 +106,7 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
         if (!address)
             goto error;
 
-        area = _install_special_mapping(mm, (l_unsigned_long)address, length, 0, mapping);
+        area = _install_special_mapping(mm, (l_unsigned_long)address, length, VM_DONTEXPAND, mapping);
         if (!area)
             goto error; 
 
@@ -178,8 +178,11 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
 {
     l_unsigned_long flags;
     page_k page;
+    pgprot_t protection;
 
     flags = vm_area_struct_get_vm_flags_size_t(cur);
+    flags &= VM_IO;
+    vm_area_struct_set_vm_flags_size_t(cur, flags);
 
     if ((flags & 7) != (prot & 7))
     {
@@ -198,18 +201,22 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
 
     if (entry.type == kPageEntryByPage)
     {
-        page = entry.page;
+        page       = entry.page;
+        protection = entry.meta.prot;
     }
     else if (entry.type == kPageEntryDummy)
     {
         // prevent mprotect giving userspace code access to a page that it shouldn't be allowed to read (ie: kernel module updates the address space to dummy, userspace responds with a fuck no call to mprotect again, userspace then exploits, pwn, and we die :/ )
         // we should also use pkeys!
-        page = user_dummy_page;
+        page       = user_dummy_page;
+        protection = g_memory_interface->CreatePageEntry(0, kCacheNoCache).prot;
     }
     else
     {
         panic("illegal page entry type");
     }
+    
+    vm_area_struct_set_vm_page_prot_uint64(cur, protection.pgprot_);
 
     if (vm_insert_page(cur, address, page))
         return false;
@@ -313,6 +320,7 @@ error_t OLMemoryManagerUser::InsertAt(void * instance, size_t index, void ** map
     address = offset + context->address;
 
     // this is kinda dangerous but this hack will do for now
+    // also: we release the MM. this isn't atomically safe, but it's safe enough as we can't really be exploited here
     err = UpdateMProtectAllowance(context->task, address, prot);
     if (ERROR(err))
         return err;

@@ -156,6 +156,7 @@ struct EncodedArrayMeta // Why do bitwise hackery when the compiler can do it fo
         {
             size_t length : 24;
             size_t contig : 1;
+            size_t magic : 6;
         };
         union
         {
@@ -164,6 +165,9 @@ struct EncodedArrayMeta // Why do bitwise hackery when the compiler can do it fo
         } val;
     };
 };
+
+#define PAGE_ARRAY_POINTER_MAGIC 24
+
 #pragma pack(pop)
 
 page_k * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool contig, size_t uflags)
@@ -183,6 +187,7 @@ page_k * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool
     // start the array with an entry that contains metadata instead of a pointer
     meta.contig = contig;
     meta.length = cnt;
+    meta.magic  = PAGE_ARRAY_POINTER_MAGIC;
 
     *(arry++) = meta.val.ptr;
 
@@ -235,6 +240,8 @@ void FreeLinuxPages(page_k * pages)
     ASSERT(pages, "invalid parameter");
 
     meta.val.ptr = pages[-1];
+
+    ASSERT(meta.magic == PAGE_ARRAY_POINTER_MAGIC, "A page array was given to FreeLinuxPages; however, we didn't provide this pointer. Prefixed data has potentially been lost.")
 
     if (meta.contig)
     {

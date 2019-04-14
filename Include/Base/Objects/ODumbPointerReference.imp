@@ -1,0 +1,34 @@
+/*
+    Purpose:
+    Author: Reece W.
+    License: All Rights Reserved J. Reece Wilson
+*/
+
+template<class T>
+ODumbPointerReference<T>::ODumbPointerReference<T>(T * object, OReferenceCounter * counter)
+{
+    _object      = object;
+    _ref_counter = counter;
+    _ref_counter->Reference();
+}
+
+template<class T>
+ODumbPointerReference<T>::~ODumbPointerReference()
+{
+    if (_ref_counter->Deference())
+        return;
+    _object->Destory();
+    delete _ref_counter;
+}
+
+template<class T>
+T* ODumbPointerReference<T>::operator->()
+{
+    return _object;
+}
+
+template<class T>
+void ODumbPointerReference<T>::DestoryReference()
+{
+    delete this;
+}

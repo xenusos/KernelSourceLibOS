@@ -20,17 +20,20 @@ static void InitDE64()
     size_t addr;
     error_t err;
     OLVirtualAddressSpace * vas;
-    OLMemoryAllocation * alloc;
+    ODumbPointer<OLMemoryAllocation> alloc;
     OLPageEntry entry;
+    page_k * pages;
 
     err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<OLVirtualAddressSpace>(vas));
     ASSERT(NO_ERROR(err), "fatal error: couldn't get kernel address space interface: %zx", err);
 
     err = vas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(alloc));
     ASSERT(NO_ERROR(err), "fatal error: couldn't allocate kernel address VM area: %zx", err);
+    
+    pages = vas->AllocatePages(OLPageLocation::kPageNormal, 1, true, OL_PAGE_ZERO);
+    ASSERT(pages, "fatal error: couldn't allocate return stub");
 
-    g_return_stub_x64 = alloc_pages_current(GFP_KERNEL, 0);
-    ASSERT(g_return_stub_x64, "ODE: InitReturnStub_64, couldn't allocate return stub");
+    g_return_stub_x64 = pages[0];
 
     entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
     entry.type = kPageEntryByPage;

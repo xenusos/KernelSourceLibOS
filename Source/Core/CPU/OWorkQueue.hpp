@@ -6,6 +6,7 @@
 #include <Core/CPU/OWorkQueue.hpp>
 
 class OSimpleSemaphore;
+struct WorkWaitingThreads;
 class OWorkQueueImpl : public OWorkQueue
 {
 public:
@@ -22,14 +23,15 @@ protected:
 
 private:
     error_t GoToSleep(uint32_t ms, bool workers);
+    error_t NewThreadContext(WorkWaitingThreads * context, bool waiter);
     error_t ContExecution(bool workers);
 
     mutex_k _acquisition;
     long _owners;
-    long _counter;
+    long _activeWork;
     long _completed;
 
-    uint32_t _trigger_on;
+    uint32_t _workItems;
     dyn_list_head_p _waiters;
     dyn_list_head_p _workers;
 };

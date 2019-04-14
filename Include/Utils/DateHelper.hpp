@@ -15,11 +15,11 @@
 #define TIMESPEC_PTR_TO_MS(ptr)    (S_TO_MS(ptr->tv_sec) + NS_TO_MS(ptr->tv_nsec))
 #define TIMESPEC_TO_MS(ptr)        (S_TO_MS(ptr.tv_sec)  + NS_TO_MS(ptr.tv_nsec))
 
-#define GET_TZ_MS        (DateHelpers::GetTimeZoneOffset())
-#define MS_APPEND_TZ(n)    ((n) + GET_TZ_MS)
+#define GET_TZ_MS                  (DateHelpers::GetTimeZoneOffset())
+#define MS_APPEND_TZ(n)            ((n) + GET_TZ_MS)
 
-#define GET_TIME_EPOCH  DateHelpers::GetUnixTime()
-#define GET_LOCAL_TIME    (MS_APPEND_TZ(GET_TIME_EPOCH))
+#define GET_TIME_EPOCH             DateHelpers::GetUnixTime()
+#define GET_LOCAL_TIME             (MS_APPEND_TZ(GET_TIME_EPOCH))
 
 static inline uint32_t MSToOSTicks(uint64_t ms)
 {

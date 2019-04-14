@@ -19,14 +19,14 @@ struct DEStackMapping
     union
     {
         size_t address;
-        size_t bottom;
-        size_t start;
+        size_t allocStart;
+
+        size_t stackBottom;
     };
     union
     {
-        size_t top;
-        size_t end;
-        size_t sp;
+        size_t stackTop;
+        size_t allocEnd;
     };
     OPtr<OLMemoryAllocation> allocation;
 };

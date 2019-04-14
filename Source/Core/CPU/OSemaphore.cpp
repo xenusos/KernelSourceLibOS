@@ -13,33 +13,21 @@
 
 #include <Utils/DateHelper.hpp>
 
+#include "LinuxSleeping.hpp"
+
 #include "OSemaphore.hpp"
+
 struct SemaWaitingThreads
 {
     task_k thread;
-    bool signal;
+    volatile bool signal;
 };
 
-OCountingSemaphoreImpl::OCountingSemaphoreImpl(uint32_t start_count, uint32_t limit, mutex_k mutex, dyn_list_head_p list)
+OCountingSemaphoreImpl::OCountingSemaphoreImpl(uint32_t startCount, mutex_k mutex, dyn_list_head_p list)
 {
-    _counter = start_count;
-    _limit = limit;
-    _acquisition = mutex;
-    _list = list;
-}
-
-error_t OCountingSemaphoreImpl::GetLimit(size_t & limit)
-{
-    CHK_DEAD;
-    limit = _limit;
-    return kStatusOkay;
-}
-
-error_t OCountingSemaphoreImpl::GetUsed(size_t & out)
-{
-    CHK_DEAD;
-    out = _counter;
-    return kStatusOkay;
+    _activeWork = startCount;
+    _acquisition     = mutex;
+    _list            = list;
 }
 
 error_t OCountingSemaphoreImpl::Wait(uint32_t ms)
@@ -48,157 +36,123 @@ error_t OCountingSemaphoreImpl::Wait(uint32_t ms)
     error_t err;
 
     mutex_lock(_acquisition);
-
-    if (_counter > 0)
     {
-        _InterlockedDecrement(&_counter);
-        mutex_unlock(_acquisition);
-        return kStatusSemaphoreAlreadyUnlocked;
-    }
+        if (_activeWork > 0)
+        {
+            _activeWork--;
 
-    if (_counter + 1 > _limit)
-    {
-        mutex_unlock(_acquisition);
-        return kErrorSemaphoreExceededLimit;
-    }
+            err = kStatusSemaphoreAlreadyUnlocked;
+            goto out;
+        }
 
-    if (STRICTLY_OKAY(err = GoToSleep(ms)))
-    {
-        _InterlockedDecrement(&_counter);
+        err = GoToSleep(ms);
     }
-
+    out:
     mutex_unlock(_acquisition);
+
     return err;
+}
+
+static bool SemaphoreIsWaking(void * context)
+{
+    return ((SemaWaitingThreads *)context)->signal;
+}
+
+error_t OCountingSemaphoreImpl::NewThreadContext(SemaWaitingThreads * context)
+{
+    error_t err;
+    SemaWaitingThreads **lentry;
+
+    err = dyn_list_append_ex(_list, (void **)&lentry, nullptr);
+    if (ERROR(err))
+        return err;
+
+    *lentry = context;
+
+    context->thread = OSThread;
+    context->signal = false;
+
+    return kStatusOkay;
 }
 
 error_t OCountingSemaphoreImpl::GoToSleep(uint32_t ms)
 {
     CHK_DEAD;
-    SemaWaitingThreads entry;
-    SemaWaitingThreads **lentry;
-    uint_t ustate;
     error_t err;
-    ITask tsk(OSThread);
-    size_t idx;
-    int64_t timeout;
-    bool timeoutable;
+    bool signald;
+    SemaWaitingThreads entry;
 
-    ustate = tsk.GetVarState().GetUInt();
-
-    if (ERROR(err = dyn_list_append_ex(_list, (void **)&lentry, &idx)))
+    // create new context
+    err = NewThreadContext(&entry);
+    if (ERROR(err))
         return err;
 
-    *lentry = &entry;
+    // go to sleep 
+    mutex_unlock(_acquisition);
+    signald = LinuxSleep(ms, SemaphoreIsWaking, &entry);
+    mutex_lock(_acquisition);
 
-    entry.thread = OSThread;
-    entry.signal = false;
-
-    if (ms != -1)
-    {
-        timeout = MAX(1, MSToOSTicks(ms));
-        timeoutable = true;
-    }
-    else
-    {
-        timeoutable = false;
-    }
-
-    while (1)
-    {
-        // Check if semaphore unlocked
-        if (entry.signal)
-            break;
-
-        if ((timeoutable) && (timeout == 0))
-            break;
-
-        // Sleep
-        mutex_unlock(_acquisition);
-        {
-            if (!timeoutable)
-            {
-                tsk.GetVarState().Set((uint_t)TASK_INTERRUPTIBLE);
-                schedule();
-            }
-            else
-            {
-                timeout = schedule_timeout_interruptible(timeout);
-            }
-        }
-        mutex_lock(_acquisition);
-    }
-
-    tsk.GetVarState().Set(ustate);
-
-    if ((timeoutable) && (timeout == 0))
-        return kStatusTimeout;
-
-    return kStatusOkay;
+    return !signald ? kStatusTimeout  : kStatusOkay;
 }
 
-error_t OCountingSemaphoreImpl::ContExecution(uint32_t count)
+error_t OCountingSemaphoreImpl::ContExecution(uint32_t count, uint32_t & threadsCont)
 {
     error_t err;
     SemaWaitingThreads **entry;
     size_t entries;
     size_t threads;
 
-    if (ERROR(err = dyn_list_entries(_list, &entries)))
+    threadsCont = 0;
+
+    err = dyn_list_entries(_list, &entries);
+    if (ERROR(err))
         return err;
 
     threads = MIN(count, entries);
 
-    for (uint32_t i = 0; i < threads; i++)
+    for (size_t i = 0; i < threads; i++)
     {
-        if (ERROR(err = dyn_list_get_by_index(_list, 0, (void **)&entry)))
-        {
-            LogPrint(kLogError, "couldn't obtain waiting thread... using this semaphore might result in lethal results");
-            return err;
-        }
+        task_k thread;
 
+        err = dyn_list_get_by_index(_list, 0, (void **)&entry);
+        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: 0x%zx)", err);
+
+        thread = (*entry)->thread;
         (*entry)->signal = true;
-        wake_up_process((*entry)->thread);
+        LinuxPokeThread(thread);
 
-        if (ERROR(err = dyn_list_remove(_list, 0)))
-        {
-            LogPrint(kLogError, "couldn't obtain remove thread entry... using this semaphore might result in lethal results");
-            return err;
-        }
+        err = dyn_list_remove(_list, 0);
+        ASSERT(NO_ERROR(err), "couldn't remove thread by index (error: 0x%zx)", err);
     }
-    
+
+    threadsCont = threads;
     return kStatusOkay;
 }
 
 error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & out)
 {
     CHK_DEAD;
-    uint32_t next;
+    uint32_t signals;
 
     mutex_lock(_acquisition);
-    next = _InterlockedExchangeAdd(&_counter, count);
-    
-    if (next > _limit)
     {
-        _counter -= count; // f for atomicy 
-        mutex_unlock(_acquisition);
-        return kErrorIllegalSize;
-    }
-    else
-    {
-        out = next;
-        ContExecution(count);
+        ContExecution(count, signals);
 
-        mutex_unlock(_acquisition);
-        return kStatusOkay;
+        if (signals != count)
+            _activeWork += count - signals;
     }
+    mutex_unlock(_acquisition); 
+
+    return kStatusOkay;
 }
 
 void OCountingSemaphoreImpl::InvalidateImp()
 {
+    error_t err;
     size_t waiters;
 
-    if (ERROR(dyn_list_entries(_list, &waiters)))
-        panic("OCountingSemaphore couldn't obtain length of waiters");
+    err = dyn_list_entries(_list, &waiters);
+    ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: 0x%zx)", err);
 
     ASSERT(waiters == 0, "destoryed counting semaphore with items awaiting");
 
@@ -206,16 +160,13 @@ void OCountingSemaphoreImpl::InvalidateImp()
     mutex_destroy(_acquisition);
 }
 
-error_t CreateCountingSemaphore(size_t count, size_t limit, const OOutlivableRef<OCountingSemaphore> out)
+error_t CreateCountingSemaphore(size_t count, const OOutlivableRef<OCountingSemaphore> out)
 {
     dyn_list_head_p list;
     mutex_k mutex;
     OSimpleSemaphore * sema;
 
     if (count > UINT32_MAX)
-        return kErrorIllegalSize;
-
-    if (limit > UINT32_MAX)
         return kErrorIllegalSize;
 
     list = DYN_LIST_CREATE(SemaWaitingThreads*);
@@ -231,7 +182,7 @@ error_t CreateCountingSemaphore(size_t count, size_t limit, const OOutlivableRef
         return kErrorOutOfMemory;
     }
 
-    if (!out.PassOwnership(new OCountingSemaphoreImpl(count, limit, mutex, list)))
+    if (!out.PassOwnership(new OCountingSemaphoreImpl(count, mutex, list)))
     {
         dyn_list_destory(list);
         mutex_destroy(mutex);

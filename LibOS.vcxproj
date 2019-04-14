@@ -39,6 +39,7 @@
     <ClInclude Include="Include\Utils\ThreadHelper.hpp" />
     <ClInclude Include="Include\XType\XArray.hpp" />
     <ClInclude Include="Include\XType\XChain.h" />
+    <ClInclude Include="Source\Core\CPU\LinuxSleeping.hpp" />
     <ClInclude Include="Source\Core\CPU\OMutex.hpp" />
     <ClInclude Include="Source\Core\CPU\OSemaphore.hpp" />
     <ClInclude Include="Source\Core\CPU\OThread.hpp" />
@@ -80,6 +81,7 @@
     </ClCompile>
     <ClCompile Include="Source\Core\CPU\CPU_Preemption.cpp" />
     <ClCompile Include="Source\Core\CPU\CPU_Spinlocks.cpp" />
+    <ClCompile Include="Source\Core\CPU\LinuxSleeping.cpp" />
     <ClCompile Include="Source\Core\CPU\OMutex.cpp" />
     <ClCompile Include="Source\Core\CPU\OSemaphore.cpp" />
     <ClCompile Include="Source\Core\CPU\OWorkQueue.cpp" />
@@ -123,6 +125,7 @@
     <None Include="Include\Base\Objects\ObjectsRef.imp" />
     <None Include="Include\Base\Objects\ObjectsReferenceCounter.imp" />
     <None Include="Include\Base\Objects\ObjectsDumbPointer.imp" />
+    <None Include="Include\Base\Objects\ODumbPointerReference.imp" />
     <None Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVM.hpp" />
   </ItemGroup>
   <ItemGroup>

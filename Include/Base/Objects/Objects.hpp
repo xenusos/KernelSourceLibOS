@@ -84,11 +84,32 @@ protected:
 };
 #include "ObjectsRef.imp"
 
+
 class OReferenceCounter;
+
+template<class T>
+class ODumbPointerReference
+{
+public:
+    ODumbPointerReference(T * object, OReferenceCounter * counter);
+    ~ODumbPointerReference();
+
+    T* operator->();
+
+    void DestoryReference();
+private:
+    OReferenceCounter * _ref_counter;
+    T * _object;
+};
+#include "ODumbPointerReference.imp"
+
+
 template<class T>
 class ODumbPointer
 {
 public:
+    typedef ODumbPointerReference<T> * PointerReference;
+
     inline ODumbPointer(T * object);
     inline ODumbPointer();
     inline ~ODumbPointer();
@@ -107,6 +128,13 @@ public:
     // IE: function pointer ...(*)(..., void * context)
     void IncrementUsage(); 
     void DecrementUsage();
+    
+
+    ODumbPointer<T>::PointerReference Reference()
+    {
+        return new ODumbPointerReference<T>(_object, _ref_counter);
+    }
+    //PointerReference Reference();
 protected:
     OReferenceCounter * _ref_counter;
     union
@@ -119,15 +147,16 @@ protected:
 };
 #include "ObjectsDumbPointer.imp"
 
+
 // Outlivable reference parameters, like uncontrollable references, assign values to an arbitrary pointer pointer. however, with these parameters, you are responsible for the objects life-span. 
 template<class T>
 class OOutlivableRef
 {
 public:
-    inline OOutlivableRef()                    : _has_generic(false), _has_optr(false), _has_dumb(false), _optr(_optr_hack), _generic_ptr(_generic_hack), _dumb_ptr(_dumbed_hack) {}
-    inline OOutlivableRef(OPtr<T> & ptr)       : _has_generic(false), _has_optr(true),  _has_dumb(false), _optr(ptr),        _generic_ptr(_generic_hack), _dumb_ptr(_dumbed_hack) {}
+    inline OOutlivableRef()                      : _has_generic(false), _has_optr(false), _has_dumb(false), _optr(_optr_hack), _generic_ptr(_generic_hack), _dumb_ptr(_dumbed_hack) {}
+    inline OOutlivableRef(OPtr<T> & ptr)         : _has_generic(false), _has_optr(true),  _has_dumb(false), _optr(ptr),        _generic_ptr(_generic_hack), _dumb_ptr(_dumbed_hack) {}
     inline OOutlivableRef(ODumbPointer<T> & ptr) : _has_generic(false), _has_optr(false), _has_dumb(true),  _optr(_optr_hack), _generic_ptr(_generic_hack), _dumb_ptr(ptr)            {}
-    inline OOutlivableRef(T *& ptr)            : _has_generic(true),  _has_optr(false), _has_dumb(false), _optr(_optr_hack), _generic_ptr(ptr),           _dumb_ptr(_dumbed_hack) {}
+    inline OOutlivableRef(T *& ptr)              : _has_generic(true),  _has_optr(false), _has_dumb(false), _optr(_optr_hack), _generic_ptr(ptr),           _dumb_ptr(_dumbed_hack) {}
 
     inline void *        PassOwnership(void * obj)    const;
     inline T *           PassOwnership(T * obj)       const;
