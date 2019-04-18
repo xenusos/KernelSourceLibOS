@@ -13,6 +13,8 @@
 #include "ODEThread.hpp"
 #include "../../Processes/OProcesses.hpp"
 
+#include <Core/Memory/Linux/OLinuxStack.hpp>
+
 static mutex_k work_watcher_mutex;
 
 static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);

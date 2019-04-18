@@ -159,7 +159,7 @@ error_t ODEImplPIDThread::AllocateStack()
         return err;
     }
 
-    _stack.pages = usrVas->AllocatePages(kPageNormal, APC_STACK_PAGES, false, OL_PAGE_ZERO);
+    _stack.pages = usrVas->AllocatePFNs(kPageNormal, APC_STACK_PAGES, false, OL_PAGE_ZERO);
     if (!_stack.pages)
     {
         krnAlloc->Destory();
@@ -172,8 +172,8 @@ error_t ODEImplPIDThread::AllocateStack()
         OLPageEntry entry;
 
         entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
-        entry.type = kPageEntryByPage;
-        entry.page = _stack.pages[i];
+        entry.type = kPageEntryByPFN;
+        entry.pfn = _stack.pages[i].pfn;
 
         err = krnAlloc->PageInsert(i, entry);
         if (ERROR(err))

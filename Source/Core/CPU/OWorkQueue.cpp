@@ -47,11 +47,8 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
 
     _owners++;
 
-    if (_completed == _workItems)
-    {
-        mutex_unlock(_acquisition);
-        return kStatusOkay;
-    }
+    if (_completed == _workItems) 
+        goto out;
 
     err = GoToSleep(ms, true);
 
@@ -60,14 +57,14 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
         _owners--;
     }
 
+    out:
     mutex_unlock(_acquisition);
     return err;
 }
 
 static bool WorkerThreadIsWaking(void * context)
 {
-    WorkWaitingThreads * ctx = (WorkWaitingThreads *)context;
-    return ctx->signal;
+    return ((WorkWaitingThreads *)context)->signal;
 }
 
 error_t OWorkQueueImpl::NewThreadContext(WorkWaitingThreads * context, bool waiters)
@@ -173,14 +170,15 @@ error_t OWorkQueueImpl::EndWork()
 error_t OWorkQueueImpl::ReleaseOwner()
 {
     CHK_DEAD;
+    error_t err = kStatusOkay;
 
     mutex_lock(_acquisition);
     {
         if (_owners == 0)
         {
-            mutex_unlock(_acquisition);
             LogPrint(kLogError, "OWorkQueueImpl::ReleaseOwner - someone tried to release an owner that doesn't exist");
-            return kErrorTooManyReleases;
+            err = kErrorTooManyReleases;
+            goto out;
         }
 
         if ((--_owners) == 0)
@@ -190,9 +188,10 @@ error_t OWorkQueueImpl::ReleaseOwner()
             ContExecution(false);
         }
     }
+    out:
     mutex_unlock(_acquisition);
 
-    return kStatusOkay;
+    return err;
 }
 
 void OWorkQueueImpl::InvalidateImp()

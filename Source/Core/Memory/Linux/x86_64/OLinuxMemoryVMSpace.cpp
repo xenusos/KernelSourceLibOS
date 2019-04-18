@@ -138,6 +138,12 @@ error_t OLMemoryAllocationImpl::PagePhysAddr(size_t idx, phys_addr_t & addr)
         return kStatusOkay;
     }
 
+    if (page.type == kPageEntryByPFN)
+    {
+        addr = pfn_to_phys(page.pfn);
+        return kStatusOkay;
+    }
+
     return kErrorInternalError;
 }
 

@@ -15,7 +15,7 @@ void * SafeStackGetStart(task_k tsk)
 
 void * SafeStackGetEnd(task_k tsk)
 {
-    return (void *)(task_get_stack_size_t(tsk) + OS_THREAD_SIZE);
+    return (void *)(task_get_stack_size_t(tsk) + OS_THREAD_SIZE - 1);
 }
 
 bool SafeStackIsInRangeEx(task_k task, void * address, ssize_t length)

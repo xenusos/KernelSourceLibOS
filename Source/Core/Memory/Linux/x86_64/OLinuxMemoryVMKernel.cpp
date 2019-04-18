@@ -35,7 +35,7 @@ error_t OLMemoryManagerKernel::AllocateZone(OLMemoryAllocation * space, size_t s
     if (!context)
         return kErrorOutOfMemory;
 
-    area = __get_vm_area(length, 0, kernel_information.LINUX_VMALLOC_START, kernel_information.LINUX_VMALLOC_END);
+    area = __get_vm_area(length, 0x00000001 | 0x00000040, kernel_information.LINUX_VMALLOC_START, kernel_information.LINUX_VMALLOC_END);
     if (!area)
     {
         delete context;
@@ -66,66 +66,90 @@ error_t OLMemoryManagerKernel::FreeZone(void * priv)
 
 error_t OLMemoryManagerKernel::InsertAt(void * instance, size_t index, void ** map, OLPageEntry entry)
 {
-    // eqiv to vmap()
     AddressSpaceKernelContext * context;
     int ret;
     size_t adr;
     size_t end;
+    phys_addr_t phys;
+    page_k page;
+    pfn_t pfn;
+    pgprot_t prot;
 
     context = (AddressSpaceKernelContext *)instance;
 
     adr = context->address + (index << OS_PAGE_SHIFT);
     end = adr + OS_PAGE_SIZE;
 
-    if (entry.type == kPageEntryByAddress)
+    switch (entry.type)
+    {
+    case kPageEntryByAddress:
+    {
+        page = nullptr;
+        phys = entry.address;
+        pfn  = phys_to_pfn(entry.address);
+        prot = entry.meta.kprot;
+        break;
+    }
+    case kPageEntryByPFN:
+    {
+        page = nullptr;
+        phys = pfn_to_phys(entry.pfn);
+        pfn  = entry.pfn;
+        prot = entry.meta.kprot;
+        break;
+    }
+    case kPageEntryByPage:
+    {
+        page = entry.page;
+        prot = entry.meta.kprot;
+        pfn  = page_to_pfn(page);
+        phys = pfn_to_phys(pfn);
+        break;
+    }
+    case kPageEntryDummy:
+    {
+        page = kernel_dummy_page;
+        prot = g_memory_interface->CreatePageEntry(0, kCacheNoCache).kprot;
+        pfn  = page_to_pfn(page);
+        phys = pfn_to_phys(pfn);
+        break;
+    }
+    default:
+    {
+        panic("unhandled page type");
+    }
+    }
+
+    if (page)
+    {
+        ret = map_kernel_range_noflush(adr, OS_PAGE_SIZE, prot, &page);
+
+        if (ret != 1) // page count on OK
+            return kErrorInternalError;
+    }
+    else
     {
         // TODO: 
         // The Linux kernel would usually
         // 1. check entry protection (boring) 
         // 2. check against request_resource (boring... i live life on the edge)
-        // 3. update the linear maps cache/pcm to match entry.prot (fucking why?)
+        // 3. update the linear maps cache/pcm to match entry.prot w/ some special processor stuff
         // 4. allocate the vm address
         // 5. map
         // we should do all of those things, but for now, let's just do 4-5
 
-        // TODO: add this to sysv
-        //
-        //int ioremap_page_range(unsigned long addr, unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
-        // QWORD, QWORD, PHYSADDR/QWORD, pgprot_t (QWORD)
+        ret = ez_linux_caller(kallsyms_lookup_name("kernel_map_sync_memtype"), (size_t)phys,  OS_THREAD_SIZE, GetCacheModeFromCacheType(entry.meta.cache), 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-        ret = ioremap_page_range(adr, end, entry.address, entry.meta.prot); //(l_int)ez_linux_caller(ioremap_page_range, adr, end, (size_t)entry.address, entry.prot.pgprot_, 0, 0, 0, 0, 0, 0, 0, 0);
-       
         if (ret != 0) // 0 on OK
             return kErrorInternalError;
-    }
-    else
-    {
-        page_k page;
-        pgprot_t prot;
 
-        if (entry.type == kPageEntryByPage)
-        {
-            page = entry.page;
-            prot = entry.meta.prot;
-        }
-        else if (entry.type == kPageEntryDummy)
-        {
-            page = kernel_dummy_page;
-            prot = g_memory_interface->CreatePageEntry(0, kCacheNoCache).prot;
-        }
-        else
-        {
-            panic("..");
-        }
+        ret = ioremap_page_range(adr, end, phys, prot);
 
-        ret = map_kernel_range_noflush(adr, OS_PAGE_SIZE, prot, &page);
-        // x86 doesn't require flush 
-
-        if (ret != 1) // ret = page injected
+        if (ret != 0) // 0 on OK
             return kErrorInternalError;
 
     }
-    
+
     *map = (void *)adr;
     return kStatusOkay;
 }
@@ -136,12 +160,17 @@ error_t OLMemoryManagerKernel::RemoveAt(void * instance, void * map)
     return kStatusOkay;
 }
 
-page_k * OLKernelVirtualAddressSpaceImpl::AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags)
+PhysAllocationElem * OLKernelVirtualAddressSpaceImpl::AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags)
 {
-    return AllocateLinuxPages(location, cnt, false, contig, flags);
+    return AllocateLinuxPages(location, cnt, false, contig, false, flags);
 }
 
-void OLKernelVirtualAddressSpaceImpl::FreePages(page_k * pages)
+PhysAllocationElem * OLKernelVirtualAddressSpaceImpl::AllocatePFNs(OLPageLocation location, size_t cnt, bool contig, size_t flags)
+{
+    return AllocateLinuxPages(location, cnt, false, contig, true, flags);
+}
+
+void OLKernelVirtualAddressSpaceImpl::FreePages(PhysAllocationElem * pages)
 {
     FreeLinuxPages(pages);
 }

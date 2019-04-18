@@ -288,7 +288,7 @@ void InitThreading()
     sync_thread_create.mutex = mutex_create();
     ASSERT(sync_thread_create.mutex, "couldn't allocate mutex");
 
-    err = CreateCountingSemaphore(0, 1, sync_thread_create.semaphore);
+    err = CreateCountingSemaphore(0, sync_thread_create.semaphore);
     ASSERT(NO_ERROR(err), "couldn't create semaphore");
 
     thread_chain_mutex   = mutex_create();

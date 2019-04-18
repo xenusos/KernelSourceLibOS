@@ -191,9 +191,16 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
               "here's the problem: we tried to inject a page of protection %i that doesn't match its vma flags of %i (prot: %i)", prot, flags, flags & 7);
     }
 
-    if (entry.type == kPageEntryByAddress)
+    if ((entry.type == kPageEntryByAddress) || (entry.type == kPageEntryByPFN))
     {
-        if (remap_pfn_range(cur, address, phys_to_pfn(entry.address).val, OS_PAGE_SIZE, entry.meta.prot))
+        pfn_t pfn;
+
+        if (entry.type == kPageEntryByPFN)
+            pfn = entry.pfn;
+        else
+            pfn = phys_to_pfn(entry.address);
+
+        if (remap_pfn_range(cur, address, pfn.val, OS_PAGE_SIZE, entry.meta.uprot))
             return false;
 
         return true;
@@ -202,14 +209,14 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     if (entry.type == kPageEntryByPage)
     {
         page       = entry.page;
-        protection = entry.meta.prot;
+        protection = entry.meta.uprot;
     }
     else if (entry.type == kPageEntryDummy)
     {
         // prevent mprotect giving userspace code access to a page that it shouldn't be allowed to read (ie: kernel module updates the address space to dummy, userspace responds with a fuck no call to mprotect again, userspace then exploits, pwn, and we die :/ )
         // we should also use pkeys!
         page       = user_dummy_page;
-        protection = g_memory_interface->CreatePageEntry(0, kCacheNoCache).prot;
+        protection = g_memory_interface->CreatePageEntry(0, kCacheNoCache).uprot;
     }
     else
     {
@@ -374,12 +381,17 @@ void OLUserVirtualAddressSpaceImpl::InvalidateImp()
     ProcessesTaskDecrementCounter(_task);
 }
 
-page_k * OLUserVirtualAddressSpaceImpl::AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags)
+PhysAllocationElem * OLUserVirtualAddressSpaceImpl::AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags)
 {
-    return AllocateLinuxPages(location, cnt, true, contig, flags);
+    return AllocateLinuxPages(location, cnt, true, contig, false, flags);
 }
 
-void OLUserVirtualAddressSpaceImpl::FreePages(page_k * pages)
+PhysAllocationElem * OLUserVirtualAddressSpaceImpl::AllocatePFNs(OLPageLocation location, size_t cnt, bool contig, size_t flags)
+{
+    return AllocateLinuxPages(location, cnt, true, contig, true, flags);
+}
+
+void OLUserVirtualAddressSpaceImpl::FreePages(PhysAllocationElem * pages)
 {
     FreeLinuxPages(pages);
 }

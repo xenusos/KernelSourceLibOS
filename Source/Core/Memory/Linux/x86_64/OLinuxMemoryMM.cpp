@@ -66,6 +66,37 @@ page_k virt_to_page(kernel_pointer_t address)
     return pfn_to_page(virt_to_pfn(address));
 }
 
+page_cache_mode        GetCacheModeFromCacheType(OLCacheType type)
+{
+    switch (type)
+    {
+    case kCacheCache:
+    {
+        return _PAGE_CACHE_MODE_WB;
+    }
+    case kCacheNoCache:
+    {
+        return _PAGE_CACHE_MODE_UC_MINUS;
+    }
+    case kCacheWriteCombined:
+    {
+        return _PAGE_CACHE_MODE_WC;
+    }
+    case kCacheWriteThrough:
+    {
+        return _PAGE_CACHE_MODE_WT;
+    }
+    case kCacheWriteProtected:
+    {
+        return _PAGE_CACHE_MODE_WP;
+    }
+    default:
+    {
+        panicf("Bad protection id %i", type);
+    }
+    }
+}
+
 static int pagesToOrder(int count, int & order)
 {
     if (count == 1)
@@ -87,8 +118,9 @@ static int pagesToOrder(int count, int & order)
     panicf("Couldn't find order for %i pages", count);
     return 0;
 }
- 
-static bool LinuxAllocateContigArray(page_k * arry, size_t cnt, size_t flags)
+
+
+static bool LinuxAllocateContigArray(PhysAllocationElem * arry, size_t cnt, size_t flags, bool isPfn)
 {
     page_k page;
     int order;
@@ -97,20 +129,30 @@ static bool LinuxAllocateContigArray(page_k * arry, size_t cnt, size_t flags)
 
     total = pagesToOrder(cnt, order);
 
-    page  = alloc_pages_current(flags | __GFP_COMP, order);
+
+    page  = alloc_pages_current(flags | (isPfn ? 0 : __GFP_COMP), order);
+    printf("ALLOCAT: %p\n", page);
+
     if (!page)
         return false;
-
-    arry[0] = page;
 
     pfn = page_to_pfn(page);
     ASSERT(pfn_to_page(pfn) == page, "Page layout error");
 
-    for (int i = 1; i < cnt; i++)
+    if (isPfn)
+        arry[0].pfn  = pfn;
+    else
+        arry[0].page = page;
+
+    for (size_t i = 1; i < cnt; i++)
     {
         pfn_t fek;
         fek.val = pfn.val + i;
-        arry[i] = pfn_to_page(fek);
+
+        if (isPfn)
+            arry[i].pfn = pfn;
+        else
+            arry[i].page = pfn_to_page(fek);
     }
 
     if (total != cnt)
@@ -119,17 +161,26 @@ static bool LinuxAllocateContigArray(page_k * arry, size_t cnt, size_t flags)
     return true;
 }
 
-static bool LinuxAllocatePages(page_k * arry, size_t cnt, size_t flags)
+static bool LinuxAllocatePages(PhysAllocationElem * arry, size_t cnt, size_t flags, bool isPfn)
 {
     page_k page;
 
     for (size_t i = 0; i < cnt; i++)
     {
         page = alloc_pages_current(flags, 0);
+        
         if (!page)
             goto error;
 
-        arry[i] = page;
+        arry[i].page = page;
+    }
+
+    if (isPfn)
+    {
+        for (size_t i = 0; i < cnt; i++)
+        {
+            arry[i].pfn = page_to_pfn(arry[i].page);
+        }
     }
 
     return true;
@@ -137,7 +188,8 @@ static bool LinuxAllocatePages(page_k * arry, size_t cnt, size_t flags)
 error:
     for (size_t i = 0; i < cnt; i++)
     {
-        page = arry[i];
+        page = arry[i].page;
+
         if (!page) 
             continue;
 
@@ -156,7 +208,7 @@ struct EncodedArrayMeta // Why do bitwise hackery when the compiler can do it fo
         {
             size_t length : 24;
             size_t contig : 1;
-            size_t magic : 6;
+            size_t byPfn  : 1;
         };
         union
         {
@@ -166,30 +218,33 @@ struct EncodedArrayMeta // Why do bitwise hackery when the compiler can do it fo
     };
 };
 
-#define PAGE_ARRAY_POINTER_MAGIC 24
+#define PAGE_ARRAY_POINTER_MAGIC 0xAABBCC11
 
 #pragma pack(pop)
 
-page_k * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool contig, size_t uflags)
+
+PhysAllocationElem * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool contig, bool byPfn, size_t uflags)
 {
     size_t flags;
-    page_k * arry;
+    PhysAllocationElem * arry;
     EncodedArrayMeta meta;
     bool ret;
 
     ASSERT(location != kPageInvalid, "invalid page region");
 
-    arry = (page_k *)calloc(cnt + 1, sizeof(page_k));
+    arry = (PhysAllocationElem *)calloc(cnt + 2, sizeof(PhysAllocationElem));
     
     if (!arry)
         return nullptr;
 
+    (arry++)->magic = PAGE_ARRAY_POINTER_MAGIC;
+
     // start the array with an entry that contains metadata instead of a pointer
     meta.contig = contig;
     meta.length = cnt;
-    meta.magic  = PAGE_ARRAY_POINTER_MAGIC;
+    meta.byPfn  = byPfn;
 
-    *(arry++) = meta.val.ptr;
+    (arry++)->page = meta.val.ptr;
 
     // Xenus to Linux flag translation
     flags = 0;
@@ -219,45 +274,46 @@ page_k * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool
     }
 
     if (contig)
-        ret = LinuxAllocateContigArray(arry, cnt, flags);
+        ret = LinuxAllocateContigArray(arry, cnt, flags, byPfn);
     else
-        ret = LinuxAllocatePages(arry, cnt, flags);
+        ret = LinuxAllocatePages(arry, cnt, flags, byPfn);
   
     if (!ret)
     {
-        free(&arry[-1]);
+        free(&arry[-2]);
         return nullptr;
     }
 
     return arry;
 }
 
-void FreeLinuxPages(page_k * pages)
+void FreeLinuxPages(PhysAllocationElem * pages)
 {
     int order;
     EncodedArrayMeta meta;
 
     ASSERT(pages, "invalid parameter");
 
-    meta.val.ptr = pages[-1];
+    meta.val.ptr = pages[-1].page;
 
-    ASSERT(meta.magic == PAGE_ARRAY_POINTER_MAGIC, "A page array was given to FreeLinuxPages; however, we didn't provide this pointer. Prefixed data has potentially been lost.")
+    ASSERT(pages[-2].magic == PAGE_ARRAY_POINTER_MAGIC, "A page array was given to FreeLinuxPages; however, we didn't provide this pointer. Prefixed data has potentially been lost.")
 
     if (meta.contig)
     {
-        pagesToOrder(meta.length, order);
+        page_k page = meta.byPfn ? pfn_to_page(pages[0].pfn) : pages[0].page;
 
-        __free_pages(pages[0], order);
+        pagesToOrder(meta.length, order);
+        __free_pages(page, order);
     }
     else
     {
         for (size_t i = 0; i < meta.length; i++)
         {
-            __free_pages(pages[i], 0);
+            __free_pages(meta.byPfn ? pfn_to_page(pages[i].pfn) : pages[i].page, 0);
         }
     }
 
-    free(&pages[-1]);
+    free(&pages[-2]);
 }
 
 void InitMMIOHelper()

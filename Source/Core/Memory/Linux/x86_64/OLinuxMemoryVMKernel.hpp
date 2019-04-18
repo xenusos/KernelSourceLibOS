@@ -24,14 +24,16 @@ public:
 class OLKernelVirtualAddressSpaceImpl : public OLVirtualAddressSpace
 {
 public:
-    page_k * AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags)                 override;
-    void     FreePages    (page_k * pages)                                                                 override;
 
-    error_t  MapPhys      (phys_addr_t phys, size_t pages, size_t & address, void * & context)             override;
-    error_t  UnmapPhys    (void * context)                                                                 override;
-    
-    error_t  MapPage      (page_k page, size_t & address, void * & context)                override;
-    error_t  UnmapPage    (void * context)                                                                 override;
+    PhysAllocationElem * AllocatePFNs(OLPageLocation location, size_t cnt, bool contig, size_t flags)       override;
+    PhysAllocationElem * AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags)      override;
+    void                 FreePages    (PhysAllocationElem * pages)                                          override;
+
+    error_t  MapPhys      (phys_addr_t phys, size_t pages, size_t & address, void * & context)              override;
+    error_t  UnmapPhys    (void * context)                                                                  override;
+                                                                                                            
+    error_t  MapPage      (page_k page, size_t & address, void * & context)                                 override;        
+    error_t  UnmapPage    (void * context)                                                                  override;
 
     error_t  NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation) override;
 };

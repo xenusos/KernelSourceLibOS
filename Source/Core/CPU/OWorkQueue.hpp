@@ -27,9 +27,9 @@ private:
     error_t ContExecution(bool workers);
 
     mutex_k _acquisition;
-    long _owners;
-    long _activeWork;
-    long _completed;
+    volatile long _owners;
+    volatile long _activeWork;
+    volatile long _completed;
 
     uint32_t _workItems;
     dyn_list_head_p _waiters;

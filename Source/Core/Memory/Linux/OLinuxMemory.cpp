@@ -47,40 +47,7 @@ static pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
 {
 #if defined(AMD64)
     pgprot_t prot;
-    prot.pgprot_ = 0;
-
-    switch (cache)
-    {
-    case kCacheCache:
-    {
-        // _PAGE_CACHE_MODE_WB = no op
-        return prot;
-    }
-    case kCacheNoCache:
-    {
-        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_UC);
-        return prot;
-    }
-    case kCacheWriteCombined:
-    {
-        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WC);
-        return prot;
-    }
-    case kCacheWriteThrough:
-    {
-        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WT);
-        return prot;
-    }
-    case kCacheWriteProtected:
-    {
-        prot.pgprot_ = cachemode2protval(_PAGE_CACHE_MODE_WP);
-        return prot;
-    }
-    default:
-    {
-        panicf("Bad protection id %i", cache);
-    }
-    }
+    prot.pgprot_ = cachemode2protval(GetCacheModeFromCacheType(cache));
 #else
     pgprot_noncached(vm_page_prot)
         pgprot_writecombine(vm_page_prot)
@@ -91,11 +58,14 @@ static pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
 
 void OLMemoryInterfaceImpl::UpdatePageEntryCache(OLPageEntryMeta &entry, OLCacheType cache)
 {
-    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheCache).pgprot_;
-    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheWriteCombined).pgprot_;
-    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheWriteThrough).pgprot_;
-    entry.prot.pgprot_ &= ~CacheTypeToCacheModeToProt(kCacheWriteProtected).pgprot_;
-    entry.prot.pgprot_ |= CacheTypeToCacheModeToProt(cache).pgprot_;
+#if defined(AMD64)
+    entry.uprot.pgprot_ &= ~_PAGE_PWT;
+    entry.uprot.pgprot_ &= ~_PAGE_PCD;
+    entry.kprot.pgprot_ &= ~_PAGE_PWT;
+    entry.kprot.pgprot_ &= ~_PAGE_PCD;
+#endif
+    entry.uprot.pgprot_ |= CacheTypeToCacheModeToProt(cache).pgprot_;
+    entry.kprot.pgprot_ |= CacheTypeToCacheModeToProt(cache).pgprot_;
 }
 
 void OLMemoryInterfaceImpl::UpdatePageEntryAccess(OLPageEntryMeta &entry, size_t access)
@@ -104,18 +74,42 @@ void OLMemoryInterfaceImpl::UpdatePageEntryAccess(OLPageEntryMeta &entry, size_t
     vmflags = 0;
 
     if (access & OL_ACCESS_EXECUTE)
+    {
+        access |= OL_ACCESS_READ;
         vmflags |= VM_EXEC;
+    }
+
+    if (access & OL_ACCESS_WRITE)
+    {
+        access |= OL_ACCESS_READ;
+        vmflags |= VM_WRITE;
+    }
 
     if (access & OL_ACCESS_READ)
         vmflags |= VM_READ;
 
-    if (access & OL_ACCESS_WRITE)
-        vmflags |= VM_WRITE;
 
     vmflags |= VM_SHARED; // _PAGE_RW is required even when not writing.
                           // udmabuf also uses this logic alongside similar x86 cache logic
-    entry.prot.pgprot_ &= ~vm_get_page_prot(VM_WRITE | VM_READ | VM_EXEC).pgprot_;
-    entry.prot.pgprot_ |= vm_get_page_prot(vmflags).pgprot_;
+
+    entry.uprot.pgprot_ = 0;
+    entry.uprot.pgprot_ |= vm_get_page_prot(vmflags).pgprot_;
+
+    entry.kprot.pgprot_ = 0;
+
+#if defined(AMD64)
+    entry.kprot.pgprot_ |= *(uint64_t *)kallsyms_lookup_name("sme_me_mask");
+    entry.kprot.pgprot_ |= (access & OL_ACCESS_READ  ? _PAGE_PRESENT : 0) |
+                           (access & OL_ACCESS_WRITE ? _PAGE_RW      : 0) |
+                           _PAGE_DIRTY | 
+                           _PAGE_ACCESSED | 
+                           _PAGE_GLOBAL |
+                           (access & OL_ACCESS_EXECUTE ? 0 : _PAGE_NX);
+#endif
+
+
+    UpdatePageEntryCache(entry, entry.cache);
+    
     entry.access = access;
 }
 

@@ -25,9 +25,9 @@ struct SemaWaitingThreads
 
 OCountingSemaphoreImpl::OCountingSemaphoreImpl(uint32_t startCount, mutex_k mutex, dyn_list_head_p list)
 {
-    _activeWork = startCount;
-    _acquisition     = mutex;
-    _list            = list;
+    _activeWork  = startCount;
+    _acquisition = mutex;
+    _list        = list;
 }
 
 error_t OCountingSemaphoreImpl::Wait(uint32_t ms)

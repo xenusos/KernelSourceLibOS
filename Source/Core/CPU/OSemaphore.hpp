@@ -24,6 +24,6 @@ private:
     error_t ContExecution(uint32_t count, uint32_t & threadsCont);
 
     mutex_k _acquisition;
-    long _activeWork;
+    volatile long _activeWork;
     dyn_list_head_p _list;
 };

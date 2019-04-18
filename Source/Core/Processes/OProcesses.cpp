@@ -231,7 +231,6 @@ static error_t ProcessesAppendCache(dyn_list_head_p threads, task_k tsk, OProces
 OProcessImpl::OProcessImpl(task_k tsk)
 {
     ProcessesTaskIncrementCounter(tsk);
-    _threads_mutex = mutex_create();
     _tsk = tsk;
     _pid = ProcessesGetPid(tsk);
 
@@ -502,7 +501,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
         goto exit;
     }
 
-    if (!(map = vmap(page_array, pages, 0, protection.prot)))
+    if (!(map = vmap(page_array, pages, 0, protection.uprot)))
     {
         ret = kErrorInternalError;
         goto exit;

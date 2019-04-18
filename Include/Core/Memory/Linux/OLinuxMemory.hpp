@@ -34,7 +34,8 @@ enum OLPageLocation
 
 struct OLPageEntryMeta
 {
-    pgprot_t prot;
+    pgprot_t uprot;
+    pgprot_t kprot;
     size_t access;
     OLCacheType cache;
 };
@@ -43,6 +44,7 @@ enum OLPageEntryType
 {
     kPageEntryByAddress,
     kPageEntryByPage,
+    kPageEntryByPFN,
     kPageEntryDummy
 };
 
@@ -54,7 +56,15 @@ struct OLPageEntry
     {
         phys_addr_t address;
         page_k page;
+        pfn_t pfn;
     };
+};
+
+union PhysAllocationElem
+{
+    uint32_t magic;
+    page_k page;
+    pfn_t pfn;
 };
 
 class OLMemoryAllocation;
@@ -89,17 +99,18 @@ class OLVirtualAddressSpace : public OObject
 {
 public:
 
-    virtual page_k * AllocatePages(OLPageLocation location, size_t cnt, bool contig, size_t flags = 0)                   = 0;
-    virtual void     FreePages    (page_k * pages)                                                                       = 0;
+    virtual PhysAllocationElem * AllocatePFNs    (OLPageLocation location, size_t cnt, bool contig, size_t flags = 0)    = 0;
+    virtual PhysAllocationElem * AllocatePages   (OLPageLocation location, size_t cnt, bool contig, size_t flags = 0)    = 0;
+    virtual void                 FreePages       (PhysAllocationElem * pages)                                            = 0;
+                                                                                                                           
+    virtual error_t              MapPhys         (phys_addr_t phys, size_t pages, size_t & address, void * & context)    = 0;
+    virtual error_t              UnmapPhys       (void * context)                                                        = 0;
                                                                                                                          
-    virtual error_t  MapPhys      (phys_addr_t phys, size_t pages, size_t & address, void * & context)                   = 0;
-    virtual error_t  UnmapPhys    (void * context)                                                                       = 0;
-                                                                                                                         
-    virtual error_t  MapPage      (page_k page, size_t & address, void * & context)                                      = 0;
-    virtual error_t  UnmapPage    (void * context)                                                                       = 0;
-                                                                                                                         
-    virtual error_t  NewDescriptor(size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation)      = 0;
-};
+    virtual error_t              MapPage         (page_k page, size_t & address, void * & context)                       = 0;
+    virtual error_t              UnmapPage       (void * context)                                                        = 0;
+                                                                                                                           
+    virtual error_t              NewDescriptor   (size_t start, size_t pages, const OOutlivableRef<OLMemoryAllocation> allocation) = 0;
+};                                    
 
 class OLMemoryInterface : public OObject
 {

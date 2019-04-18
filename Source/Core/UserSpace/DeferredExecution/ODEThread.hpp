@@ -8,6 +8,8 @@ class ODEWorkHandler;
 class ODEImplProcess;
 class OLMemoryAllocation;
 
+union PhysAllocationElem;
+
 struct DERestoreThread
 {
     bool hasPreviousTask;
@@ -33,7 +35,7 @@ struct DEStackMapping
 
 struct DEStack
 {
-    page_k * pages;
+    PhysAllocationElem * pages;
     DEStackMapping user;
     DEStackMapping kernel;
 };

@@ -7,6 +7,7 @@
 #include "ODECriticalSection.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
 
+#include <Core/Memory/Linux/OLinuxStack.hpp>
 page_k g_return_stub_x64;
 
 static void InitDE64()
@@ -22,20 +23,22 @@ static void InitDE64()
     OLVirtualAddressSpace * vas;
     ODumbPointer<OLMemoryAllocation> alloc;
     OLPageEntry entry;
-    page_k * pages;
+    PhysAllocationElem * allocation;
+
 
     err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<OLVirtualAddressSpace>(vas));
     ASSERT(NO_ERROR(err), "fatal error: couldn't get kernel address space interface: %zx", err);
 
     err = vas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(alloc));
     ASSERT(NO_ERROR(err), "fatal error: couldn't allocate kernel address VM area: %zx", err);
-    
-    pages = vas->AllocatePages(OLPageLocation::kPageNormal, 1, true, OL_PAGE_ZERO);
-    ASSERT(pages, "fatal error: couldn't allocate return stub");
 
-    g_return_stub_x64 = pages[0];
+    allocation = vas->AllocatePages(OLPageLocation::kPageNormal, 1, true, OL_PAGE_ZERO);
+    ASSERT(allocation, "fatal error: couldn't allocate return stub");
 
-    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
+    g_return_stub_x64 = allocation[0].page;
+
+    entry.meta = { 0 };
+    g_memory_interface->UpdatePageEntryAccess(entry.meta, OL_ACCESS_READ | OL_ACCESS_WRITE);// , kCacheNoCache);
     entry.type = kPageEntryByPage;
     entry.page = g_return_stub_x64;
 
