@@ -255,7 +255,7 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
 
     info = GetInfoForTask(_task);
     info->next_user = *registers;
-    info->swap_bool.doWork = 1;
+    info->swap_bool.counter = 1;
 
     if (kick)
     {

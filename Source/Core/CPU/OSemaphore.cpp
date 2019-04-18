@@ -25,7 +25,7 @@ struct SemaWaitingThreads
 
 OCountingSemaphoreImpl::OCountingSemaphoreImpl(uint32_t startCount, mutex_k mutex, dyn_list_head_p list)
 {
-    _activeWork  = startCount;
+    _counter     = startCount;
     _acquisition = mutex;
     _list        = list;
 }
@@ -37,9 +37,9 @@ error_t OCountingSemaphoreImpl::Wait(uint32_t ms)
 
     mutex_lock(_acquisition);
     {
-        if (_activeWork > 0)
+        if (_counter > 0)
         {
-            _activeWork--;
+            _counter--;
 
             err = kStatusSemaphoreAlreadyUnlocked;
             goto out;
@@ -139,7 +139,7 @@ error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & out)
         ContExecution(count, signals);
 
         if (signals != count)
-            _activeWork += count - signals;
+            _counter += count - signals;
     }
     mutex_unlock(_acquisition); 
 
