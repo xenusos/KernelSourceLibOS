@@ -136,10 +136,16 @@ error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & out)
 
     mutex_lock(_acquisition);
     {
+        uint32_t releasedThreads;
+
         ContExecution(count, signals);
 
+        releasedThreads = count - signals;
+
         if (signals != count)
-            _counter += count - signals;
+            _counter += releasedThreads;
+
+        out = releasedThreads;
     }
     mutex_unlock(_acquisition); 
 
