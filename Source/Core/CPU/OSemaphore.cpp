@@ -129,15 +129,13 @@ error_t OCountingSemaphoreImpl::ContExecution(uint32_t count, uint32_t & threads
     return kStatusOkay;
 }
 
-error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & out)
+error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & releasedThreads, uint32_t & debt)
 {
     CHK_DEAD;
     uint32_t signals;
 
     mutex_lock(_acquisition);
     {
-        uint32_t releasedThreads;
-
         ContExecution(count, signals);
 
         releasedThreads = count - signals;
@@ -145,7 +143,7 @@ error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & out)
         if (signals != count)
             _counter += releasedThreads;
 
-        out = releasedThreads;
+        debt = _counter;
     }
     mutex_unlock(_acquisition); 
 
