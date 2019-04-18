@@ -501,7 +501,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
         goto exit;
     }
 
-    if (!(map = vmap(page_array, pages, 0, protection.uprot)))
+    if (!(map = vmap(page_array, pages, 0, protection.kprot)))
     {
         ret = kErrorInternalError;
         goto exit;

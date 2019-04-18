@@ -138,7 +138,7 @@ error_t OLMemoryManagerKernel::InsertAt(void * instance, size_t index, void ** m
         // 5. map
         // we should do all of those things, but for now, let's just do 4-5
 
-        ret = ez_linux_caller(kallsyms_lookup_name("kernel_map_sync_memtype"), (size_t)phys,  OS_THREAD_SIZE, GetCacheModeFromCacheType(entry.meta.cache), 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        ret = kernel_map_sync_memtype((uint64_t) phys, OS_PAGE_SIZE, GetCacheModeFromCacheType(entry.meta.cache));
 
         if (ret != 0) // 0 on OK
             return kErrorInternalError;

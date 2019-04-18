@@ -37,8 +37,7 @@ static void InitDE64()
 
     g_return_stub_x64 = allocation[0].page;
 
-    entry.meta = { 0 };
-    g_memory_interface->UpdatePageEntryAccess(entry.meta, OL_ACCESS_READ | OL_ACCESS_WRITE);// , kCacheNoCache);
+    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
     entry.type = kPageEntryByPage;
     entry.page = g_return_stub_x64;
 

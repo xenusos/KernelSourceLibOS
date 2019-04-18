@@ -129,9 +129,7 @@ static bool LinuxAllocateContigArray(PhysAllocationElem * arry, size_t cnt, size
 
     total = pagesToOrder(cnt, order);
 
-
     page  = alloc_pages_current(flags | (isPfn ? 0 : __GFP_COMP), order);
-    printf("ALLOCAT: %p\n", page);
 
     if (!page)
         return false;
