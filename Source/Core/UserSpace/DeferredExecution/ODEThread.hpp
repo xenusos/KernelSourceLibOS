@@ -56,6 +56,8 @@ public:
 
 protected:
 
+    void DestoryStack();
+
     error_t AllocateStack();
     error_t AllocatePendingWork();
 

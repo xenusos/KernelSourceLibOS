@@ -8,9 +8,10 @@
 #include "OLinuxMemoryVM.hpp"
 
 #include "OLinuxMemoryMM.hpp"
+#include "OLinuxMemoryPages.hpp"
 #include "../OLinuxMemory.hpp"
 
-OLMemoryManagerKernel g_krnvm_manager;
+OLMemoryManagerKernel g_krnvm_manager;;
 
 static l_unsigned_long page_offset_base = 0;
 static page_k          kernel_dummy_page;
@@ -147,7 +148,6 @@ error_t OLMemoryManagerKernel::InsertAt(void * instance, size_t index, void ** m
 
         if (ret != 0) // 0 on OK
             return kErrorInternalError;
-
     }
 
     *map = (void *)adr;

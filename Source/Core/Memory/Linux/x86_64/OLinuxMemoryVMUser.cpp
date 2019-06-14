@@ -8,6 +8,7 @@
 #include "OLinuxMemoryVM.hpp"
 
 #include "OLinuxMemoryMM.hpp"
+#include "OLinuxMemoryPages.hpp"
 #include "../OLinuxMemory.hpp"
 #include "../../../Processes/OProcesses.hpp"
 

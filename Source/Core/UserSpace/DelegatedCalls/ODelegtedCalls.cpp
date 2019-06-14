@@ -76,21 +76,22 @@ static size_t DelegatedCallsGetBuffer(void * buf, size_t len)
         size_t nlen;
         DelegatedCallInstance_p fn;
         
-        if (ERROR(err = dyn_list_get_by_index(delegated_fns, i, (void **)&fn)))
+        err = dyn_list_get_by_index(delegated_fns, i, (void **)&fn);
+        if (ERROR(err))
         {
             LogPrint(kLogError, "dyn_list_get_by_index failed: %lli. how even? wtf", err);
             goto exit;
         }
         
-        nlen = strlen(fn->name);
+        nlen = strlen(fn->name) + 1;
 
         if (buf)
-            if (nlen + 1 + sizeof(uint32_t) + index > len)
+            if (nlen + sizeof(uint32_t) + index > len)
                 goto exit;
 
         if (buf)
-            memcpy((void *)(size_t(buf) + index), fn->name, nlen + 1);
-        index += nlen + 1;
+            memcpy((void *)(size_t(buf) + index), fn->name, nlen);
+        index += nlen;
 
         if (buf)
             *(uint32_t *)(size_t(buf) + index) = i;
@@ -102,62 +103,89 @@ exit:
     return index;
 }
 
-static void DelegatedCallsHandlePull(xenus_syscall_p atten)
+static size_t DelegatedCallsHandlePull(xenus_syscall_p atten)
 {
     if (atten->arg_alpha && atten->arg_bravo)
     {
         size_t len;
         void * temp;
+        size_t ret;
 
         if (atten->arg_bravo > 1024 * 1024)
         {
             LogPrint(kLogWarning, "nice try. no crash today");
-            return;
+            return 0;
         }
 
         len = atten->arg_bravo;
         temp = zalloc(len);
 
-        atten->response = DelegatedCallsGetBuffer(temp, len);
+        if (!temp)
+        {
+            LogPrint(kLogWarning, "out memory - couldn't provide pull");
+            return 0;
+        }
+
+        ret = DelegatedCallsGetBuffer(temp, len);
 
         _copy_to_user((user_addr_t)atten->arg_alpha, temp, len);
         free(temp);
+    
+        return ret;
     }
-    else if (atten->arg_alpha)
+    
+    if (atten->arg_alpha)
     {
         LogPrint(kLogWarning, "Illegal deferred call... unofficial LibInterRingComms?");
+        return 0;
     }
-    else if (!atten->arg_alpha)
+    
+    if (!atten->arg_alpha)
     {
-        atten->response = DelegatedCallsGetBuffer(NULL, 0);
+        return DelegatedCallsGetBuffer(NULL, 0);
     }
+
+    return -1;
 }
 
-static void DelegatedCallsHandleCall(xenus_syscall_p atten)
+static size_t DelegatedCallsHandleCall(xenus_syscall_p atten, bool noBuf)
 {
     DelegatedCallInstance_p fn;
     SysJob_s job;
     error_t err;
     uint64_t ret;
 
-    _copy_from_user(&job.attention, (user_addr_t)atten->arg_alpha, sizeof(xenus_syscall_extended_t));
+    if (noBuf)
+    {
+        job.attention.arg_alpha = atten->arg_bravo;
+        job.attention.arg_bravo = atten->arg_charlie;
+        job.attention.arg_charlie = atten->arg_delta;
+        job.attention.arg_delta = atten->arg_echo;
+    }
+    else 
+    {
+        _copy_from_user(&job.attention, (user_addr_t)atten->arg_alpha, sizeof(xenus_syscall_extended_t));
+        // TODO: check response
+    }
 
     mutex_lock(delegated_mutex);
-    if (ERROR(dyn_list_get_by_index(delegated_fns, job.attention.attention_id, (void **)&fn)))
+    err = dyn_list_get_by_index(delegated_fns, job.attention.attention_id, (void **)&fn);
+    if (ERROR(err))
     {
         mutex_unlock(delegated_mutex);
         LogPrint(kLogWarning, "Couldn't execute user syscall (attention id: %zu)", atten->attention_id);
-        return;
+        return 0xDEAFBEEFDEADBEEF;
     }
     mutex_unlock(delegated_mutex);
 
-    job.fn = fn->fn;                // stack size, i think, was a massive issue - defer work to a thread pool
+    job.fn = fn->fn;
     job.attention.task = OSThread;
 
     fn->fn(&job.attention);
 
-    _copy_to_user((user_addr_t)atten->arg_alpha, &job.attention, sizeof(xenus_syscall_extended_t));
-    atten->response = 0;
+    // [GREP FOR ME = SYSCALL RETURN CHANGE]
+    //_copy_to_user((user_addr_t)atten->arg_alpha, &job.attention, sizeof(xenus_syscall_extended_t));
+    return job.attention.response;
 }
 
 static void DelegatedCallsHandleDeferredExec(xenus_syscall_p atten)
@@ -169,15 +197,19 @@ void DelegatedCallsSysCallHandler(xenus_syscall_ref atten)
 {
     if (atten->attention_id == BUILTIN_CALL_DB_PULL)
     {
-        DelegatedCallsHandlePull(atten);
+        atten->response = DelegatedCallsHandlePull(atten);
     }
     else if (atten->attention_id == BUILTIN_CALL_EXTENDED)
     {
-        DelegatedCallsHandleCall(atten);
+        atten->response = DelegatedCallsHandleCall(atten, false);
     }
     else if (atten->attention_id == BUTLTIN_CALL_NTFY_COMPLETE)
     {
         DelegatedCallsHandleDeferredExec(atten);
+    }
+    else if (atten->attention_id == BUILTIN_CALL_SHORT)
+    {
+        atten->response = DelegatedCallsHandleCall(atten, true);
     }
     else
     {

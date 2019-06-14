@@ -9,6 +9,7 @@
 #include "ODeferredExecution.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
 #include "../../Processes/OProcesses.hpp"
+#include "../../Memory/Linux/x86_64/OLinuxMemoryPages.hpp"
 
 struct linux_thread_info // TODO: portable structs. NEVER TRUST MSVC and GCC TO AGREE
 {
@@ -31,8 +32,17 @@ ODEImplPIDThread::ODEImplPIDThread(ODEImplProcess * parent)
 
 ODEImplPIDThread::~ODEImplPIDThread()
 {
-    if (_workPending)
-        dyn_list_destory(_workPending);
+    error_t err;
+
+    if (_workPending) 
+    {
+        // TODO: assert 0
+        // TODO: ensure we finish work items before we run signals in the linux kernel source
+        err = dyn_list_destory(_workPending);
+        ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    }
+
+    DestoryStack();
 }
 
 error_t ODEImplPIDThread::Init(task_k task)
@@ -54,7 +64,21 @@ error_t ODEImplPIDThread::Init(task_k task)
 
 void ODEImplPIDThread::UpdatePidHandle(task_k task)
 {
-    _task = task;
+    if (_task == task)
+        return;
+ 
+    DestoryStack();
+    Init(task);
+}
+
+void ODEImplPIDThread::DestoryStack()
+{
+    if (!_stack.pages)
+        return;
+
+    FreeLinuxPages(_stack.pages);
+    _stack.kernel.allocation->Destory();
+    _stack.user.allocation->Destory();
 }
 
 error_t ODEImplPIDThread::AppendWork(ODEWorkHandler * handler)

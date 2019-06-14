@@ -49,6 +49,7 @@
     <ClInclude Include="Source\Core\FIO\OFile.hpp" />
     <ClInclude Include="Source\Core\FIO\OFileStat.hpp" />
     <ClInclude Include="Source\Core\FIO\OPath.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryPages.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMSpace.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMKernel.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemory.hpp" />
@@ -86,6 +87,7 @@
     <ClCompile Include="Source\Core\CPU\OSemaphore.cpp" />
     <ClCompile Include="Source\Core\CPU\OWorkQueue.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemory.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryPages.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMSpace.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMKernel.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryMM.cpp" />

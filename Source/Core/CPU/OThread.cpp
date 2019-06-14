@@ -468,7 +468,8 @@ static int RuntimeThreadEP(void * data)
 
     sync_thread_create.instance = instance;
     uint32_t idc;
-    sync_thread_create.semaphore->Trigger(1, idc);
+    uint32_t idfc;
+    sync_thread_create.semaphore->Trigger(1, idc, idfc);
 
     // ntfy thread start
     {

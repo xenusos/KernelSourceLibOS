@@ -29,7 +29,5 @@ LIBLINUX_SYM kernel_pointer_t phys_to_virt(phys_addr_t addr);
 
 extern enum page_cache_mode   GetCacheModeFromCacheType(OLCacheType type);
 
-extern PhysAllocationElem   * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool contig, bool pfns, size_t uflags = 0);
-extern void                   FreeLinuxPages(PhysAllocationElem * pages);
 
 extern void InitMMIOHelper();

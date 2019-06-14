@@ -31,7 +31,6 @@ static int libos_start()
 static c_bool libos_init(mod_dependency_list_p deps)
 {
     LoggingInit();
-
     InitPseudoFiles();
     InitDelegatedCalls();
     InitProcesses();
@@ -40,7 +39,6 @@ static c_bool libos_init(mod_dependency_list_p deps)
     InitMemmory();
     InitThreading();
     InitDeferredCalls();
-
     return true;
 }
 
