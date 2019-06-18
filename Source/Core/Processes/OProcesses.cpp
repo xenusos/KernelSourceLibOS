@@ -15,6 +15,7 @@
 // Other parts of LibOS
 #include "../FIO/OPath.hpp"
 #include "../../Utils/RCU.hpp"
+#include "Core/CPU/OThread.hpp"
 
 task_k init_task;
 //l_unsigned_long page_offset_base;
@@ -405,11 +406,16 @@ error_t OProcessImpl::IterateThreads(ThreadIterator_cb callback, void * ctx)
 
     er = kStatusOkay;
     if (!_threads)
-        UpdateThreadCache();
+    {
+        er = UpdateThreadCache();
+        if (ERROR(er))
+            return er;
+    }
 
     mutex_lock(_threads_mutex);
 
-    if (ERROR(er = dyn_list_entries(_threads, &cnt)))
+    er = dyn_list_entries(_threads, &cnt);
+    if (ERROR(er))
         goto exit;
 
     for (size_t i = 0; i < cnt; i++)
@@ -427,6 +433,11 @@ exit:
     mutex_unlock(_threads_mutex);
 
     return er;
+}
+
+bool OProcessImpl::Is32Bits()
+{
+    return UtilityIsTask32Bit(_tsk);
 }
 
 error_t OProcessImpl::Terminate(bool force)

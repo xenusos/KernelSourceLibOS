@@ -207,6 +207,8 @@ void FreeDEProcess(task_k task)
         LogPrint(kLogWarning, "GetDEProcess called with a thread, not a group leader instance");
 
     err = chain_get(tgid_map, tgid, &link, (void **)&handle);
+    if (err == XENUS_ERROR_LINK_NOT_FOUND)
+        return;
     ASSERT(NO_ERROR(err), "Couldn't free DE process object.        Error: 0x%zx", err);
 
     err = chain_deallocate_handle(link);

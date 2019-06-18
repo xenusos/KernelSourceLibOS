@@ -12,6 +12,10 @@
 #include "../OLinuxMemory.hpp"
 #include "../../../Processes/OProcesses.hpp"
 
+#include "addresses/FindFreeUserVMA.hpp"
+
+#include <Core/CPU/OThread.hpp>
+
 OLMemoryManagerUser g_usrvm_manager;
 static page_k       user_dummy_page;
 
@@ -61,6 +65,32 @@ DEFINE_SYSV_FUNCTON_END_DEF(special_map_fault, l_int)
 }
 DEFINE_SYSV_END
 
+static l_unsigned_long GetMProtectProt(OLPageEntry entry)
+{
+    l_unsigned_long prot = 0;
+
+    
+    if (entry.type == kPageEntryDummy)
+        return 0;
+
+    if (entry.meta.access & OL_ACCESS_READ)
+        prot |= VM_READ;
+
+    if (entry.meta.access & OL_ACCESS_WRITE)
+    {
+        prot |= VM_READ;
+        prot |= VM_WRITE;
+    }
+
+    if (entry.meta.access & OL_ACCESS_EXECUTE)
+    {
+        prot |= VM_READ;
+        prot |= VM_EXEC;
+    }
+
+    return prot;
+}
+
 error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t start, task_k tsk, size_t pages, void ** priv, size_t & ostart, size_t & oend, size_t & olength)
 {
     error_t err;
@@ -102,12 +132,36 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
         
         if (!mm)
             goto errorNoClean;
-        
-        address = (size_t)get_unmapped_area(NULL, start, length, 0, start ? MAP_FIXED : 0);
+
+        err = kErrorOutOfMemory;
+
+        if (start)
+        {
+            if (find_vma(mm, start))
+            {
+                LogPrint(kLogVerbose, "Couldn't allocate memory at %p - a VMA already exists here!", start);
+                goto error;
+            }
+        }
+       
+        address = start;
+
         if (!address)
+        {
+            bool type = RequestMappIngType(tsk);
+            bool is32 = UtilityIsTask32Bit(tsk);
+            address = RequestUnmappedArea(mm, type, NULL, length, is32);
+        }
+
+        //address = (size_t)get_unmapped_area(NULL, start, length, 0, (start ? MAP_FIXED : 0));
+        if (!address)
+             goto error;
+
+        if (LINUX_PTR_ERROR(address))
             goto error;
 
-        area = _install_special_mapping(mm, (l_unsigned_long)address, length, VM_DONTEXPAND, mapping);
+        //| VM_DONTEXPAND
+        area = _install_special_mapping(mm, (l_unsigned_long)address, length, 0, mapping);
         if (!area)
             goto error; 
 
@@ -182,14 +236,24 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     pgprot_t protection;
 
     flags = vm_area_struct_get_vm_flags_size_t(cur);
-    flags &= VM_IO;
+    flags |= VM_IO;
     vm_area_struct_set_vm_flags_size_t(cur, flags);
 
-    if ((flags & 7) != (prot & 7))
+    if (flags == 0)
+    {
+        puts("OLinuxMemoryVMUser.cpp -> InjectPage vm area struct doesn't have accurate flags. can't determine whether or not this operation is safe");
+
+        flags |= VM_IO;
+        flags |= GetMProtectProt(entry) & 7;
+        vm_area_struct_set_vm_flags_size_t(cur, flags);
+
+        printf("We just manually updated the vm_area_struct... bad! bad! bad! Is this a Linux bug?");
+    }
+    else if ((flags & 7) != (prot & 7))
     {
         panicf("Ok. so... we depend on mprotect to split and merge VMAs to inject pages into userspace\n"
-              "this is great because vma merging, splitting, creation, etc is a major pain in the ass\n"
-              "here's the problem: we tried to inject a page of protection %i that doesn't match its vma flags of %i (prot: %i)", prot, flags, flags & 7);
+             "this is great because vma merging, splitting, creation, etc is a major pain in the ass\n"
+             "here's the problem: we tried to inject a page of protection %i that doesn't match its vma flags of %i (prot: %i)", prot, flags, flags & 7);
     }
 
     if ((entry.type == kPageEntryByAddress) || (entry.type == kPageEntryByPFN))
@@ -232,36 +296,12 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     return true;
 }
 
-static l_unsigned_long GetMProtectProt(OLPageEntry entry)
-{
-    l_unsigned_long prot = 0;
-
-    if (entry.type == kPageEntryDummy)
-        return 0;
-
-    if (entry.meta.access & OL_ACCESS_READ)
-        prot |= VM_READ;
-
-    if (entry.meta.access & OL_ACCESS_WRITE)
-    {
-        prot |= VM_READ;
-        prot |= VM_WRITE;
-    }
-
-    if (entry.meta.access & OL_ACCESS_EXECUTE)
-    {
-        prot |= VM_READ;
-        prot |= VM_EXEC;
-    }
-
-    return prot;
-}
-
 static error_t UpdateMProtectAllowance(task_k task, size_t address, l_unsigned_long prot)
 {
     vm_area_struct_k cur;
     mm_struct_k mm;
     size_t flags;
+
 
     mm = ProcessesAcquireMM_Write(task);
     if (!mm)
@@ -275,11 +315,7 @@ static error_t UpdateMProtectAllowance(task_k task, size_t address, l_unsigned_l
     }
 
     flags = vm_area_struct_get_vm_flags_size_t(cur);
-    flags &= VM_MAYREAD;
-    flags &= VM_MAYWRITE;
-    flags &= VM_MAYEXEC;
-
-    flags |= VM_GROWSUP;
+    flags &= ~(VM_MAYREAD | VM_MAYEXEC | VM_MAYWRITE);
 
     flags |= prot & VM_WRITE ? VM_MAYWRITE : 0;
     flags |= prot & VM_READ  ? VM_MAYREAD  : 0;

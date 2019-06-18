@@ -39,4 +39,6 @@ public:
     virtual void * GetData() = 0;
 };
 
+LIBLINUX_SYM bool UtilityIsTask32Bit(task_k handle);
+
 #include "OThread_Spawning.hpp"

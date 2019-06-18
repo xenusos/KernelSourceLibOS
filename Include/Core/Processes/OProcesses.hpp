@@ -37,6 +37,8 @@ public:
 
     virtual error_t ReadProcessMemory(user_addr_t address, void * buffer, size_t length)        = 0;
     virtual error_t WriteProcessMemory(user_addr_t address, const void * buffer, size_t length) = 0;
+
+    virtual bool    Is32Bits()                                                                  = 0;
 };
 
 typedef void(*ProcessIterator_cb)(OPtr<OProcess> thread, void * context);

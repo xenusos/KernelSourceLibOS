@@ -80,6 +80,7 @@ public:
     error_t ReadProcessMemory(user_addr_t address, void * buffer, size_t length)                 override;
     error_t WriteProcessMemory(user_addr_t address, const void * buffer, size_t length)          override;
     
+    bool Is32Bits()                                                                              override;
 protected:
     void InvalidateImp();
 
