@@ -138,10 +138,10 @@ error_t OCountingSemaphoreImpl::Trigger(uint32_t count, uint32_t & releasedThrea
     {
         ContExecution(count, signals);
 
-        releasedThreads = count - signals;
+        releasedThreads = signals;
 
         if (signals != count)
-            _counter += releasedThreads;
+            _counter += count - releasedThreads;
 
         debt = _counter;
     }
