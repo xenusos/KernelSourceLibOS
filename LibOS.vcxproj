@@ -201,6 +201,7 @@
       <Driver>Driver</Driver>
       <NoEntryPoint>false</NoEntryPoint>
       <EntryPointSymbol>entrypoint</EntryPointSymbol>
+      <AdditionalOptions>/IGNORE:4210 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <Lib>
       <AdditionalDependencies>

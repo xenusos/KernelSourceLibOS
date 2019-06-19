@@ -14,6 +14,7 @@ static bool deprecated_mpx_check(va_kernel_pointer_t & addr, size_t length, size
 
 struct vm_unmapped_area_info {
 #define VM_UNMAPPED_AREA_TOPDOWN 1
+#define VM_UNMAPPED_AREA_PROVIDED_MM 2
     mm_struct_k mm;
     l_unsigned_long flags;
     l_unsigned_long length;
@@ -94,9 +95,9 @@ bool RequestMappIngType(task_k task)
     return task_get_personality_uint32(task) & ADDR_LIMIT_3GB;
 }
 
-static sysv_fptr_t vm_unmapped_area_ptr;
 static va_kernel_pointer_t vm_unmapped_area(vm_unmapped_area_info * info)
 {
+    static sysv_fptr_t vm_unmapped_area_ptr = nullptr;
     if (!vm_unmapped_area_ptr)
         vm_unmapped_area_ptr = (sysv_fptr_t)kallsyms_lookup_name("unmapped_area");
     return (va_kernel_pointer_t)ez_linux_caller(vm_unmapped_area_ptr, (size_t)info, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -124,7 +125,7 @@ va_kernel_pointer_t RequestUnmappedArea(mm_struct_k mm, bool type, va_kernel_poi
             return addr;
     }
 
-    info.flags = 0 | 2;
+    info.flags = VM_UNMAPPED_AREA_PROVIDED_MM;
     info.mm = mm;
     info.length = length;
     info.low_limit = begin;
