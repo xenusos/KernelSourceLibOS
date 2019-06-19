@@ -40,10 +40,14 @@ enum {
     ADDR_LIMIT_3GB = 0x8000000,
 };
 
+// if we ever have level 5 cache support
+// change this to 57
+#define __VIRTUAL_MASK_SHIFT	47 
 #define TASK_SIZE_MAX	((1ULL << __VIRTUAL_MASK_SHIFT) - PAGE_SIZE)
+
+
 // TODO: add to kernel information
 // TODO: for now, let's just use the minimal value
-#define __VIRTUAL_MASK_SHIFT	47 
 #define DEFAULT_MAP_WINDOW	((1ULL << 47) - PAGE_SIZE)
 
 // if x32 build
