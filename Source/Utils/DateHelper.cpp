@@ -41,6 +41,16 @@ uint64_t DateHelpers::GetUnixTime()
     return NS_TO_MS(ktime_get_with_offset(TK_OFFS_REAL));
 }
 
+uint64_t DateHelpers::GetMonoTime()
+{
+    return ktime_get_with_offset(TK_OFFS_REAL);
+}
+
+uint64_t DateHelpers::GetBootTime()
+{
+    return ktime_get_with_offset(TK_OFFS_BOOT);
+}
+
 void DateHelpers::ParseTime(uint64_t ms, time_info & timeinfo)
 {
     int year;

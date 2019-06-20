@@ -61,7 +61,9 @@ struct time_info
 
 namespace DateHelpers
 {
-    LIBLINUX_SYM uint64_t GetUnixTime();
+    LIBLINUX_SYM uint64_t GetBootTime(); // NS - high performance timers 
+    LIBLINUX_SYM uint64_t GetMonoTime(); // NS - relative time (NTP, settime, etc)
+    LIBLINUX_SYM uint64_t GetUnixTime(); // MS
     LIBLINUX_SYM int64_t  GetTimeZoneOffset();
     LIBLINUX_SYM void     ParseTime(uint64_t ms, time_info & timeinfo);
     LIBLINUX_SYM size_t   FormatISO8601(char * str, size_t length, uint64_t ms);
