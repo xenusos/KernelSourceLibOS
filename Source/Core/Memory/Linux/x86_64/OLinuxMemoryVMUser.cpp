@@ -239,17 +239,7 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     flags |= VM_IO;
     vm_area_struct_set_vm_flags_size_t(cur, flags);
 
-    if (flags == 0)
-    {
-        puts("OLinuxMemoryVMUser.cpp -> InjectPage vm area struct doesn't have accurate flags. can't determine whether or not this operation is safe");
-
-        flags |= VM_IO;
-        flags |= GetMProtectProt(entry) & 7;
-        vm_area_struct_set_vm_flags_size_t(cur, flags);
-
-        printf("We just manually updated the vm_area_struct... bad! bad! bad! Is this a Linux bug?");
-    }
-    else if ((flags & 7) != (prot & 7))
+    if ((flags & 7) != (prot & 7))
     {
         panicf("Ok. so... we depend on mprotect to split and merge VMAs to inject pages into userspace\n"
              "this is great because vma merging, splitting, creation, etc is a major pain in the ass\n"
