@@ -5,6 +5,6 @@
 */
 #pragma once
 
-extern page_k g_return_stub_x64;
+extern page_k DEGetReturnStub(bool bits64);
 
 extern void InitDEReturn();

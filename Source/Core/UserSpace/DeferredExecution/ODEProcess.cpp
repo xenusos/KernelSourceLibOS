@@ -9,6 +9,7 @@
 #include "ODEReturn.hpp"
 #include "../../Processes/OProcesses.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
+#include "../../CPU/OThreadUtilities.hpp"
 
 static chain_p tgid_map;
 
@@ -86,7 +87,7 @@ void ODEImplProcess::MapReturnStub()
 
     entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_EXECUTE, kCacheNoCache);
     entry.type = kPageEntryByPage;
-    entry.page = g_return_stub_x64;
+    entry.page = DEGetReturnStub(!UtilityIsTask32Bit(_task));
     
     err = usrAlloc->PageInsert(0, entry);
     ASSERT(NO_ERROR(err), "Couldn't insert page into user address space 0x%zx", err);
