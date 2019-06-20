@@ -32,17 +32,7 @@ ODEImplPIDThread::ODEImplPIDThread(ODEImplProcess * parent)
 
 ODEImplPIDThread::~ODEImplPIDThread()
 {
-    error_t err;
-
-    if (_workPending) 
-    {
-        // TODO: assert 0
-        // TODO: ensure we finish work items before we run signals in the linux kernel source
-        err = dyn_list_destory(_workPending);
-        ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
-    }
-
-    DestoryStack();
+    DestoryState();
 }
 
 error_t ODEImplPIDThread::Init(task_k task)
@@ -67,8 +57,33 @@ void ODEImplPIDThread::UpdatePidHandle(task_k task)
     if (_task == task)
         return;
  
-    DestoryStack();
+    DestoryState();
     Init(task);
+}
+
+void ODEImplPIDThread::DestoryState()
+{
+    DestoryStack();
+    DestoryQueue();
+}
+
+void ODEImplPIDThread::DestoryQueue()
+{
+    error_t err;
+
+    if (!_workPending)
+        return;
+
+    err = dyn_list_iterate(_workPending, [](void * buffer, void * context)
+    {
+        ODEWorkHandler * work = *(ODEWorkHandler **)buffer;
+        if (work)
+            work->Die();
+    }, nullptr);
+    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+
+    err = dyn_list_destory(_workPending);
+    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
 }
 
 void ODEImplPIDThread::DestoryStack()

@@ -56,6 +56,8 @@ public:
 
 protected:
 
+    void DestoryState();
+    void DestoryQueue();
     void DestoryStack();
 
     error_t AllocateStack();
