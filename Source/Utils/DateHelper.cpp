@@ -99,12 +99,13 @@ size_t FormatSharedISO8601(char * str, size_t length, time_info & time, int64_t 
 {
     char timezone[sizeof("+??:??.")];
 
-    printf("timezone: %zx\n", tz);
-
     if (tz != 0)
     {
         bool neg = tz < 0;
         uint32_t hrs, mins;
+
+        if (neg)
+            tz = -tz;
 
         hrs  = (MAX(1, (tz % 86400000)) / 3600000);
         mins = (MAX(1, (tz % 3600000)) / 60000);
