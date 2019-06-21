@@ -97,7 +97,7 @@ l_int LinuxCurrent::GetPrio()
 
 l_uint LinuxCurrent::GetCPU()
 {
-    return 0;
+    return xenus_util_get_cpuid();
 }
 
 void LinuxCurrent::StopPreemption()
@@ -129,6 +129,7 @@ OThreadImp::OThreadImp(task_k tsk, uint32_t id, const char * name, const void * 
     if (name)
         memcpy(this->_name, name, MIN(strlen(name), sizeof(this->_name) - 1));
     this->_try_kill = false;
+    SpinLock_Init(&this->_task_holder);
 }
 
 error_t OThreadImp::GetExitCode(int64_t & code)
@@ -159,60 +160,74 @@ error_t OThreadImp::IsMurderable(bool & out)
     if (!_tsk)
     {
         out = false;
-        return XENUS_OKAY;
+        return kStatusOkay;
     }
 
     if (_try_kill)
     {
         out = false;
-        return XENUS_OKAY;
+        return kStatusOkay;
     }
 
     out = true; //TODO: probably murderable
-    return XENUS_OKAY;
+    return kStatusOkay;
 }
 
 error_t OThreadImp::GetPOSIXNice(int32_t & nice)
 {
     CHK_DEAD;
 
+    Lock();
+
     if (!_tsk)
-        return XENUS_ERROR_TASK_NULL;
+    {
+        Unlock();
+        return kErrorTaskNull;
+    }
 
     nice = PRIO_TO_NICE(ITask(_tsk).GetStaticPRIO());
-    return XENUS_OKAY;
+    Unlock();
+
+    return kStatusOkay;
 }
 
 error_t OThreadImp::SetPOSIXNice(int32_t nice)
 {
     CHK_DEAD;
 
+    Lock();
+
     if (!_tsk)
-        return XENUS_ERROR_TASK_NULL;
+    {
+        Unlock();
+        return kErrorTaskNull;
+    }
 
     set_user_nice(_tsk, nice);
-    return XENUS_OKAY;
+    Unlock();
+
+    return kStatusOkay;
 }
 
 error_t OThreadImp::GetName(const char *& str)
 {
     CHK_DEAD;
     str = this->_name;
-    return XENUS_OKAY;
+    return kStatusOkay;
 }
 
 error_t OThreadImp::IsFloatingHandle(bool & ret)
 {
     CHK_DEAD;
     ret = _tsk ?  false : true;
-    return XENUS_OKAY;
+    return kStatusOkay;
 }
 
 error_t OThreadImp::GetOSHandle(void *& handle)
 {
     CHK_DEAD;
     handle = _tsk;
-    return _tsk == nullptr ? XENUS_ERROR_GENERIC_FAILURE : XENUS_OKAY;
+    return _tsk == nullptr ? kErrorGenericFailure : kStatusOkay;
 }
 
 
@@ -220,7 +235,7 @@ error_t OThreadImp::GetThreadId(uint32_t & id)
 {
     CHK_DEAD;
     id = this->_id;
-    return _tsk == nullptr ? XENUS_ERROR_GENERIC_FAILURE : XENUS_OKAY;
+    return _tsk == nullptr ? kErrorGenericFailure : kStatusOkay;
 }
 
 void * OThreadImp::GetData()
@@ -230,19 +245,29 @@ void * OThreadImp::GetData()
 
 void OThreadImp::SignalDead(long exitcode)
 {
+    Lock();
     _tsk = nullptr;
     _exit_code = exitcode;
+    Unlock();
 }
 
 error_t OThreadImp::TryMurder(long exitcode)
 {
     CHK_DEAD;
 
+    Lock();
+
     if (!_tsk)
-        return kStatusOkay;
+    {
+        Unlock();
+        return kErrorTaskNull;
+    }
 
     if (this->_try_kill)
+    {
+        Unlock();
         return kStatusAlreadyExiting;
+    }
 
     this->_try_kill = true;
 
@@ -261,7 +286,19 @@ error_t OThreadImp::TryMurder(long exitcode)
     // poke the thread to ensure our post context switch handler is called within the next year or so...
     wake_up_process(this->_tsk); 
 
+    Unlock();
     return XENUS_STATUS_NOT_ACCURATE_ASSUME_OKAY;
+}
+
+void OThreadImp::Lock()
+{
+    SpinLock_Lock(&this->_task_holder);
+}
+
+
+void OThreadImp::Unlock()
+{
+    SpinLock_Unlock(&this->_task_holder);
 }
 
 void OThreadImp::InvalidateImp()

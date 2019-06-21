@@ -6,6 +6,8 @@
 #pragma once
 #include <Core/CPU/OThread.hpp>
 
+#include "Core/CPU/OSpinlock.hpp"
+
 class OThreadImp : public OThread
 {
 public:
@@ -42,6 +44,11 @@ protected:
     const void * _data;
     long _exit_code;
     bool _try_kill;
+
+    los_spinlock_t _task_holder;
+
+    void Lock();
+    void Unlock();
 };
 
 void InitThreading();
