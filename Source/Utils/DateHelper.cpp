@@ -30,7 +30,7 @@ int64_t DateHelpers::GetTimeZoneOffset()
     if (!sys_tz)
         return 0;
 
-    if (tz_offset != 0)
+    if (tz_offset != -1)
         return tz_offset;
 
     return tz_offset = -sys_tz->tz_minuteswest * 60000;
@@ -98,6 +98,8 @@ size_t DateHelpers::FormatNonStd(char * str, size_t length, time_info & timeinfo
 size_t FormatSharedISO8601(char * str, size_t length, time_info & time, int64_t tz, bool illegalms)
 {
     char timezone[sizeof("+??:??.")];
+
+    printf("timezone: %zx\n", tz);
 
     if (tz != 0)
     {
