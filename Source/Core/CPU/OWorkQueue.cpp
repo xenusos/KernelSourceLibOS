@@ -25,6 +25,7 @@ OWorkQueueImpl::OWorkQueueImpl(uint32_t workItems, mutex_k mutex, dyn_list_head_
 {
     _activeWork  = 0;
     _completed   = 0;
+    _owners      = 0;
     _workItems   = workItems;
     _acquisition = mutex;
     _waiters     = listWorkers;
@@ -47,8 +48,11 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
 
     _owners++;
 
-    if (_completed == _workItems) 
+    if (_completed == _workItems)
+    {
+        err = kStatusSemaphoreAlreadyUnlocked;
         goto out;
+    }
 
     err = GoToSleep(ms, true);
 
@@ -75,6 +79,9 @@ error_t OWorkQueueImpl::NewThreadContext(WorkWaitingThreads * context, bool wait
     WorkWaitingThreads ** lentry;
 
     list = waiters ? _waiters : _workers;
+
+    context->thread = OSThread;
+    context->signal = false;
 
     err = dyn_list_append_ex(list, (void **)&lentry, nullptr);
     if (ERROR(err))
@@ -187,6 +194,7 @@ error_t OWorkQueueImpl::ReleaseOwner()
             _completed  = 0;
             ContExecution(false);
         }
+
     }
     out:
     mutex_unlock(_acquisition);

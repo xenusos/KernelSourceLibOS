@@ -63,14 +63,14 @@ error_t OCountingSemaphoreImpl::NewThreadContext(SemaWaitingThreads * context)
     error_t err;
     SemaWaitingThreads **lentry;
 
+    context->thread = OSThread;
+    context->signal = false;
+
     err = dyn_list_append_ex(_list, (void **)&lentry, nullptr);
     if (ERROR(err))
         return err;
 
     *lentry = context;
-
-    context->thread = OSThread;
-    context->signal = false;
 
     return kStatusOkay;
 }
