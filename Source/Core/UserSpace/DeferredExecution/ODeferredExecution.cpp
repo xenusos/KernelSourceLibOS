@@ -121,6 +121,8 @@ void ODEWorkJobImpl::Trigger(size_t response)
 {
     _state.response = response;
     _state.execd    = true;
+
+    _workqueue->Trigger();
 }
 
 void ODEWorkJobImpl::GetCallback(ODECompleteCallback_f & callback, void * & context)
