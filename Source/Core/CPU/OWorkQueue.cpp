@@ -17,6 +17,8 @@
 
 struct WorkWaitingThreads
 {
+    SpuriousWakeup_f wakeup;
+    OWorkQueue * queue;
     task_k thread;
     bool signal;
 };
@@ -39,7 +41,7 @@ error_t OWorkQueueImpl::GetCount(uint32_t & out)
     return kStatusOkay;
 }
 
-error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
+error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms, SpuriousWakeup_f wakeup)
 {
     CHK_DEAD;
     error_t err;
@@ -54,7 +56,7 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
         goto out;
     }
 
-    err = GoToSleep(ms, true);
+    err = GoToSleep(ms, wakeup, true);
 
     if (ERROR(err) || (err == kStatusTimeout))
     {
@@ -68,10 +70,11 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms)
 
 static bool WorkerThreadIsWaking(void * context)
 {
-    return ((WorkWaitingThreads *)context)->signal;
+    auto ctx = ((WorkWaitingThreads *)context);
+    return ctx->signal || (ctx->wakeup && ctx->wakeup(ctx->queue));
 }
 
-error_t OWorkQueueImpl::NewThreadContext(WorkWaitingThreads * context, bool waiters)
+error_t OWorkQueueImpl::NewThreadContext(WorkWaitingThreads * context, SpuriousWakeup_f wakeup, bool waiters)
 {
     CHK_DEAD;
     error_t err;
@@ -82,6 +85,8 @@ error_t OWorkQueueImpl::NewThreadContext(WorkWaitingThreads * context, bool wait
 
     context->thread = OSThread;
     context->signal = false;
+    context->wakeup = wakeup;
+    context->queue  = this;
 
     err = dyn_list_append_ex(list, (void **)&lentry, nullptr);
     if (ERROR(err))
@@ -91,7 +96,7 @@ error_t OWorkQueueImpl::NewThreadContext(WorkWaitingThreads * context, bool wait
     return kStatusOkay;
 }
 
-error_t OWorkQueueImpl::GoToSleep(uint32_t ms, bool waiters)
+error_t OWorkQueueImpl::GoToSleep(uint32_t ms, SpuriousWakeup_f wakeup, bool waiters)
 {
     CHK_DEAD;
     WorkWaitingThreads entry;
@@ -99,7 +104,7 @@ error_t OWorkQueueImpl::GoToSleep(uint32_t ms, bool waiters)
     bool signald;
 
     // create new context
-    err = NewThreadContext(&entry, waiters);
+    err = NewThreadContext(&entry, wakeup, waiters);
     if (ERROR(err))
         return err;
 
@@ -136,6 +141,7 @@ error_t OWorkQueueImpl::ContExecution(bool waiters)
         (*entry)->signal = true;
         LinuxPokeThread(thread);
 
+        // TODO: remove entry on spurious exit 
         err = dyn_list_remove(list, 0);
         ASSERT(NO_ERROR(err), "couldn't remove thread by index (error: 0x%zx)", err);
     }
@@ -151,7 +157,7 @@ error_t OWorkQueueImpl::BeginWork()
     mutex_lock(_acquisition);
     {
         if (_activeWork == _workItems) // note: active workers never decrements - it only resets to zero once all owners have been released 
-            GoToSleep(-1, false);
+            GoToSleep(-1, NULL, false);
      
         _activeWork++; 
     }
@@ -171,6 +177,34 @@ error_t OWorkQueueImpl::EndWork()
     }
     mutex_unlock(_acquisition);
 
+    return kStatusOkay;
+}
+
+error_t OWorkQueueImpl::SpuriousWakeupOwners()
+{
+    CHK_DEAD;
+    error_t err;
+    size_t threads;
+    WorkWaitingThreads ** entry;
+
+    mutex_lock(_acquisition);
+
+    err = dyn_list_entries(_waiters, &threads);
+    if (ERROR(err))
+        return err;
+
+    for (size_t i = 0; i < threads; i++)
+    {
+        task_k thread;
+
+        err = dyn_list_get_by_index(_waiters, 0, (void **)&entry);
+        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: 0x%zx)", err);
+
+        thread = (*entry)->thread;
+        LinuxPokeThread(thread);
+    }
+
+    mutex_unlock(_acquisition);
     return kStatusOkay;
 }
 

@@ -5,15 +5,21 @@
 */
 #pragma once
 
-class OWorkQueue : public  OObject
+class OWorkQueue;
+typedef bool(*SpuriousWakeup_f)(const OUncontrollableRef<OWorkQueue> & ref); // true = return, false = continue blocking
+
+class OWorkQueue : public OObject
 {
 public:
     virtual error_t GetCount(uint32_t &)              = 0;
     
-    virtual error_t WaitAndAddOwner(uint32_t ms = -1) = 0; // if kStatusTimeout ~~or kStatusSemaphoreAlreadyUnlocked~~, you do not own 
+    virtual error_t WaitAndAddOwner(uint32_t ms = -1, SpuriousWakeup_f wakeup = nullptr) = 0; 
+                                                           // if kStatusTimeout ~~or kStatusSemaphoreAlreadyUnlocked~~, you do not own 
                                                            // you should do a STRICTLY_OKAY(...) to determine ownership
     virtual error_t ReleaseOwner()                    = 0;
-                                                  
+    
+    virtual error_t SpuriousWakeupOwners()         = 0;
+
     virtual error_t EndWork()                         = 0; 
     virtual error_t BeginWork()                       = 0;
                     
