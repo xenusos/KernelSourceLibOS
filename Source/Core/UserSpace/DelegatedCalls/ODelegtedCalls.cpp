@@ -157,6 +157,7 @@ static size_t DelegatedCallsHandleCall(xenus_syscall_p atten, bool noBuf)
 
     if (noBuf)
     {
+        job.attention.attention_id = atten->arg_alpha;
         job.attention.arg_alpha = atten->arg_bravo;
         job.attention.arg_bravo = atten->arg_charlie;
         job.attention.arg_charlie = atten->arg_delta;
