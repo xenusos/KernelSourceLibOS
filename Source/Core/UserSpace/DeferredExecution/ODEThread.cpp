@@ -288,6 +288,9 @@ void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNe
     nextJob = *cur;
 }
 
+
+#include <Core/CPU/OThread.hpp>
+
 void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
 {
     linux_thread_info * info;
@@ -296,8 +299,14 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
     info->next_user = *registers;
     info->swap_bool.counter = 1;
 
+    ThreadingMemoryFlush();
+    
+
     if (kick)
     {
+        int state = task_get_state_int32(_task);
+        if (state == 1)
+            wake_up_process(_task);
         if (!ez_linux_caller(kallsyms_lookup_name("wake_up_state"), (size_t)_task, TASK_INTERRUPTIBLE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         {
             kick_process(_task);
