@@ -187,58 +187,11 @@ error_t OProcessThreadImpl::GetParent(OUncontrollableRef<OProcess> parent)
     return kStatusOkay;
 }
 
-static error_t ProcessesClearCache(dyn_list_head_p threads)
-{
-    error_t err;
-
-    err = dyn_list_iterate(threads, [](void * buffer, void * context) {
-        OProcessThreadImpl ** pthread = (OProcessThreadImpl**)buffer;
-        if (*pthread)
-        {
-            (*pthread)->Destory();
-            *pthread = nullptr;
-        }
-    }, nullptr);
-
-    if (ERROR(err))
-        return err;
-
-    return dyn_list_reset(threads);
-}
-
-static error_t ProcessesAppendCache(dyn_list_head_p threads, task_k tsk, OProcess * parent)
-{
-    error_t err;
-    OProcess ** thread;
-    OProcess * inst;
-
-    inst = (OProcess *)new OProcessThreadImpl(tsk, parent); // todo: recursively add child groups
-
-    if (!inst)
-        return kErrorOutOfMemory;
-
-    err = dyn_list_append(threads, (void **)&thread);
-
-    if (ERROR(err))
-    {
-        inst->Destory();
-        return err;
-    }
-
-    *thread = inst;
-    return kStatusOkay;
-}
-
 OProcessImpl::OProcessImpl(task_k tsk)
 {
     ProcessesTaskIncrementCounter(tsk);
     _tsk = tsk;
     _pid = ProcessesGetPid(tsk);
-
-    _threads = nullptr;
-
-    _threads_mutex = mutex_create();
-    ASSERT(_threads_mutex, "unrecoverable memory error in constructor of OProcessImpl - i know this constructor doesn't follow the normal design...");
 
     InitModName();
     InitPaths();
@@ -336,33 +289,42 @@ error_t OProcessImpl::GetWorkingDirectory(const char **wd)
     return kStatusOkay;
 }
 
-error_t OProcessImpl::UpdateThreadCache()
+uint_t OProcessImpl::GetThreadCount()
+{
+    uint_t cnt;
+    task_k cur;
+    task_k srt;
+
+    RCU::ReadLock();
+
+    cnt = 0;
+    cur = srt = _tsk;
+    if (cur)
+    {
+        do
+        {
+            list_head * head;
+
+            cnt++;
+           
+            head = (list_head *)task_get_thread_group(cur);
+            cur = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
+        } while (cur != srt);
+    }
+
+    RCU::ReadUnlock();
+    return cnt;
+}
+
+error_t OProcessImpl::GetThreadById(uint_t id, const OOutlivableRef<OProcessThread> & thread)
 {
     CHK_DEAD;
     task_k cur;
     task_k srt;
-    error_t er;
+    error_t er = kErrorProcessPidInvalid;
+    OProcessThread * proc = nullptr;
 
-    er = kStatusOkay;
-
-    mutex_lock(_threads_mutex);
     RCU::ReadLock();
-
-    if (_threads)
-    {
-        er = ProcessesClearCache(_threads);
-
-        if (ERROR(er))
-            goto exit;
-    }
-    else
-    {
-        if (!(_threads = DYN_LIST_CREATE(OProcessThreadImpl *)))
-        {
-            er = kErrorOutOfMemory;
-            goto exit;
-        }
-    }
 
     cur = srt = _tsk;
     if (cur)
@@ -371,10 +333,19 @@ error_t OProcessImpl::UpdateThreadCache()
         {
             list_head * head;
 
-            er = ProcessesAppendCache(_threads, cur, this);
+            if (ProcessesGetPid(cur) == id)
+            {
+                proc = new OProcessThreadImpl(cur, this);
+                if (!proc)
+                {
+                    er = kErrorOutOfMemory;
+                    goto exit;
+                }
 
-            if (ERROR(er))
+                er = kStatusOkay;
                 goto exit;
+            }
+
 
             head = (list_head *)task_get_thread_group(cur);
             cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
@@ -383,55 +354,49 @@ error_t OProcessImpl::UpdateThreadCache()
 
 exit:
     RCU::ReadUnlock();
-    mutex_unlock(_threads_mutex);
-    return er;
-}
 
-uint_t OProcessImpl::GetThreadCount()
-{
-    CHK_DEAD;
-    size_t cnt;
-    dyn_list_entries(_threads, &cnt);
-    return cnt;
+    if (NO_ERROR(er))
+        thread.PassOwnership(proc);
+
+    return er;
 }
 
 error_t OProcessImpl::IterateThreads(ThreadIterator_cb callback, void * ctx)
 {
     CHK_DEAD;
-    error_t er;
-    size_t cnt;
+    task_k cur;
+    task_k srt;
+    error_t er = kStatusOkay;
+    OProcessThread * proc;
 
-    if (!callback)
-        return kErrorIllegalBadArgument;
+    proc = (OProcessThread *)zalloc(sizeof(OProcessThreadImpl *));
+    if (!proc)
+        return kErrorOutOfMemory;
 
-    er = kStatusOkay;
-    if (!_threads)
+    RCU::ReadLock();
+
+    cur = srt = _tsk;
+    if (cur)
     {
-        er = UpdateThreadCache();
-        if (ERROR(er))
-            return er;
+        do
+        {
+            bool shouldRet;
+            list_head * head;
+
+            new (proc) OProcessThreadImpl(cur, this);
+
+            shouldRet = !callback(proc, ctx);
+
+            proc->Destory();
+            memset(proc, 0, sizeof(OProcessThreadImpl *));
+
+            head = (list_head *)task_get_thread_group(cur);
+            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
+        } while (cur != srt);
     }
 
-    mutex_lock(_threads_mutex);
-
-    er = dyn_list_entries(_threads, &cnt);
-    if (ERROR(er))
-        goto exit;
-
-    for (size_t i = 0; i < cnt; i++)
-    {
-        OProcess ** thread;
-
-        if (ERROR(er = dyn_list_get_by_index(_threads, i, (void **)&thread)))
-            goto exit;
-
-        callback(*thread, ctx);
-    }
-
-
-exit:
-    mutex_unlock(_threads_mutex);
-
+    RCU::ReadUnlock();
+    free(proc);
     return er;
 }
 
@@ -512,6 +477,8 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
         goto exit;
     }
 
+    // TODO: on x86_64 and i think arm64, we could use the linear kernel map
+    // iirc arm64 vaddr = page->vaddr;
     if (!(map = vmap(page_array, pages, 0, protection.kprot)))
     {
         ret = kErrorInternalError;
@@ -545,8 +512,6 @@ error_t OProcessImpl::WriteProcessMemory(user_addr_t address, const void * buffe
 void OProcessImpl::InvalidateImp()
 {
     ProcessesTaskDecrementCounter(_tsk);
-    ProcessesClearCache(_threads);
-    dyn_list_destory(_threads);
 }
 
 error_t _GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
@@ -580,7 +545,7 @@ error_t _GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
     return kErrorProcessPidInvalid;
 }
 
-error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
+LIBLINUX_SYM error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
 {
     error_t ret;
     RCU::ReadLock();
@@ -589,9 +554,20 @@ error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
     return ret;
 }
 
-error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
+LIBLINUX_SYM error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
 {
-    return GetProcessById(ProcessesGetTgid(OSThread), process);
+    OProcess * proc;
+    task_k me;
+    task_k leader;
+
+    me     = OSThread;
+    leader = (task_k)task_get_group_leader_size_t(me);
+
+    proc = new OProcessImpl(leader ? leader : me);
+    if (!process.PassOwnership(proc))
+        return kErrorOutOfMemory;
+    
+    return kStatusOkay;
 }
 
 error_t _GetProcessesByAll(ProcessIterator_cb callback, void * data)
@@ -628,11 +604,21 @@ error_t _GetProcessesByAll(ProcessIterator_cb callback, void * data)
     return kStatusOkay;
 }
 
-error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
+LIBLINUX_SYM error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
 {
     error_t ret;
     RCU::ReadLock();
     ret = _GetProcessesByAll(callback, data);
     RCU::ReadUnlock();
     return ret;
+}
+
+LIBLINUX_SYM uint_t  GetProcessCurrentId()
+{
+    return ProcessesGetTgid(OSThread);
+}
+
+LIBLINUX_SYM uint_t  GetProcessCurrentTid()
+{
+    return ProcessesGetPid(OSThread);
 }

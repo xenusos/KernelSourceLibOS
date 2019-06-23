@@ -69,9 +69,9 @@ public:
     error_t GetWorkingDirectory(const char **wd)                                                 override;
     //error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec)                                     override;
                                                                                                  
-    error_t UpdateThreadCache()                                                                  override;
-    uint_t GetThreadCount()                                                                      override;
+    uint_t  GetThreadCount()                                                                     override;
     error_t IterateThreads(ThreadIterator_cb callback, void * ctx)                               override;
+    error_t GetThreadById(uint_t id, const OOutlivableRef<OProcessThread> & thread)              override;
                                                                                                  
     error_t Terminate(bool force)                                                                override;
 
@@ -91,8 +91,6 @@ private:
     char    _working[GENERIC_PATH];
     uint_t  _pid;
     task_k  _tsk;
-    mutex_k _threads_mutex;
-    dyn_list_head_p         _threads;
     //ProcessSecurityLevel_e  _lvl;
     OProcessThreadImpl *    _main_thread;
 };

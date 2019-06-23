@@ -134,6 +134,11 @@ public:
     {
         return new ODumbPointerReference<T>(_object, _ref_counter);
     }
+
+    inline T * GetObject()
+    {
+        return _object;
+    }
     //PointerReference Reference();
 protected:
     OReferenceCounter * _ref_counter;

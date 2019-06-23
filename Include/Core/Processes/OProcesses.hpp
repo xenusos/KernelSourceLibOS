@@ -15,7 +15,7 @@ public:
     virtual error_t GetParent(const OUncontrollableRef<OProcess> parent)                        = 0;
 };
 
-typedef void(*ThreadIterator_cb)(OPtr<OProcessThread> thread, void * context);
+typedef bool(*ThreadIterator_cb)(const OUncontrollableRef<OProcessThread> thread, void * context);
 
 class OProcess : public  OObject
 {
@@ -29,9 +29,12 @@ public:
     // virtual error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec) = 0;
     // TODO: user api                                                                           
                                                                                                 
-    virtual error_t UpdateThreadCache()                                                         = 0; // WARNING: 
-    virtual uint_t GetThreadCount()                                                             = 0; // On Linux, these may lock execution if the RCU locking mechanism has been called prior 
-    virtual error_t IterateThreads(ThreadIterator_cb callback, void * ctx)                      = 0; // Assume RCU locked if within callback (IE: GetProcessesByAll), assume unlocked otherwise
+    // WARNING: 
+    // On Linux, these may lock execution if the RCU locking mechanism has been called prior 
+    // Assume RCU locked if within callback (IE: GetProcessesByAll), assume unlocked otherwise
+    virtual uint_t  GetThreadCount()                                                            = 0;
+    virtual error_t IterateThreads(ThreadIterator_cb callback, void * ctx)                      = 0;
+    virtual error_t GetThreadById(uint_t id, const OOutlivableRef<OProcessThread> & thread)     = 0;
                                                                                                 
     virtual error_t Terminate(bool force)                                                       = 0;
 
@@ -46,7 +49,11 @@ typedef void(*ProcessIterator_cb)(OPtr<OProcess> thread, void * context);
 LIBLINUX_SYM  error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process);
 LIBLINUX_SYM  error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process);
 
-LIBLINUX_SYM error_t GetProcessesByAll(ProcessIterator_cb callback, void * data);
+LIBLINUX_SYM  error_t GetProcessesByAll(ProcessIterator_cb callback, void * data);
+LIBLINUX_SYM  uint_t  GetProcessCurrentId();
+LIBLINUX_SYM  uint_t  GetProcessCurrentTid();
+
+
 
 typedef void(*ProcessStartNtfy_cb)(OPtr<OProcess> thread); 
 typedef void(*ProcessExitNtfy_cb)(OPtr<OProcess> thread); 
