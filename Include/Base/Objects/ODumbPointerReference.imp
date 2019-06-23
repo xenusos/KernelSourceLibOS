@@ -22,7 +22,7 @@ ODumbPointerReference<T>::~ODumbPointerReference()
 }
 
 template<class T>
-T* ODumbPointerReference<T>::operator->()
+T* ODumbPointerReference<T>::GetObject()
 {
     return _object;
 }

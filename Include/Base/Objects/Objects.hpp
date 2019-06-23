@@ -94,7 +94,7 @@ public:
     ODumbPointerReference(T * object, OReferenceCounter * counter);
     ~ODumbPointerReference();
 
-    T* operator->();
+    T* GetObject();
 
     void DestoryReference();
 private:
