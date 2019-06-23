@@ -52,7 +52,7 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms, SpuriousWakeup_f wakeup)
 
     if (_completed == _workItems)
     {
-        err = kStatusSemaphoreAlreadyUnlocked;
+        err = kStatusWorkQueueAlreadyComplete;
         goto out;
     }
 
