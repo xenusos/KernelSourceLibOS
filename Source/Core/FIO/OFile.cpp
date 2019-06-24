@@ -82,7 +82,8 @@ error_t OLinuxFileImp::Read(void * buffer, size_t length, size_t & read, loff_t 
 
     pos = offset;
 
-    if ((len = kernel_read(_filp, buffer, length, &pos)) != length)
+    len = kernel_read(_filp, buffer, length, &pos);
+    if (len != length)
     {
         read = len;
         return kStatusBufferNotFilled;
@@ -100,10 +101,12 @@ error_t OLinuxFileImp::Delete()
     if (ERROR(err = _error))
         return err;
 
-    if (ERROR(err = OpenLinuxPath(OOutlivableRef<OLinuxPathImpl>(file_path), _fili.GetPath())))
+    err = OpenLinuxPath(OOutlivableRef<OLinuxPathImpl>(file_path), _fili.GetPath());
+    if (ERROR(err))
         return err;
 
-    if (ERROR(err = file_path->GetParent_1(dir_path)))
+    err = file_path->GetParent_1(dir_path);
+    if (ERROR(err))
         return err;
     
     vfs_unlink(dir_path->ToINode(), file_path->GetDEntry(), nullptr);

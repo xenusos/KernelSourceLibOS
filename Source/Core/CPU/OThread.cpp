@@ -312,10 +312,12 @@ void InitThreading()
 {
     error_t err;
 
-    if (ERROR(chain_allocate(&thread_handle_chain)))
+    err = chain_allocate(&thread_handle_chain);
+    if (ERROR(err))
         panic("Couldn't create thread handle tracking chain");
 
-    if (ERROR(chain_allocate(&thread_ep_chain)))
+    err = chain_allocate(&thread_ep_chain);
+    if (ERROR(err))
         panic("Couldn't create thread ep tracking chain");
 
     SpinLock_Init(&sync_thread_death.mutex);
@@ -539,7 +541,8 @@ error_t SpawnOThread(const OOutlivableRef<OThread> & thread, OThreadEP_t entrypo
     mutex_lock(sync_thread_create.mutex);
     sync_thread_create.instance = nullptr;
 
-    if (ERROR(err = thread_create(&task, RuntimeThreadEP, priv, name, true)))
+    err = thread_create(&task, RuntimeThreadEP, priv, name, true);
+    if (ERROR(err))
     {
         mutex_unlock(sync_thread_create.mutex);
         return err;

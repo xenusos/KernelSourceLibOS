@@ -10,7 +10,7 @@
 
 OLinuxPathImpl::OLinuxPathImpl(vfsmount_k mnt, dentry_k dentry)
 {
-    _dentry    = dentry;
+    _dentry = dentry;
     _mnt    = mnt;
     
     lockref_get((lockref_k)dentry_get_d_lockref(_dentry)); //__dget
@@ -78,7 +78,8 @@ error_t OLinuxPathImpl::GetParent_1(const OOutlivableRef<OLinuxPathImpl> & out)
 
     err = kStatusOkay;
 
-    if (!(parent = dget_parent(_dentry)))
+    parent = dget_parent(_dentry);
+    if (!parent)
         return kErrorInternalError;
 
     if (!(out.PassOwnership(new OLinuxPathImpl(_mnt, parent))))
@@ -88,21 +89,22 @@ error_t OLinuxPathImpl::GetParent_1(const OOutlivableRef<OLinuxPathImpl> & out)
     return err;
 }
 
-error_t OLinuxPathImpl::GetParent_2(const OOutlivableRef<OLinuxPathImpl> & out)
-{
-    error_t err;
-    dentry_k parent;
-
-    err = kStatusOkay;
-
-    if (!(parent = (dentry_k)(IDEntry(_dentry).GetVarParent().GetUInt())))
-        return kErrorInternalError;
-
-    if (!(out.PassOwnership(new OLinuxPathImpl(_mnt, parent))))
-        err = kErrorOutOfMemory;
-
-    return err;
-}
+//error_t OLinuxPathImpl::GetParent_2(const OOutlivableRef<OLinuxPathImpl> & out)
+//{
+//    error_t err;
+//    dentry_k parent;
+//
+//    err = kStatusOkay;
+//
+//    parent = (dentry_k)(IDEntry(_dentry).GetVarParent().GetUInt());
+//    if (!parent)
+//        return kErrorInternalError;
+//
+//    if (!(out.PassOwnership(new OLinuxPathImpl(_mnt, parent))))
+//        err = kErrorOutOfMemory;
+//
+//    return err;
+//}
 
 error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, path_k path)
 {

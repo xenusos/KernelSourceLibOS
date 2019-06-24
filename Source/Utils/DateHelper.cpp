@@ -184,7 +184,7 @@ static void TimeGetYear(uint64_t ms, int * o_years_passed, int * o_days_passed)
         you  += i;
         year ++;
     }
-    *o_years_passed    = year;
+    *o_years_passed   = year;
     *o_days_passed    = you;
 }
 

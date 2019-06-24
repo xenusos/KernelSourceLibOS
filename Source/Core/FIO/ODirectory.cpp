@@ -52,7 +52,7 @@ error_t ODirectoryImp::UpDir(const OOutlivableRef<ODirectory> & dir)
     error_t err;
     ODumbPointer<OLinuxPathImpl> parent;
 
-    if (ERROR(err = _path->GetParent_2(OOutlivableRef<OLinuxPathImpl>(parent))))
+    if (ERROR(err = _path->GetParent_1(OOutlivableRef<OLinuxPathImpl>(parent))))
         return err;
 
     return OpenDirectory(dir, parent->GetMount(), parent->GetDEntry());
@@ -61,12 +61,11 @@ error_t ODirectoryImp::UpDir(const OOutlivableRef<ODirectory> & dir)
 error_t ODirectoryImp::Delete()
 {
     CHK_DEAD;
-
     error_t err;
     ODumbPointer<OLinuxPathImpl> parent;
 
-
-    if (ERROR(err = _path->GetParent_2(OOutlivableRef<OLinuxPathImpl>(parent))))
+    err = _path->GetParent_1(OOutlivableRef<OLinuxPathImpl>(parent));
+    if (ERROR(err))
         return err;
     
     if (vfs_rmdir(parent->ToINode(), _path->GetDEntry()) != 0)
@@ -119,7 +118,8 @@ error_t ODirectoryImp::Iterate(void(* iterator)(ODirectory * directory, const ch
     ictx.iterator = iterator;
     ictx.dir      = this;
 
-    if (ERROR(ret = dyncb_allocate_stub(SYSV_FN(dir_iter), 6, (void *)&ictx, &stub, &stubhandle)))
+    ret = dyncb_allocate_stub(SYSV_FN(dir_iter), 6, (void *)&ictx, &stub, &stubhandle);
+    if (ERROR(ret))
         return ret;
 
     dir_context_set_actor_uint64(dctx, uint_t(stub));
@@ -203,7 +203,8 @@ error_t   OpenDirectory(const OOutlivableRef<ODirectory> & dir, const char * pat
     if (!(path))
         return kErrorIllegalBadArgument;
 
-    if (LINUX_PTR_ERROR(filp = filp_open(path, kFileDirOnly, 0777)))
+    filp = filp_open(path, kFileDirOnly, 0777);
+    if (LINUX_PTR_ERROR(filp))
         return kErrorInternalError;
 
     if (!(dir.PassOwnership(new ODirectoryImp(IFile(filp).GetPath()))))
