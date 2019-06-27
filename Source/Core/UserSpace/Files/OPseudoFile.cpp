@@ -371,12 +371,18 @@ static void FreeCharDev(chardev_ref chardev)
 {
     __unregister_chrdev(chardev->major, chardev->minor, 256, chardev->name);
     device_destroy(psudo_file_class, chardev->dev);
-    free(chardev->ops);
-    dyncb_free_stub(chardev->handle_fops_open);
-    dyncb_free_stub(chardev->handle_fops_release);
-    dyncb_free_stub(chardev->handle_fops_write);
-    dyncb_free_stub(chardev->handle_fops_read);
-    dyncb_free_stub(chardev->handle_fops_seek);
+    if (chardev->ops)
+        free(chardev->ops);
+    if (chardev->handle_fops_open)
+        dyncb_free_stub(chardev->handle_fops_open);
+    if (chardev->handle_fops_release)
+        dyncb_free_stub(chardev->handle_fops_release);
+    if (chardev->handle_fops_write)
+        dyncb_free_stub(chardev->handle_fops_write);
+    if (chardev->handle_fops_read)
+        dyncb_free_stub(chardev->handle_fops_read);
+    if (chardev->handle_fops_seek)
+        dyncb_free_stub(chardev->handle_fops_seek);
 }
 
 static error_t CreateCharDev(OPseudoFileImpl * file)
@@ -392,20 +398,16 @@ static error_t CreateCharDev(OPseudoFileImpl * file)
 
     snprintf((char *)chardev->name, MAX_CHARFS_NAME, CHARFS_PREFIX "%lli", uint64_t(chardev->id));
 
-    if (ERROR(ret = dyncb_allocate_stub(SYSV_FN(fop_open), 4, (void *)file, &chardev->sysv_fops_open, &chardev->handle_fops_open)))
+#define ALLOCATE_DYNCB(function, args, sysv_out, handle_out)                                      \
+    ret = dyncb_allocate_stub(SYSV_FN(function), args, (void *)file, sysv_out, handle_out);       \
+    if (ERROR(ret))                                                                               \
         return ret;
 
-    if (ERROR(ret = dyncb_allocate_stub(SYSV_FN(fop_release), 4, (void *)file, &chardev->sysv_fops_release, &chardev->handle_fops_release)))
-        return ret;
-
-    if (ERROR(ret = dyncb_allocate_stub(SYSV_FN(fop_write), 4, (void *)file, &chardev->sysv_fops_write, &chardev->handle_fops_write)))
-        return ret;
-
-    if (ERROR(ret = dyncb_allocate_stub(SYSV_FN(fop_read), 4, (void *)file, &chardev->sysv_fops_read, &chardev->handle_fops_read)))
-        return ret;
-
-    if (ERROR(ret = dyncb_allocate_stub(SYSV_FN(fop_seek), 4, (void *)file, &chardev->sysv_fops_seek, &chardev->handle_fops_seek)))
-        return ret;
+    ALLOCATE_DYNCB(fop_open, 4, &chardev->sysv_fops_open, &chardev->handle_fops_open);
+    ALLOCATE_DYNCB(fop_release, 4, &chardev->sysv_fops_release, &chardev->handle_fops_release);
+    ALLOCATE_DYNCB(fop_write, 4, &chardev->sysv_fops_write, &chardev->handle_fops_write);
+    ALLOCATE_DYNCB(fop_read, 4, &chardev->sysv_fops_read, &chardev->handle_fops_read);
+    ALLOCATE_DYNCB(fop_seek, 4, &chardev->sysv_fops_seek, &chardev->handle_fops_seek);
 
     file_operations_set_open_size_t(k, size_t(chardev->sysv_fops_open));
     file_operations_set_release_size_t(k, size_t(chardev->sysv_fops_release));
