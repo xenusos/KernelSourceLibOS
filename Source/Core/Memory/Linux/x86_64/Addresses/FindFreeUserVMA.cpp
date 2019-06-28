@@ -83,7 +83,7 @@ static void find_start_end(mm_struct_k mm, va_kernel_pointer_t addr, bool taskTy
 static inline size_t vm_start_gap(vm_area_struct_k vma)
 {
     size_t vm_start = vm_area_struct_get_vm_start_size_t(vma);
-    size_t vm_flags = vm_area_struct_get_vm_start_size_t(vma);
+    size_t vm_flags = vm_area_struct_get_vm_flags_size_t(vma);
 
     if (vm_flags & VM_GROWSDOWN) {
         vm_start -= STACK_GUARD_GAP;
