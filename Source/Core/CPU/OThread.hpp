@@ -35,6 +35,9 @@ public:
 
     void * GetData() override;
 
+    bool ** DeathSignal();
+    long ** DeathCode();
+
 protected:
     void InvalidateImp()                              override;
 
@@ -49,6 +52,9 @@ protected:
 
     void Lock();
     void Unlock();
+    
+    long * _death_code;
+    bool * _death_signal;
 };
 
 void InitThreading();

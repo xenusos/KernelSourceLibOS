@@ -19,6 +19,7 @@ static void * thread_dealloc_mutex;
 static void * thread_chain_mutex;
 static chain_p thread_handle_chain;
 static chain_p thread_ep_chain;
+static /*atomic*/ long closing_threads;
 
 typedef struct ThreadPrivData_s
 {
@@ -26,15 +27,6 @@ typedef struct ThreadPrivData_s
     void * data;
     const char * name;
 } ThreadPrivData_t, *ThreadPrivData_p;
-
-struct 
-{
-    los_spinlock_t writing;
-    los_spinlock_t mutex;
-    long/*atomic*/ readable;
-    uint32_t pid;
-    int32_t exitcode;
-} sync_thread_death;
 
 struct 
 {
@@ -46,10 +38,10 @@ struct
 
 LinuxCurrent::LinuxCurrent() 
 {
-    _task = OSThread;
+    _task        = OSThread;
     _addr_pushed = false;
-    _addr_limit = 0;
-    _task_i = new ITask(_task); 
+    _addr_limit  = 0;
+    _task_i      = new ITask(_task); 
 }
 
 void LinuxCurrent::SetCPUAffinity(cpumask mask)
@@ -271,17 +263,9 @@ error_t OThreadImp::TryMurder(long exitcode)
 
     this->_try_kill = true;
 
-    SpinLock_Lock(&sync_thread_death.mutex);
-    {
-        // lazy spinlock based semaphore
-        SpinLock_Lock(&sync_thread_death.writing);
-
-        // populate job info
-        sync_thread_death.exitcode = exitcode;
-        sync_thread_death.pid = this->_id;
-        sync_thread_death.readable = 1;
-    }
-    SpinLock_Unlock(&sync_thread_death.mutex);
+    *_death_code = exitcode;
+    *_death_signal = true;
+    _InterlockedIncrement(&closing_threads);
 
     // poke the thread to ensure our post context switch handler is called within the next year or so...
     wake_up_process(this->_tsk); 
@@ -308,6 +292,16 @@ void OThreadImp::InvalidateImp()
     mutex_unlock(thread_dealloc_mutex);
 }
 
+bool ** OThreadImp::DeathSignal()
+{
+    return &_death_signal;
+}
+
+long ** OThreadImp::DeathCode()
+{
+    return &_death_code;
+}
+
 void InitThreading()
 {
     error_t err;
@@ -319,10 +313,6 @@ void InitThreading()
     err = chain_allocate(&thread_ep_chain);
     if (ERROR(err))
         panic("Couldn't create thread ep tracking chain");
-
-    SpinLock_Init(&sync_thread_death.mutex);
-    SpinLock_Init(&sync_thread_death.writing);
-    sync_thread_death.readable = 0;
 
     sync_thread_create.mutex = mutex_create();
     ASSERT(sync_thread_create.mutex, "couldn't allocate mutex");
@@ -337,10 +327,48 @@ void InitThreading()
     ASSERT(thread_dealloc_mutex, "couldn't allocate mutex");
 }
 
+static void ThreadExitNtfyEP(uint32_t pid, long exitcode)
+{
+    error_t ret;
+    OThreadEP_t * ep_tracker;
+    link_p link;
+
+    ret = chain_get(thread_ep_chain, pid, &link, (void **)&ep_tracker);
+    if (NO_ERROR(ret))
+    {
+        // ntfy thread exit
+        {
+            ThreadMsg_t msg;
+            msg.type = kMsgThreadExit;
+            msg.exit.thread_id = thread_geti();
+            msg.exit.code = exitcode;
+            (*ep_tracker)(&msg);
+        }
+
+        // remove ep from chain
+        {
+            chain_deallocate_handle(link);
+        }
+    }
+}
+
+static void ThreadExitNtfyObject(uint32_t pid, long exitcode)
+{
+    error_t ret;
+    link_p link;
+    OThreadImp ** thread_handle;
+
+    mutex_lock(thread_dealloc_mutex);
+    ret = chain_get(thread_handle_chain, pid, &link, (void **)&thread_handle);
+    if (NO_ERROR(ret))
+    {
+        (*thread_handle)->SignalDead(exitcode);
+    }
+    mutex_unlock(thread_dealloc_mutex);
+}
+
 static void RuntimeThreadExit(long exitcode)
 {
-    OThreadImp ** thread_handle;
-    OThreadEP_t * ep_tracker;
     error_t ret;
     link_p link;
     uint32_t pid;
@@ -350,84 +378,108 @@ static void RuntimeThreadExit(long exitcode)
     mutex_lock(thread_chain_mutex);
     {
         // ep hackery
-        {
-            if (NO_ERROR(ret = chain_get(thread_ep_chain, pid, &link, (void **)&ep_tracker)))
-            {
-                // ntfy thread exit
-                {
-                    ThreadMsg_t msg;
-                    msg.type = kMsgThreadExit;
-                    msg.exit.thread_id = thread_geti();
-                    msg.exit.code = exitcode;
-                    (*ep_tracker)(&msg);
-                }
-                // remove ep from chain
-                {
-                    chain_deallocate_handle(link);
-                }
-            }
-        }
+        ThreadExitNtfyEP(pid, exitcode);
 
         // try notify othreadimpl that its controlling a dead handle, if not already nuked from a dumb pointer.
-        {
-            mutex_lock(thread_dealloc_mutex);
-            if (NO_ERROR(ret = chain_get(thread_handle_chain, pid, &link, (void **)&thread_handle)))
-            {
-                (*thread_handle)->SignalDead(exitcode);
-            }
-            mutex_unlock(thread_dealloc_mutex);
-        }
+        ThreadExitNtfyObject(pid, exitcode);
     }
     mutex_unlock(thread_chain_mutex);
+
 }
 
 static void RuntimeThreadPostContextSwitch()
 {
-    bool exit;
-    uint32_t pid;
-    int32_t exitcode;
+    error_t err;
+    long * exitCode;
+    bool * exitSignal;
 
-    pid  = thread_geti();
-    exit = false;
-
-    SpinLock_Lock(&sync_thread_death.mutex);
-    {
-        if (SpinLock_IsLocked(&sync_thread_death.writing))
-        {
-            while (!sync_thread_death.readable)
-            {
-                SPINLOOP_PROCYIELD();
-            }
-
-            if (sync_thread_death.pid == pid)
-            {
-                // yes, we are the chosen one!
-                exitcode = sync_thread_death.exitcode;
-                exit     = true;
-
-                // reset global state
-                sync_thread_death.readable = 0;
-                SpinLock_Unlock(&sync_thread_death.writing);
-            }
-        }
-    }
-    SpinLock_Unlock(&sync_thread_death.mutex);
-   
-    if (!exit)
+    if (!closing_threads)
         return;
 
-    // Prevent linux from whining and to prevent linux from sleeping during a no-preempt state
+    err = _thread_tls_get(TLS_TYPE_XGLOBAL, 1, NULL, (void **)&exitCode);
+    if (err == kErrorBSTNodeNotFound)
+        return;
+    ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: 0x%zx)", err);
+
+    if (!*exitCode)
+        return;
+
+    err = _thread_tls_get(TLS_TYPE_XGLOBAL, 2, NULL, (void **)&exitSignal);
+    if (err == kErrorBSTNodeNotFound)
+        return;
+    ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: 0x%zx)", err);
+
+    _InterlockedDecrement(&closing_threads);
+    *exitSignal = false;
+
+    // Stop linux whining 
     ThreadingAllowPreempt();   
-    
+
     // Night
-    do_exit(exitcode);
+    do_exit((int32_t)*exitCode);
+}
+
+static void ThreadEPAllocateTLSEntries(OThreadImp * instance)
+{
+    error_t ret;
+
+    ret = _thread_tls_allocate(TLS_TYPE_XGLOBAL, 1, sizeof(bool), NULL, (void **)instance->DeathSignal());
+    ASSERT(NO_ERROR(ret), "couldn't create thread death signal. error code: 0x%zx", ret);
+
+    ret = _thread_tls_allocate(TLS_TYPE_XGLOBAL, 2, sizeof(long), NULL, (void **)instance->DeathCode());
+    ASSERT(NO_ERROR(ret), "couldn't create thread death code. error code: 0x%zx", ret);
+}
+
+static void ThreadEPHandleChains(uint32_t pid, OThreadImp * instance, OThreadEP_t ep)
+{
+    error_t ret;
+    OThreadImp ** handle;
+    OThreadEP_t * ep_tracker;
+
+    mutex_lock(thread_chain_mutex);
+
+    ret = chain_allocate_link(thread_handle_chain, pid, sizeof(size_t), nullptr, nullptr, (void **)&handle);
+    ASSERT(NO_ERROR(ret), "couldn't create thread link. error code: 0x%zx", ret);
+    *handle = instance;
+
+    ret = chain_allocate_link(thread_ep_chain, pid, sizeof(size_t), nullptr, nullptr, (void **)&ep_tracker);
+    ASSERT(NO_ERROR(ret), "couldn't create thread link. error code: 0x%zx", ret);
+    *ep_tracker = ep;
+
+    mutex_unlock(thread_chain_mutex);
+}
+
+static void ThreadEPInitExitHandler()
+{
+    thread_exit_cb_t * cb_arr;
+    int cb_cnt;
+    int i = 0;
+
+    threading_get_exit_callbacks(&cb_arr, &cb_cnt);
+    
+    while (cb_arr[i])
+    {
+        i++;
+        if (i >= cb_cnt)
+        {
+            panic("couldn't install thread exit callback for libos runtime");
+        }
+    }
+
+    cb_arr[i] = RuntimeThreadExit;
+}
+
+static void ThreadEPAddContextSwitchHandler()
+{
+    // allow the murdering of our threads
+    // this is one of many things that would make linux developers very very angry, if they knew people were doing sane stuff with their nasty ass kernel
+
+    thread_post_context_switch_hook(RuntimeThreadPostContextSwitch);
 }
 
 static int RuntimeThreadEP(void * data)
 {
-    thread_exit_cb_t * cb_arr;
     OThreadImp * instance;
-    int cb_cnt;
     task_k task;
     ThreadPrivData_p priv;
     OThreadEP_t ep_stub;
@@ -435,6 +487,8 @@ static int RuntimeThreadEP(void * data)
     const char * th_name;
     uint32_t pid;
     int exitcode;
+    uint32_t idc;
+    uint32_t idfc;
 
     task    = OSThread;
     pid     = thread_geti();
@@ -448,47 +502,15 @@ static int RuntimeThreadEP(void * data)
     free((void *)priv);
 
     // allocate thread
-    {
-        instance = new OThreadImp(task, pid, th_name, ep_data);
-        ASSERT(instance, "couldn't allocate OThread instance");
-    }
+    instance = new OThreadImp(task, pid, th_name, ep_data);
+    ASSERT(instance, "couldn't allocate OThread instance");
 
-    // allocate links
-    {
-        error_t ret;
-        OThreadImp ** handle;
-        OThreadEP_t * ep_tracker;
+    ThreadEPHandleChains(pid, instance, ep_stub);
+    ThreadEPAllocateTLSEntries(instance);
+    ThreadEPInitExitHandler();
 
-        mutex_lock(thread_chain_mutex);
-
-        ASSERT(NO_ERROR(ret = chain_allocate_link(thread_handle_chain, pid, sizeof(size_t), nullptr, nullptr, (void **)&handle)), "couldn't create thread link. error code: %lli", ret);
-        *handle = instance;
-        
-        ASSERT(NO_ERROR(ret = chain_allocate_link(thread_ep_chain, pid, sizeof(size_t), nullptr, nullptr, (void **)&ep_tracker)), "couldn't create thread link. error code: %lli", ret);
-        *ep_tracker = ep_stub;
-        
-        mutex_unlock(thread_chain_mutex);
-    }
-
-    // install linux kernel exit thread callback
-    {
-        threading_get_exit_callbacks(&cb_arr, &cb_cnt);
-        int i = 0;
-        while (cb_arr[i])
-        {
-            i++;
-            if (i >= cb_cnt)
-            {
-                panic("couldn't install thread exit callback for libos runtime");
-            }
-        }
-        cb_arr[i] = RuntimeThreadExit;
-    }
-
-    // allow the murdering of our threads
-    // this is one of many things that would make linux developers very very angry, if they knew people were doing sane stuff with their nasty ass kernel
-    thread_post_context_switch_hook(RuntimeThreadPostContextSwitch);
-
+    ThreadEPAddContextSwitchHandler();
+    
     // nasty ass hack
     //HackProcessesOThreadHook();
 
@@ -504,10 +526,7 @@ static int RuntimeThreadEP(void * data)
         ep_stub(&msg);
     }
 
-
     sync_thread_create.instance = instance;
-    uint32_t idc;
-    uint32_t idfc;
     sync_thread_create.semaphore->Trigger(1, idc, idfc);
 
     // ntfy thread start
