@@ -264,8 +264,8 @@ error_t OThreadImp::TryMurder(long exitcode)
     this->_try_kill = true;
 
     *_death_code = exitcode;
-    *_death_signal = true;
     _InterlockedIncrement(&closing_threads);
+    *_death_signal = _id;
 
     // poke the thread to ensure our post context switch handler is called within the next year or so...
     wake_up_process(this->_tsk); 
@@ -292,7 +292,7 @@ void OThreadImp::InvalidateImp()
     mutex_unlock(thread_dealloc_mutex);
 }
 
-bool ** OThreadImp::DeathSignal()
+long ** OThreadImp::DeathSignal()
 {
     return &_death_signal;
 }
@@ -390,27 +390,27 @@ static void RuntimeThreadExit(long exitcode)
 static void RuntimeThreadPostContextSwitch()
 {
     error_t err;
-    long * exitCode;
-    bool * exitSignal;
+    volatile long * exitCode;
+    volatile long * exitSignal;
 
     if (!closing_threads)
         return;
 
-    err = _thread_tls_get(TLS_TYPE_XGLOBAL, 1, NULL, (void **)&exitCode);
+    err = _thread_tls_get(TLS_TYPE_XGLOBAL, 1, NULL, (void **)&exitSignal);
     if (err == kErrorBSTNodeNotFound)
         return;
+
     ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: 0x%zx)", err);
 
-    if (!*exitCode)
+    if (!*exitSignal)
         return;
 
-    err = _thread_tls_get(TLS_TYPE_XGLOBAL, 2, NULL, (void **)&exitSignal);
-    if (err == kErrorBSTNodeNotFound)
-        return;
+    *exitSignal = false;
+
+    err = _thread_tls_get(TLS_TYPE_XGLOBAL, 2, NULL, (void **)&exitCode);
     ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: 0x%zx)", err);
 
     _InterlockedDecrement(&closing_threads);
-    *exitSignal = false;
 
     // Stop linux whining 
     ThreadingAllowPreempt();   
@@ -423,7 +423,7 @@ static void ThreadEPAllocateTLSEntries(OThreadImp * instance)
 {
     error_t ret;
 
-    ret = _thread_tls_allocate(TLS_TYPE_XGLOBAL, 1, sizeof(bool), NULL, (void **)instance->DeathSignal());
+    ret = _thread_tls_allocate(TLS_TYPE_XGLOBAL, 1, sizeof(long), NULL, (void **)instance->DeathSignal());
     ASSERT(NO_ERROR(ret), "couldn't create thread death signal. error code: 0x%zx", ret);
 
     ret = _thread_tls_allocate(TLS_TYPE_XGLOBAL, 2, sizeof(long), NULL, (void **)instance->DeathCode());

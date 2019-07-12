@@ -35,7 +35,7 @@ public:
 
     void * GetData() override;
 
-    bool ** DeathSignal();
+    long ** DeathSignal();
     long ** DeathCode();
 
 protected:
@@ -54,7 +54,7 @@ protected:
     void Unlock();
     
     long * _death_code;
-    bool * _death_signal;
+    long * _death_signal;
 };
 
 void InitThreading();
