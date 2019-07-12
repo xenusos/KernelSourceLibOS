@@ -10,12 +10,14 @@
 
 void ThreadingNoPreempt()
 {
-    preempt_count_add(1);
-    ThreadingMemoryFlush();
+    preempt_disable();
+    //preempt_count_add(1);
+    //ThreadingMemoryFlush();
 }
 
 void ThreadingAllowPreempt()
 {
-    ThreadingMemoryFlush();
-    preempt_count_sub(1);
+    //ThreadingMemoryFlush();
+    //preempt_count_sub(1);
+    preempt_enable_reseched();
 }

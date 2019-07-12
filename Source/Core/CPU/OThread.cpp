@@ -413,7 +413,7 @@ static void RuntimeThreadPostContextSwitch()
     _InterlockedDecrement(&closing_threads);
 
     // Stop linux whining 
-    ThreadingAllowPreempt();   
+    preempt_enable();
 
     // Night
     do_exit((int32_t)*exitCode);
