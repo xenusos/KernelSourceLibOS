@@ -132,12 +132,16 @@ void ProcessesConvertPath(void * path, char * buf, size_t length)
 {
     ODumbPointer<OLinuxPathImpl> tpath;
     error_t er;
+
     if (!path)
     {
         buf[0] = '\0';
         return;
     }
-    ASSERT((er = OpenLinuxPath(OOutlivableRef<OLinuxPathImpl>(tpath), path)) == kStatusOkay, "OpenLinuxPath failed, %lli", er);
+    
+    er = OpenLinuxPath(OOutlivableRef<OLinuxPathImpl>(tpath), path);
+    ASSERT(ERROR(er), "OpenLinuxPath failed, 0x%zx", er);
+    
     memset(buf, 0, length);
     tpath->ToString(buf, length);
 }

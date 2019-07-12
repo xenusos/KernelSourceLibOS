@@ -63,9 +63,10 @@ static size_t DelegatedCallsGetBuffer(void * buf, size_t len)
 
     mutex_lock(delegated_mutex);
 
-    if (ERROR(err = dyn_list_entries(delegated_fns, &cnt)))
+    err = dyn_list_entries(delegated_fns, &cnt);
+    if (ERROR(err))
     {
-        LogPrint(kLogError, "dyn_list_entries failed: %lli. how even? wtf", err);
+        LogPrint(kLogError, "dyn_list_entries failed: 0x%zx. how even? wtf", err);
         goto exit;
     }
 
@@ -79,7 +80,7 @@ static size_t DelegatedCallsGetBuffer(void * buf, size_t len)
         err = dyn_list_get_by_index(delegated_fns, i, (void **)&fn);
         if (ERROR(err))
         {
-            LogPrint(kLogError, "dyn_list_get_by_index failed: %lli. how even? wtf", err);
+            LogPrint(kLogError, "dyn_list_get_by_index failed: 0x%zx. how even? wtf", err);
             goto exit;
         }
         
