@@ -137,11 +137,18 @@ error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t sta
 
         if (start)
         {
-            if (find_vma(mm, start))
-            {
-                LogPrint(kLogVerbose, "Couldn't allocate memory at %p - a VMA already exists here!", start);
-                goto error;
-            }
+            size_t check = start;
+            size_t end = start + length;
+            do {
+
+                if (find_vma(mm, check))
+                {
+                    LogPrint(kLogVerbose, "Couldn't allocate memory at %p -> %p, a VMA already exists at %p!", start, end, check);
+                    goto error;
+                }
+
+                check += OS_PAGE_SIZE;
+            } while (check < end);
         }
        
         address = start;
