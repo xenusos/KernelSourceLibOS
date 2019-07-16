@@ -334,21 +334,21 @@ static void ThreadExitNtfyEP(uint32_t pid, long exitcode)
     link_p link;
 
     ret = chain_get(thread_ep_chain, pid, &link, (void **)&ep_tracker);
-    if (NO_ERROR(ret))
-    {
-        // ntfy thread exit
-        {
-            ThreadMsg_t msg;
-            msg.type = kMsgThreadExit;
-            msg.exit.thread_id = thread_geti();
-            msg.exit.code = exitcode;
-            (*ep_tracker)(&msg);
-        }
+    if (ERROR(ret))
+        return;
 
-        // remove ep from chain
-        {
-            chain_deallocate_handle(link);
-        }
+    // ntfy thread exit
+    {
+        ThreadMsg_t msg;
+        msg.type = kMsgThreadExit;
+        msg.exit.thread_id = thread_geti();
+        msg.exit.code = exitcode;
+        (*ep_tracker)(&msg);
+    }
+
+    // remove ep from chain
+    {
+        chain_deallocate_handle(link);
     }
 }
 
@@ -384,7 +384,6 @@ static void RuntimeThreadExit(long exitcode)
         ThreadExitNtfyObject(pid, exitcode);
     }
     mutex_unlock(thread_chain_mutex);
-
 }
 
 static void RuntimeThreadPostContextSwitch()

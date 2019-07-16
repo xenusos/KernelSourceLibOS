@@ -94,136 +94,164 @@ static l_unsigned_long GetMProtectProt(OLPageEntry entry)
 error_t OLMemoryManagerUser::AllocateZone(OLMemoryAllocation * space, size_t start, task_k tsk, size_t pages, void ** priv, size_t & ostart, size_t & oend, size_t & olength)
 {
     error_t err;
-    void * fhandle;
-    sysv_fptr_t faultcb;
-    vm_special_mapping_k mapping;
-    AddressSpaceUserPrivate * context;
-    mm_struct_k mm;
-    size_t address;
-    vm_area_struct_k area;
-    size_t length;
+    vm_special_mapping_k mapping = nullptr;
+    AddressSpaceUserPrivate * context = nullptr;
 
     context = new AddressSpaceUserPrivate();
     if (!context)
         return kErrorOutOfMemory;
 
-    mapping = zalloc(vm_special_mapping_size());
-    if (!mapping)
-    {
-        delete context;
-        return kErrorOutOfMemory;
-    }
-
-    err = dyncb_allocate_stub(SYSV_FN(special_map_fault), 4, context, &faultcb, &fhandle);
+    err = MappingAllocate(context);
     if (ERROR(err))
-    {
-        free(mapping);
-        delete context;
-        return err;
-    }
+        goto error;
 
-    vm_special_mapping_set_fault_size_t(mapping, size_t(faultcb));
-    vm_special_mapping_set_name_size_t(mapping,  size_t("XenusMemoryArea"));
-
-    length = pages << OS_PAGE_SHIFT;
-
-    {
-        mm = ProcessesAcquireMM_Write(tsk);
-        
-        if (!mm)
-            goto errorNoClean;
-
-        err = kErrorOutOfMemory;
-
-        if (start)
-        {
-            size_t check = start;
-            size_t end = start + length;
-            do {
-
-                if (find_vma(mm, check))
-                {
-                    LogPrint(kLogVerbose, "Couldn't allocate memory at %p -> %p, a VMA already exists at %p!", start, end, check);
-                    goto error;
-                }
-
-                check += OS_PAGE_SIZE;
-            } while (check < end);
-        }
-       
-        address = start;
-
-        if (!address)
-        {
-            bool type = RequestMappIngType(tsk);
-            bool is32 = UtilityIsTask32Bit(tsk);
-            address = RequestUnmappedArea(mm, type, NULL, length, is32);
-        }
-
-        //address = (size_t)get_unmapped_area(NULL, start, length, 0, (start ? MAP_FIXED : 0));
-        if (!address)
-             goto error;
-
-        if (LINUX_PTR_ERROR(address))
-            goto error;
-
-        //| VM_DONTEXPAND
-        area = _install_special_mapping(mm, (l_unsigned_long)address, length, 0, mapping);
-        if (!area)
-            goto error; 
-
-        ProcessesReleaseMM_Write(mm);
-    }
-
-    context->special_map_handle = fhandle;
-    context->special_map_fault = faultcb;
-    context->special_map = mapping;
-    context->address = address;
-    context->length = length;
+    context->address = start;
+    context->length = pages << OS_PAGE_SHIFT;
     context->space = space;
     context->pages = pages;
     context->task = tsk;
 
-    olength = length;
-    ostart  = address;
-    oend    = address + olength;
+    err = MappingTryInsert(context);
+
+    olength = context->length;
+    ostart  = context->address;
+    oend    = context->address + olength;
 
     *priv = context;
     return kStatusOkay;
 
 error:
-    ProcessesReleaseMM_Write(mm);
-
-errorNoClean:
-    dyncb_free_stub(fhandle);
-    free(mapping);
+    MappingFree(context);
     delete context;
 
     return err;
 }
 
+bool OLMemoryManagerUser::CheckArea(mm_struct_k mm, size_t start, size_t length, size_t & found)
+{
+    size_t check;
+    size_t end;
+
+    if (!start)
+        return false;
+
+    end = start + length;
+
+    for (size_t check = start; start < end; check += OS_PAGE_SIZE)
+    {
+        if (!find_vma(mm, check))
+            continue;
+     
+        found = check;
+        return true;
+    }
+
+    return false;
+}
+
+size_t OLMemoryManagerUser::AllocateRegion(mm_struct_k mm, task_k tsk, size_t length)
+{
+    bool type = RequestMappIngType(tsk);
+    bool is32 = UtilityIsTask32Bit(tsk);
+    return RequestUnmappedArea(mm, type, NULL, length, is32);
+    //return (size_t)get_unmapped_area(NULL, start, length, 0, (start ? MAP_FIXED : 0));
+}
+
+error_t OLMemoryManagerUser::MappingAllocate(AddressSpaceUserPrivate * context)
+{
+    error_t err;
+    void * fhandle;
+    sysv_fptr_t faultcb;
+    vm_special_mapping_k mapping;
+
+    mapping = zalloc(vm_special_mapping_size());
+    if (!mapping)
+        return kErrorOutOfMemory;
+
+    err = dyncb_allocate_stub(SYSV_FN(special_map_fault), 4, context, &faultcb, &fhandle);
+    if (ERROR(err))
+    {
+        free(mapping);
+        mapping = nullptr;
+        return err;
+    }
+
+    vm_special_mapping_set_fault_size_t(mapping, size_t(faultcb));
+    vm_special_mapping_set_name_size_t(mapping, size_t("XenusMemoryArea"));
+
+    context->special_map_handle = fhandle;
+    context->special_map_fault = faultcb;
+    context->special_map = mapping;
+    return kStatusOkay;
+}
+
+void OLMemoryManagerUser::MappingFree(AddressSpaceUserPrivate * context)
+{
+    if (context->special_map_handle)
+        dyncb_free_stub(context->special_map_handle);
+
+    if (context->special_map)
+        free(context->special_map);
+}
+
+error_t OLMemoryManagerUser::MappingTryInsert(AddressSpaceUserPrivate * context)
+{
+    error_t err;
+    size_t check;
+    mm_struct_k mm = nullptr;
+    vm_area_struct_k area = nullptr;
+
+    mm = ProcessesAcquireMM_Write(context->task);
+
+    if (!mm)
+        goto error;
+
+    if (CheckArea(mm, context->address, context->length, check))
+    {
+        LogPrint(kLogVerbose, "Couldn't allocate memory at %p -> %p, a VMA already exists at %p!", context->address, context->address + context->length, check);
+        err = kErrorOutOfMemory;
+        goto error;
+    }
+
+    if (!context->address)
+        context->address = AllocateRegion(mm, context, context->length);
+
+    if (LINUX_PTR_ERROR(context->address) || !context->address)
+        goto error;
+
+    //| VM_DONTEXPAND
+    area = _install_special_mapping(mm, (l_unsigned_long)context->address, context->length, 0, context->special_map);
+    if (!area)
+        goto error;
+
+    ProcessesReleaseMM_Write(mm);
+    return kStatusOkay;
+
+error:
+    if (mm)
+        ProcessesReleaseMM_Write(mm);
+    return err;
+}
+
 error_t OLMemoryManagerUser::FreeZone(void * priv)
 {
-    mm_struct_k mm;
-    AddressSpaceUserPrivate * context;
-
-    context = (AddressSpaceUserPrivate *)priv;
-    
-    {
-        mm = ProcessesAcquireMM(context->task);
-        if (!mm)
-            return kErrorInternalError;
-
-        vm_munmap_ex(mm, context->address, context->length); //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
-
-        ProcessesMMDecrementCounter(mm);
-    }
-    
-    dyncb_free_stub(context->special_map_handle);
-    free(context->special_map);
+    AddressSpaceUserPrivate * context = (AddressSpaceUserPrivate *)priv;
+    UnmapSpecial(context);
+    MappingFree(context);
     delete context;
-    
     return kStatusOkay;
+}
+
+void OLMemoryManagerUser::UnmapSpecial(AddressSpaceUserPrivate * context)
+{
+    mm_struct_k mm;
+    
+    mm = ProcessesAcquireMM(context->task);
+    ASSERT(mm, "Couldn't unmap special map: no MM");
+
+    vm_munmap_ex(mm, context->address, context->length); //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
+
+    ProcessesMMDecrementCounter(mm);
 }
 
 void OLMemoryManagerUser::SetCallbackHandler(void * priv, OLTrapHandler_f cb, void * data)

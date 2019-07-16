@@ -9,7 +9,7 @@
 #include "OLinuxMemoryMM.hpp"
 
 
-static int pagesToOrder(int count, int & order)
+static int PagesToOrder(int count, int & order)
 {
     if (count == 1)
     {
@@ -39,7 +39,7 @@ static bool LinuxAllocateContigArray(PhysAllocationElem * arry, size_t cnt, size
     pfn_t pfn;
     size_t total;
 
-    total = pagesToOrder(cnt, order);
+    total = PagesToOrder(cnt, order);
 
     page  = alloc_pages_current(flags | (isPfn ? 0 : __GFP_COMP), order);
 
@@ -212,7 +212,7 @@ void FreeLinuxPages(PhysAllocationElem * pages)
     {
         page_k page = meta.byPfn ? pfn_to_page(pages[0].pfn) : pages[0].page;
 
-        pagesToOrder(meta.length, order);
+        PagesToOrder(meta.length, order);
         __free_pages(page, order);
     }
     else

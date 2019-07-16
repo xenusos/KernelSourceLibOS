@@ -54,14 +54,14 @@ void OLinuxFileImp::InvalidateImp()
 
 error_t OLinuxFileImp::Write(const void * buffer, size_t length, loff_t offset)
 {
-    size_t of;
+    loff_t of;
 
     if (ERROR(_error)) 
         return _error;
     
     of = offset;
 
-    if (kernel_write(_filp, buffer, length, &offset) != length)
+    if (kernel_write(_filp, buffer, length, &of) != length)
         return kErrorGenericFailure;
 
     return kStatusOkay;
@@ -97,6 +97,7 @@ error_t OLinuxFileImp::Delete()
     error_t err;
     ODumbPointer<OLinuxPathImpl> file_path;
     ODumbPointer<OLinuxPathImpl> dir_path;
+    l_int chk;
 
     if (ERROR(err = _error))
         return err;
@@ -109,7 +110,9 @@ error_t OLinuxFileImp::Delete()
     if (ERROR(err))
         return err;
     
-    vfs_unlink(dir_path->ToINode(), file_path->GetDEntry(), nullptr);
+    chk = vfs_unlink(dir_path->ToINode(), file_path->GetDEntry(), nullptr);
+    // TOOD:
+
     InvalidateImp();
     return err;
 }
@@ -169,10 +172,12 @@ error_t OLinuxFileImp::GetPath(const OOutlivableRef<OPath> & path)
 error_t OLinuxFileImp::Stat(const OOutlivableRef<OFileStat> & filestat)
 {
     kstat_k stat;
+    l_int code;
 
     stat = alloca(kstat_size());
 
-    if (vfs_getattr(_fili.GetPath(), stat, STATX_ALL, AT_STATX_SYNC_AS_STAT) != 0)
+    code = vfs_getattr(_fili.GetPath(), stat, STATX_ALL, AT_STATX_SYNC_AS_STAT);
+    if (code != 0)
         return kErrorInternalError;
 
     return CreateFileStat((const OOutlivableRef<OFileStatImp>&)filestat, stat);

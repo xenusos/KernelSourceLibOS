@@ -56,7 +56,8 @@ uint_t OLinuxPathImpl::ToString(char * str, uint_t length)
 
     ffs = d_path(ahh, str, (l_int)length);
     
-    if (!((((uint_t)ffs) >= ((uint_t)str)) && (((uint_t)ffs) < ((uint_t)str + length))))
+    if (!((((uint_t)ffs) >= ((uint_t)str)) &&
+        (((uint_t)ffs) < ((uint_t)str + length))))
         return -1;
     
     len = ((uint_t)str + length - (uint_t)ffs);
@@ -88,23 +89,6 @@ error_t OLinuxPathImpl::GetParent_1(const OOutlivableRef<OLinuxPathImpl> & out)
     dput(parent);
     return err;
 }
-
-//error_t OLinuxPathImpl::GetParent_2(const OOutlivableRef<OLinuxPathImpl> & out)
-//{
-//    error_t err;
-//    dentry_k parent;
-//
-//    err = kStatusOkay;
-//
-//    parent = (dentry_k)(IDEntry(_dentry).GetVarParent().GetUInt());
-//    if (!parent)
-//        return kErrorInternalError;
-//
-//    if (!(out.PassOwnership(new OLinuxPathImpl(_mnt, parent))))
-//        err = kErrorOutOfMemory;
-//
-//    return err;
-//}
 
 error_t OpenLinuxPath(const OOutlivableRef<OLinuxPathImpl>& out, path_k path)
 {

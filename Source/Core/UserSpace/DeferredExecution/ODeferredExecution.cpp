@@ -301,10 +301,12 @@ LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivab
     if (!target.GetTypedObject())
         return kErrorIllegalBadArgument;
 
-    if (ERROR(err = CreateWorkQueue(1, wq)))
+    err = CreateWorkQueue(1, wq);
+    if (ERROR(err))
         return err;
 
-    if (ERROR(err = target->GetOSHandle((void **)&handle)))
+    err = target->GetOSHandle((void **)&handle);
+    if (ERROR(err))
         return err;
 
     if (!out.PassOwnership(new ODEWorkJobImpl(handle, wq)))

@@ -94,6 +94,8 @@ void ODEImplProcess::MapReturnStub()
 
     usrAlloc->ForceLinger();
     _returnAddress = usrAlloc->GetStart();
+
+    printf("return stub is at%p\n", _returnAddress);
 }
 
 static void DeallocateThreadByHandle(uint64_t hash, void * buffer)
@@ -223,5 +225,5 @@ void InitDEProcesses()
     error_t err;
 
     err = chain_allocate(&tgid_map);
-    ASSERT(NO_ERROR(&err), "couldn't allocate tgid map: %zx", err);
+    ASSERT(NO_ERROR(err), "couldn't allocate tgid map: %zx", err);
 }

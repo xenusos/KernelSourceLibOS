@@ -66,7 +66,7 @@ page_k virt_to_page(kernel_pointer_t address)
     return pfn_to_page(virt_to_pfn(address));
 }
 
-page_cache_mode        GetCacheModeFromCacheType(OLCacheType type)
+page_cache_mode GetCacheModeFromCacheType(OLCacheType type)
 {
     switch (type)
     {
@@ -99,6 +99,6 @@ page_cache_mode        GetCacheModeFromCacheType(OLCacheType type)
 
 void InitMMIOHelper()
 {
-    phys_base        = *(uint64_t *)       kallsyms_lookup_name("phys_base");
-    page_offset_base = *(l_unsigned_long*) kallsyms_lookup_name("page_offset_base");
+    phys_base           = *(uint64_t *)       kallsyms_lookup_name("phys_base");
+    page_offset_base    = *(l_unsigned_long*) kallsyms_lookup_name("page_offset_base");
 }

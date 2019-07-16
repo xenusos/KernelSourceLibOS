@@ -149,22 +149,17 @@ size_t OLMemoryInterfaceImpl::GetPageRegionStart(OLPageLocation location)
     switch (location)
     {
          case kPageDMAVeryLow:
-         {
              return PAGE_REGION_AMD64_DMA_START;
-         }
+
          case kPageDMA4GB:
-         {
              return PAGE_REGION_AMD64_4GIB_START;
-         }
+
          case kPageNormal:
-         {
              return PAGE_REGION_AMD64_NORMAL_START;
-         }
+
          case kPageInvalid:
          default:
-         {
              return -1;
-         }
     }
 #endif
     return -1;
@@ -176,22 +171,17 @@ size_t OLMemoryInterfaceImpl::GetPageRegionEnd(OLPageLocation location)
     switch (location)
     {
          case kPageDMAVeryLow:
-         {
              return PAGE_REGION_AMD64_DMA_END;
-         }
+
          case kPageDMA4GB:
-         {
              return PAGE_REGION_AMD64_4GIB_END;
-         }
+
          case kPageNormal:
-         {
              return PAGE_REGION_AMD64_NORMAL_END;
-         }
+
          case kPageInvalid:
          default:
-         {
              return -1;
-         }
     }
 #endif
     return -1;
