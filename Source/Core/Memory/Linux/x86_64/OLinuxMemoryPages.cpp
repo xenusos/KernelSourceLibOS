@@ -1,7 +1,7 @@
 /*
     Purpose: x86_64 linux memory interfaces
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>

@@ -1,7 +1,7 @@
 /*
     Purpose: A Windows-APC style thread preemption within the Linux kernel [depends on latest xenus linux kernel patch]
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
 #include "ODEThread.hpp"

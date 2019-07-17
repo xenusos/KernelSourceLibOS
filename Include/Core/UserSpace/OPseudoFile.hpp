@@ -6,7 +6,7 @@
              win32 - IoCreateDevice, IRP_MJ_READ/WRITE, IoCreateSymLink, etc
             
     Author: Reece W. 
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */  
 
 class OPseudoFile : public OObject

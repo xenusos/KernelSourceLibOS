@@ -1,21 +1,24 @@
 /*
     Purpose:
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #pragma once
 
 class OWorkQueue;
 typedef bool(*SpuriousWakeup_f)(const OUncontrollableRef<OWorkQueue> & ref); // true = return, false = continue blocking
 
+static inline bool IsWorkQueueOwner(error_t err)
+{
+    return err == kStatusOkay || err == kStatusWorkQueueAlreadyComplete;
+}
+
 class OWorkQueue : public OObject
 {
 public:
     virtual error_t GetCount(uint32_t &)              = 0;
     
-    virtual error_t WaitAndAddOwner(uint32_t ms = -1, SpuriousWakeup_f wakeup = nullptr) = 0; 
-                                                           // if kStatusTimeout, you do not own 
-                                                           // check return value against STRICTLY_OKAY(...) to determine ownership
+    virtual error_t WaitAndAddOwner(uint32_t ms = -1, SpuriousWakeup_f wakeup = nullptr) = 0;  // check return value against IsWorkQueueOwner(...) to determine ownership
     virtual error_t ReleaseOwner()                    = 0;
     
     virtual error_t SpuriousWakeupOwners()            = 0;
@@ -34,7 +37,7 @@ public:
     {
         error_t ret;
         ret = WaitAndAddOwner(ms);
-        if (STRICTLY_OKAY(ret))
+        if (IsWorkQueueOwner(ret))
             ReleaseOwner();
         return ret;
     }

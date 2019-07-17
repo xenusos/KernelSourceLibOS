@@ -1,7 +1,7 @@
 /*
     Purpose: 
     Author: Reece W. 
-    License: All Rights Reserved J. Reece Wilson (2018-01-12)
+    License: All Rights Reserved J. Reece Wilson (See License.txt) (2018-01-12)
     License: Released under MIT License (https://en.wikipedia.org/wiki/MIT_License) (2018-06-26)
 */  
 #include <libos.hpp>

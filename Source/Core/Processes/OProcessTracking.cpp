@@ -1,7 +1,7 @@
 /*
     Purpose: hacky process tracking stuff
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
 #include "OProcesses.hpp"

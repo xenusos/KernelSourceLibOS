@@ -1,7 +1,7 @@
 /*
     Purpose: A Windows-APC style thread preemption within the Linux kernel [depends on latest xenus linux kernel patch]
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
 #include <Core/CPU/OWorkQueue.hpp>
@@ -76,10 +76,8 @@ error_t ODEWorkJobImpl::HasExecuted(bool & executed)
 error_t ODEWorkJobImpl::WaitExecute(uint32_t ms)               
 {
     CHK_DEAD;
-    error_t err;
-    if (STRICTLY_OKAY(err = _workqueue->WaitAndAddOwner(ms)))
-        _workqueue->ReleaseOwner();
-    return err;
+
+    return _workqueue->DumbWait(ms);
 }
 
 error_t ODEWorkJobImpl::AwaitExecute(ODECompleteCallback_f cb, void * context)

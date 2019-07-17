@@ -1,7 +1,7 @@
 /*
     Purpose: creates a generic interface that can be implemented on top of syscalls, traps, or other medium to implement function stubs in usermode that interact with the kernel
     Author: Reece W. 
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */  
 
 

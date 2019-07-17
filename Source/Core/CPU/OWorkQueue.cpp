@@ -1,7 +1,7 @@
 /*
     Purpose:
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
 #include <Utils/DateHelper.hpp>
@@ -52,7 +52,7 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms, SpuriousWakeup_f wakeup)
 
     if (_completed == _workItems)
     {
-        err = kStatusOkay; //kStatusWorkQueueAlreadyComplete - we recommended a STRICT_OKAY check on the return value before.  kStatusWorkQueueAlreadyComplete and kStatusOkay are equiv. 
+        err = kStatusWorkQueueAlreadyComplete;
         goto out;
     }
 
