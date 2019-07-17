@@ -7,6 +7,7 @@
 #include "ODEThread.hpp"
 #include "ODEProcess.hpp"
 #include "ODeferredExecution.hpp"
+#include "../../CPU/OThreadUtilities.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
 #include "../../Processes/OProcesses.hpp"
 #include "../../Memory/Linux/x86_64/OLinuxMemoryPages.hpp"
@@ -320,14 +321,18 @@ void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
 {
     pt_regs regs = { 0 };
     size_t ursp, krsp = 0;
+    bool bits = UtilityIsTask32Bit(_task);
 
     ursp = _stack.user.stackTop;
     krsp = _stack.kernel.stackTop;
 
-    ursp -= sizeof(size_t);
-    krsp -= sizeof(size_t);
+    ursp -= bits ? sizeof(uint32_t) : sizeof(uint64_t);
+    krsp -= bits ? sizeof(uint32_t) : sizeof(uint64_t);
 
-    *(size_t*)krsp = _proc->GetReturnAddress();
+    if (bits)
+        *(uint32_t*)krsp = _proc->GetReturnAddress();
+    else
+        *(uint64_t*)krsp = _proc->GetReturnAddress();
 
     regs.rsp = ursp;
     
@@ -342,7 +347,7 @@ void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
         }
         else
         {
-            LogPrint(kLogVerbose, "A DE parse registers request altered the stack pointer; this may be expected behaviour for 32-bit calling conventions");
+            LogPrint(kLogVerbose, "A DE parse registers request altered the stack pointer (32 bit calling convention?)");
         }
     }
 

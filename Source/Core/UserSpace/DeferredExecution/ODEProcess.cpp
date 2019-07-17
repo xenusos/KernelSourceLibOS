@@ -94,8 +94,6 @@ void ODEImplProcess::MapReturnStub()
 
     usrAlloc->ForceLinger();
     _returnAddress = usrAlloc->GetStart();
-
-    printf("return stub is at%p\n", _returnAddress);
 }
 
 static void DeallocateThreadByHandle(uint64_t hash, void * buffer)
