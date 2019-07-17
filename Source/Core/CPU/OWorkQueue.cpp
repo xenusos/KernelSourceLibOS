@@ -52,7 +52,7 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms, SpuriousWakeup_f wakeup)
 
     if (_completed == _workItems)
     {
-        err = kStatusWorkQueueAlreadyComplete;
+        err = kStatusOkay; //kStatusWorkQueueAlreadyComplete - we recommended a STRICT_OKAY check on the return value before.  kStatusWorkQueueAlreadyComplete and kStatusOkay are equiv. 
         goto out;
     }
 

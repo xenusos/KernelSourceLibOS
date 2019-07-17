@@ -14,11 +14,11 @@ public:
     virtual error_t GetCount(uint32_t &)              = 0;
     
     virtual error_t WaitAndAddOwner(uint32_t ms = -1, SpuriousWakeup_f wakeup = nullptr) = 0; 
-                                                           // if kStatusTimeout ~~or kStatusSemaphoreAlreadyUnlocked~~, you do not own 
-                                                           // you should do a STRICTLY_OKAY(...) to determine ownership
+                                                           // if kStatusTimeout, you do not own 
+                                                           // check return value against STRICTLY_OKAY(...) to determine ownership
     virtual error_t ReleaseOwner()                    = 0;
     
-    virtual error_t SpuriousWakeupOwners()         = 0;
+    virtual error_t SpuriousWakeupOwners()            = 0;
 
     virtual error_t EndWork()                         = 0; 
     virtual error_t BeginWork()                       = 0;
