@@ -53,6 +53,7 @@ LIBLINUX_SYM  error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> p
 LIBLINUX_SYM  error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process);
 
 LIBLINUX_SYM  error_t GetProcessesByAll(ProcessIterator_cb callback, void * data);
+LIBLINUX_SYM  error_t GetProcessesAtRootLevel(ProcessIterator_cb callback, void * data);
 LIBLINUX_SYM  uint_t  GetProcessCurrentId();
 LIBLINUX_SYM  uint_t  GetProcessCurrentTid();
 

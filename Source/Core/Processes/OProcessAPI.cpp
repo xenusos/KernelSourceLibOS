@@ -43,6 +43,7 @@ static bool ProcessGetByIdCallback(const ThreadFoundEntry * thread, void * data)
 LIBLINUX_SYM error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
 {
     TempProcessGetByIdData temp(id);
+
     LinuxTransverseAll(ProcessGetByIdCallback, &temp);
 
     if (NO_ERROR(temp.err))
@@ -81,17 +82,20 @@ static bool ProcessIterateCallback(const ThreadFoundEntry * thread, void * data)
     if (!thread->isProcess)
         return true;
 
+    // placement new - allocate new process instance in preallocated buffer
     new (priv->proc) OProcessImpl(thread->task);
     
+    // callback user functionm
     ret = priv->callback((OProcess *)priv->proc, priv->data);
     
+    // reset process
+    // lets hope that the overhead of memory allocation is less than memset
     priv->proc->Invalidate();
-
     memset(priv->proc, 0, sizeof(OProcessImpl));
     return ret;
 }
 
-LIBLINUX_SYM error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
+static error_t GetProcessesCommon(bool root, ProcessIterator_cb callback, void * data)
 {
     TempProcessIterationData temp;
     OProcessImpl * proc;
@@ -104,10 +108,23 @@ LIBLINUX_SYM error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
     temp.data = data;
     temp.callback = callback;
 
-    LinuxTransverseAll(ProcessIterateCallback, &temp);
+    if (root)
+        LinuxTransverseThreadsInProcess(g_init_task, ProcessIterateCallback, &temp);
+    else
+        LinuxTransverseThreadsEntireProcess(g_init_task, ProcessIterateCallback, &temp);
 
     free(proc);
     return kStatusOkay;
+}
+
+LIBLINUX_SYM error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
+{
+    return GetProcessesCommon(false, callback, data);
+}
+
+LIBLINUX_SYM error_t GetProcessesAtRootLevel(ProcessIterator_cb callback, void * data)
+{
+    return GetProcessesCommon(true, callback, data);
 }
 
 LIBLINUX_SYM uint_t  GetProcessCurrentId()

@@ -84,6 +84,8 @@ static bool KernelTransverseSiblings(task_k process, ThreadFoundCallback_f callb
                 return false;
         }
     }
+
+    return true;
 }
 
 static bool KernelTransverseThreads(task_k process, ThreadFoundCallback_f callback, void * data, bool onlyScanProcess)
