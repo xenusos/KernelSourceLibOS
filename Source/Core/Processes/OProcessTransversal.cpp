@@ -102,7 +102,7 @@ static bool KernelTransverseThreads(task_k process, ThreadFoundCallback_f callba
     return true;
 }
 
-extern bool LinuxTransverseAll(ThreadFoundCallback_f callback, void * data)
+bool LinuxTransverseAll(ThreadFoundCallback_f callback, void * data)
 {
     bool ret;
     RCU::ReadLock();
@@ -111,7 +111,7 @@ extern bool LinuxTransverseAll(ThreadFoundCallback_f callback, void * data)
     return ret;
 }
 
-extern bool LinuxTransverseThreadsInProcess(task_k task, ThreadFoundCallback_f callback, void * data)
+bool LinuxTransverseThreadsInProcess(task_k task, ThreadFoundCallback_f callback, void * data)
 {
     bool ret;
     RCU::ReadLock();
@@ -120,7 +120,7 @@ extern bool LinuxTransverseThreadsInProcess(task_k task, ThreadFoundCallback_f c
     return ret;
 }
 
-extern bool LinuxTransverseThreadsEntireProcess(task_k task, ThreadFoundCallback_f callback, void * data)
+bool LinuxTransverseThreadsEntireProcess(task_k task, ThreadFoundCallback_f callback, void * data)
 {
     bool ret;
     RCU::ReadLock();
