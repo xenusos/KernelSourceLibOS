@@ -60,8 +60,7 @@ LIBLINUX_SYM error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
     me     = OSThread;
     leader = (task_k)task_get_group_leader_size_t(me);
 
-    proc = new OProcessImpl(leader ? leader : me);
-    if (!process.PassOwnership(proc))
+    if (!process.PassOwnership(new OProcessImpl(leader ? leader : me)))
         return kErrorOutOfMemory;
     
     return kStatusOkay;
