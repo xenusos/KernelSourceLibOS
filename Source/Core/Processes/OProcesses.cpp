@@ -61,6 +61,7 @@ void OProcessImpl::InitSec()
 void OProcessImpl::InitModName()
 {
     memcpy(_name, task_get_comm(_tsk), THREAD_NAME_LEN);
+    _name[strnlen(_name, sizeof(_name) - 1)] = 0;
 }
 
 void OProcessImpl::InitPaths()
