@@ -30,11 +30,8 @@ public:
     virtual error_t GetDrive(const char **mnt)                                                  = 0;
     virtual error_t GetWorkingDirectory(const char **wd)                                        = 0;
     // virtual error_t GetGenericSecLevel(ProcessSecurityLevel_e * sec) = 0;
-    // TODO: user api                                                                           
-                                                                                                
-    // WARNING: 
-    // On Linux, these may lock execution if the RCU locking mechanism has been called prior 
-    // Assume RCU locked if within callback (IE: GetProcessesByAll), assume unlocked otherwise
+    // TODO: user api           
+
     virtual uint_t  GetThreadCount()                                                            = 0;
     virtual error_t IterateThreads(ThreadIterator_cb callback, void * ctx)                      = 0;
     virtual error_t GetThreadById(uint_t id, const OOutlivableRef<OProcessThread> & thread)     = 0;
