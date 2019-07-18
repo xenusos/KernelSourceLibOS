@@ -5,6 +5,7 @@
 */
 #include <libos.hpp>
 #include "OProcesses.hpp"
+#include "OProcessHelpers.hpp"
 #include "OProcessTracking.hpp"
 
 #include <Core/CPU/OThread.hpp>

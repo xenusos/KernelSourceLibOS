@@ -59,10 +59,14 @@
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMUser.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\OLinuxStack.hpp" />
     <ClInclude Include="Source\Core\Net\OTCPNetworking.hpp" />
+    <ClCompile Include="Source\Core\Processes\OProcessAPI.cpp">
+      <FileType>CppHeader</FileType>
+    </ClCompile>
     <ClInclude Include="Source\Core\Processes\OProcesses.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcessHelpers.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcessTracking.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcessTransversal.hpp" />
+    <ClInclude Include="Source\Core\Processes\OThreadImpl.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODECriticalSection.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODeferredExecution.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.hpp" />
@@ -103,6 +107,7 @@
     <ClCompile Include="Source\Core\Processes\OProcesses.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcessHelpers.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcessTracking.cpp" />
+    <ClCompile Include="Source\Core\Processes\OThreadImpl.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODECriticalSection.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODeferredExecution.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.cpp" />
@@ -136,7 +141,7 @@
     <None Include="Include\Base\Objects\ObjectsDumbPointer.imp" />
     <None Include="Include\Base\Objects\ODumbPointerReference.imp" />
     <None Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVM.hpp" />
-    <None Include="Source\Core\Processes\OProcessTransversal.cpp" />
+    <ClCompile Include="Source\Core\Processes\OProcessTransversal.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Include\Core\Net\Text.txt" />

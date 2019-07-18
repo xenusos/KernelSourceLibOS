@@ -1,131 +1,27 @@
 /*
     Purpose: Generic process API built on top of linux
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 
 #include <libos.hpp>
 
 #include "OProcesses.hpp"
+#include "OProcessHelpers.hpp"
+#include "OProcessTransversal.hpp"
 
-// LibOSTypes
-#include <ITypes/IThreadStruct.hpp>
-#include <ITypes/ITask.hpp>
+#include "OThreadImpl.hpp"
 
 // Other parts of LibOS
 #include "../FIO/OPath.hpp"
-#include "../../Utils/RCU.hpp"
 #include "Core/CPU/OThread.hpp"
 
-task_k init_task;
+task_k g_init_task;
 //l_unsigned_long page_offset_base;
 void InitProcesses()
 {
     //page_offset_base = *(l_unsigned_long*)kallsyms_lookup_name("page_offset_base");
-    init_task = kallsyms_lookup_name("init_task");
-}
-
-void ProcessesMMIncrementCounter(mm_struct_k mm)
-{
-    _InterlockedIncrement((long *)mm_struct_get_mm_users(mm));
-}
-
-void ProcessesMMDecrementCounter(mm_struct_k mm)
-{
-    mmput(mm);
-}
-
-void ProcessesAcquireTaskFields(task_k tsk)
-{
-    _raw_spin_lock(task_get_alloc_lock(tsk));
-}
-
-void ProcessesReleaseTaskFields(task_k tsk)
-{
-    _raw_spin_unlock(task_get_alloc_lock(tsk));
-}
-
-void ProcessesTaskIncrementCounter(task_k  tsk)
-{
-    _InterlockedIncrement((long *)task_get_usage(tsk));
-}
-
-void ProcessesTaskDecrementCounter(task_k  tsk)
-{
-    long users;
-
-    users = _InterlockedDecrement((long *)task_get_usage(tsk));
-
-    if (users == 0)
-        __put_task_struct(tsk);/*free task struct*/
-}
-
-
-mm_struct_k ProcessesAcquireMM(task_k tsk)
-{
-    mm_struct_k mm;
-    rw_semaphore_k semaphore;
-
-    ProcessesAcquireTaskFields(tsk);
-    mm = (mm_struct_k)task_get_mm_size_t(tsk);
-    
-    if (!mm)
-    {
-        ProcessesReleaseTaskFields(tsk);
-        return nullptr;
-    }
-
-    ProcessesMMIncrementCounter(mm);
-    ProcessesReleaseTaskFields(tsk);
-    return mm;
-}
-
-mm_struct_k ProcessesAcquireMM_Read(task_k tsk)
-{
-    mm_struct_k mm;
-
-    mm = ProcessesAcquireMM(tsk);
-
-    if (!mm)
-        return nullptr;
-
-    down_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
-    return mm;
-}
-
-mm_struct_k ProcessesAcquireMM_Write(task_k tsk)
-{
-    mm_struct_k mm;
-
-    mm = ProcessesAcquireMM(tsk);
-
-    if (!mm)
-        return nullptr;
-
-    down_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
-    return mm;
-}
-
-void ProcessesReleaseMM_Read(mm_struct_k mm)
-{
-    up_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
-    ProcessesMMDecrementCounter(mm);
-}
-
-void ProcessesReleaseMM_Write(mm_struct_k mm)
-{
-    up_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
-    ProcessesMMDecrementCounter(mm);
-}
-
-uint_t ProcessesGetPid(task_k tsk)
-{
-    return ITask(tsk).GetVarPID().GetUInt();
-}
-
-uint_t ProcessesGetTgid(task_k tsk)
-{
-    return ITask(tsk).GetVarTGID().GetUInt();
+    g_init_task = kallsyms_lookup_name("init_task");
 }
 
 void ProcessesConvertPath(void * path, char * buf, size_t length)
@@ -144,51 +40,6 @@ void ProcessesConvertPath(void * path, char * buf, size_t length)
     
     memset(buf, 0, length);
     tpath->ToString(buf, length);
-}
-
-OProcessThreadImpl::OProcessThreadImpl(task_k tsk, OProcess * process)
-{
-    ProcessesTaskIncrementCounter(tsk);
-    _tsk = tsk;
-    _id = ProcessesGetPid(tsk);
-    _process = process;
-
-    memcpy(_name, task_get_comm(_tsk), THREAD_NAME_LEN);
-}
-
-void OProcessThreadImpl::InvalidateImp()
-{
-    ProcessesTaskDecrementCounter(_tsk);
-}
-
-error_t OProcessThreadImpl::GetThreadName(const char ** name)
-{
-    if (!name)
-        return kErrorIllegalBadArgument;
-    *name = _name;
-    return kStatusOkay;
-}
-
-error_t OProcessThreadImpl::GetOSHandle(void ** handle)
-{
-    if (!handle)
-        return kErrorIllegalBadArgument;
-    *handle = _tsk;
-    return kStatusOkay;
-}
-
-error_t OProcessThreadImpl::GetId(uint_t * id)
-{
-    if (!id)
-        return kErrorIllegalBadArgument;
-    *id = _id;
-    return kStatusOkay;
-}
-
-error_t OProcessThreadImpl::GetParent(OUncontrollableRef<OProcess> parent)
-{
-    parent.SetObject(_process);
-    return kStatusOkay;
 }
 
 OProcessImpl::OProcessImpl(task_k tsk)
@@ -214,6 +65,9 @@ void OProcessImpl::InitModName()
 
 void OProcessImpl::InitPaths()
 {
+#define FIX_NULLS(member)\
+    member[strnlen(member, sizeof(member) - 1)] = 0;
+
     fs_struct_k fs;
     file_k file;
 
@@ -237,13 +91,19 @@ void OProcessImpl::InitPaths()
         _working[0] = '\0';
     }
     ProcessesReleaseTaskFields(_tsk);
+
+    FIX_NULLS(_root);
+    FIX_NULLS(_working);
+    FIX_NULLS(_path);
 }
 
 error_t OProcessImpl::GetProcessName(const char ** name)
 {
     CHK_DEAD;
+
     if (!name)
         return kErrorIllegalBadArgument;
+
     *name = _name;
     return kStatusOkay;
 }
@@ -251,8 +111,10 @@ error_t OProcessImpl::GetProcessName(const char ** name)
 error_t OProcessImpl::GetOSHandle(void ** handle)
 {
     CHK_DEAD;
-        if (!handle)
-            return kErrorIllegalBadArgument;
+
+    if (!handle)
+        return kErrorIllegalBadArgument;
+
     *handle = _tsk;
     return kStatusOkay;
 }
@@ -260,8 +122,10 @@ error_t OProcessImpl::GetOSHandle(void ** handle)
 error_t OProcessImpl::GetProcessId(uint_t * id)
 {
     CHK_DEAD;
+
     if (!id)
         return kErrorIllegalBadArgument;
+
     *id = _pid;
     return kStatusOkay;
 }
@@ -269,8 +133,10 @@ error_t OProcessImpl::GetProcessId(uint_t * id)
 error_t OProcessImpl::GetModulePath(const char **path)
 {
     CHK_DEAD;
+
     if (!path)
         return kErrorIllegalBadArgument;
+
     *path = _path;
     return kStatusOkay;
 }
@@ -278,8 +144,10 @@ error_t OProcessImpl::GetModulePath(const char **path)
 error_t OProcessImpl::GetDrive(const char **mnt)
 {
     CHK_DEAD;
+
     if (!mnt)
         return kErrorIllegalBadArgument;
+
     *mnt = _root;
     return kStatusOkay;
 }
@@ -287,121 +155,120 @@ error_t OProcessImpl::GetDrive(const char **mnt)
 error_t OProcessImpl::GetWorkingDirectory(const char **wd)
 {
     CHK_DEAD;
+
     if (!wd)
         return kErrorIllegalBadArgument;
+
     *wd = _working;
     return kStatusOkay;
 }
 
+
+struct TempThreadCountData
+{
+    uint_t counter;
+};
+
+static bool ThreadCountCallback(const ThreadFoundEntry * thread, void * data)
+{
+    TempThreadCountData * priv = reinterpret_cast<TempThreadCountData *>(data);
+    priv->counter++;
+    return true;
+}
+
 uint_t OProcessImpl::GetThreadCount()
 {
-    uint_t cnt;
-    task_k cur;
-    task_k srt;
+    TempThreadCountData temp = { 0 };
+    LinuxTransverseThreadsInProcess(_tsk, ThreadCountCallback, &temp);
+    return temp.counter;
+}
 
-    RCU::ReadLock();
 
-    cnt = 0;
-    cur = srt = _tsk;
-    if (cur)
+struct TempThreadGetByIdData
+{
+    TempThreadGetByIdData(uint_t _search, OProcess * _parent) : search(_search), parent(_parent), err(kErrorProcessPidInvalid), thread(nullptr)
     {
-        do
-        {
-            list_head * head;
 
-            cnt++;
-           
-            head = (list_head *)task_get_thread_group(cur);
-            cur = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
-        } while (cur != srt);
     }
 
-    RCU::ReadUnlock();
-    return cnt;
+    error_t err;
+    uint_t search;
+    OProcessThread * thread;
+    OProcess * parent;
+};
+
+static bool ThreadGetByIdCallback(const ThreadFoundEntry * thread, void * data)
+{
+    TempThreadGetByIdData * priv = reinterpret_cast<TempThreadGetByIdData *>(data);
+    OProcessThreadImpl * proc;
+
+    if (thread->threadId != priv->search)
+        return true;
+
+    proc = new OProcessThreadImpl(thread->task, thread->isProcess, priv->parent);
+    
+    priv->err = proc ? kStatusOkay : kErrorOutOfMemory;
+    priv->thread = proc;
+
+    return false;
 }
 
 error_t OProcessImpl::GetThreadById(uint_t id, const OOutlivableRef<OProcessThread> & thread)
 {
     CHK_DEAD;
-    task_k cur;
-    task_k srt;
-    error_t er = kErrorProcessPidInvalid;
-    OProcessThread * proc = nullptr;
 
-    RCU::ReadLock();
+    TempThreadGetByIdData temp(id, this);
+    LinuxTransverseThreadsInProcess(_tsk, ThreadGetByIdCallback, &temp);
 
-    cur = srt = _tsk;
-    if (cur)
-    {
-        do
-        {
-            list_head * head;
+    if (NO_ERROR(temp.err))
+        thread.PassOwnership(temp.thread);
 
-            if (ProcessesGetPid(cur) == id)
-            {
-                proc = new OProcessThreadImpl(cur, this);
-                if (!proc)
-                {
-                    er = kErrorOutOfMemory;
-                    goto exit;
-                }
-
-                er = kStatusOkay;
-                goto exit;
-            }
+    return temp.err;
+}
 
 
-            head = (list_head *)task_get_thread_group(cur);
-            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
-        } while (cur != srt);
-    }
+struct TempThreadIterationData
+{
+    ThreadIterator_cb callback;
+    OProcessThreadImpl * thread;
+    void * data;
+    OProcess * parent;
+};
 
-exit:
-    RCU::ReadUnlock();
+static bool ThreadIterateCallback(const ThreadFoundEntry * thread, void * data)
+{
+    bool ret;
+    TempThreadIterationData * priv = reinterpret_cast<TempThreadIterationData *>(data);
 
-    if (NO_ERROR(er))
-        thread.PassOwnership(proc);
+    new (priv->thread) OProcessThreadImpl(thread->task, thread->isProcess, priv->parent);
 
-    return er;
+    ret = priv->callback((OProcessThread *)priv->thread, priv->data);
+
+    priv->thread->Invalidate();
+
+    memset(priv->thread, 0, sizeof(OProcessThreadImpl));
+    return ret;
 }
 
 error_t OProcessImpl::IterateThreads(ThreadIterator_cb callback, void * ctx)
 {
     CHK_DEAD;
-    task_k cur;
-    task_k srt;
-    error_t er = kStatusOkay;
-    OProcessThread * proc;
+    TempThreadIterationData temp;
+    OProcessThreadImpl * proc;
 
-    proc = (OProcessThread *)zalloc(sizeof(OProcessThreadImpl *));
+    proc = (OProcessThreadImpl *)zalloc(sizeof(OProcessThreadImpl));
     if (!proc)
         return kErrorOutOfMemory;
 
-    RCU::ReadLock();
+    temp.thread   = proc;
+    temp.parent   = this;
+    temp.data     = ctx;
+    temp.callback = callback;
 
-    cur = srt = _tsk;
-    if (cur)
-    {
-        do
-        {
-            bool shouldRet;
-            list_head * head;
+    LinuxTransverseThreadsInProcess(_tsk, ThreadIterateCallback, &temp);
 
-            new (proc) OProcessThreadImpl(cur, this);
-
-            shouldRet = !callback(proc, ctx);
-
-            proc->Destory();
-            memset(proc, 0, sizeof(OProcessThreadImpl *));
-
-            head = (list_head *)task_get_thread_group(cur);
-            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_thread_group(NULL)));
-        } while (cur != srt);
-    }
-
-    RCU::ReadUnlock();
     free(proc);
-    return er;
+    return kStatusOkay;
 }
 
 bool OProcessImpl::Is32Bits()
@@ -442,9 +309,8 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     OLMemoryInterface * lm;
     OLPageEntryMeta protection;
 
-    ret = kStatusOkay;
-
-    if (ERROR(ret = GetLinuxMemoryInterface(lm)))
+    ret = GetLinuxMemoryInterface(lm);
+    if (ERROR(ret))
         return ret;
 
     protection = lm->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
@@ -516,113 +382,4 @@ error_t OProcessImpl::WriteProcessMemory(user_addr_t address, const void * buffe
 void OProcessImpl::InvalidateImp()
 {
     ProcessesTaskDecrementCounter(_tsk);
-}
-
-error_t _GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
-{
-    task_k cur;
-    task_k srt;
-
-    cur = srt = init_task;
-    if (cur)
-    {
-        do
-        {
-            list_head * head;
-
-            if ((id == ProcessesGetPid(cur)) && (id == ProcessesGetTgid(cur)))
-            {
-                OProcess * proc;
-
-                proc = new OProcessImpl(cur);
-                if (!proc)
-                    return kErrorOutOfMemory;
-
-                process.PassOwnership(proc);
-                return kStatusOkay;
-            }
-
-            head = (list_head *)task_get_tasks(cur);
-            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_tasks(NULL)));
-        } while (cur != srt);
-    }
-    return kErrorProcessPidInvalid;
-}
-
-LIBLINUX_SYM error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process)
-{
-    error_t ret;
-    RCU::ReadLock();
-    ret = _GetProcessById(id, process);
-    RCU::ReadUnlock();
-    return ret;
-}
-
-LIBLINUX_SYM error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
-{
-    OProcess * proc;
-    task_k me;
-    task_k leader;
-
-    me     = OSThread;
-    leader = (task_k)task_get_group_leader_size_t(me);
-
-    proc = new OProcessImpl(leader ? leader : me);
-    if (!process.PassOwnership(proc))
-        return kErrorOutOfMemory;
-    
-    return kStatusOkay;
-}
-
-error_t _GetProcessesByAll(ProcessIterator_cb callback, void * data)
-{
-    task_k cur;
-    task_k srt;
-
-    if (!callback)
-        return kErrorIllegalBadArgument;
-
-    cur = srt = init_task;
-    if (cur)
-    {
-        do
-        {
-            OProcess * proc;
-            list_head * head;
-
-            if (ProcessesGetTgid(cur) == ProcessesGetPid(cur))
-            {
-                proc = new OProcessImpl(cur);
-
-                if (!proc)
-                    return kErrorOutOfMemory;
-
-                callback(proc, data);
-                proc->Destory();
-            }
-
-            head = (list_head *)task_get_tasks(cur);
-            cur  = (task_k)(uint64_t(head->next) - uint64_t(task_get_tasks(NULL)));
-        } while (cur != srt);
-    }
-    return kStatusOkay;
-}
-
-LIBLINUX_SYM error_t GetProcessesByAll(ProcessIterator_cb callback, void * data)
-{
-    error_t ret;
-    RCU::ReadLock();
-    ret = _GetProcessesByAll(callback, data);
-    RCU::ReadUnlock();
-    return ret;
-}
-
-LIBLINUX_SYM uint_t  GetProcessCurrentId()
-{
-    return ProcessesGetTgid(OSThread);
-}
-
-LIBLINUX_SYM uint_t  GetProcessCurrentTid()
-{
-    return ProcessesGetPid(OSThread);
 }

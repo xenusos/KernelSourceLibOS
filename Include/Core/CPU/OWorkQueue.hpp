@@ -6,7 +6,7 @@
 #pragma once
 
 class OWorkQueue;
-typedef bool(*SpuriousWakeup_f)(const OUncontrollableRef<OWorkQueue> & ref); // true = return, false = continue blocking
+typedef bool(*SpuriousWakeup_f)(const OPtr<OWorkQueue> & ref); // true = return, false = continue blocking
 
 static inline bool IsWorkQueueOwner(error_t err)
 {

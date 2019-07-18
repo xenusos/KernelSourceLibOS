@@ -12,6 +12,7 @@
 #include "ODEProcess.hpp"
 #include "ODEThread.hpp"
 #include "../../Processes/OProcesses.hpp"
+#include "../../Processes/OProcessHelpers.hpp"
 
 #include <Core/Memory/Linux/OLinuxStack.hpp>
 

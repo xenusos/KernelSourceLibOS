@@ -11,6 +11,7 @@
 #include "OLinuxMemoryPages.hpp"
 #include "../OLinuxMemory.hpp"
 #include "../../../Processes/OProcesses.hpp"
+#include "../../../Processes/OProcessHelpers.hpp"
 
 #include "addresses/FindFreeUserVMA.hpp"
 

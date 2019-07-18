@@ -8,6 +8,7 @@
 #include "ODEThread.hpp"
 #include "ODEReturn.hpp"
 #include "../../Processes/OProcesses.hpp"
+#include "../../Processes/OProcessHelpers.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
 #include "../../CPU/OThreadUtilities.hpp"
 

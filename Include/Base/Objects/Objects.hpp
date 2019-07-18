@@ -10,10 +10,9 @@ class OObject
 public:
     inline OObject();
     inline void Destory();
-
     inline bool IsDead();
+    inline void Invalidate();
 protected:
-    inline void  Invalidate();
     virtual void InvalidateImp() {};
 private:
     bool _is_dead;

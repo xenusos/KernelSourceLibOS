@@ -1,7 +1,7 @@
 /*
     Purpose:
     Author: Reece W.
-    License: All Rights Reserved J. Reece Wilson
+    License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #pragma once
 
@@ -13,9 +13,12 @@ public:
     virtual error_t GetOSHandle(void ** handle)                                                 = 0;
     virtual error_t GetId(uint_t * id)                                                          = 0;
     virtual error_t GetParent(const OUncontrollableRef<OProcess> parent)                        = 0;
+
+    virtual error_t IsProcess(bool * out)                                                       = 0;
+    virtual error_t AsProcess(const OOutlivableRef<OProcess> parent)                            = 0;
 };
 
-typedef bool(*ThreadIterator_cb)(const OUncontrollableRef<OProcessThread> thread, void * context);
+typedef bool(*ThreadIterator_cb)(const OPtr<OProcessThread> thread, void * context);
 
 class OProcess : public  OObject
 {
@@ -44,7 +47,7 @@ public:
     virtual bool    Is32Bits()                                                                  = 0;
 };
 
-typedef void(*ProcessIterator_cb)(OPtr<OProcess> thread, void * context);
+typedef bool(*ProcessIterator_cb)(OPtr<OProcess> thread, void * context);
 
 LIBLINUX_SYM  error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process);
 LIBLINUX_SYM  error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process);
