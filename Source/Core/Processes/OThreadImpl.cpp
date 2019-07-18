@@ -19,7 +19,7 @@ OProcessThreadImpl::OProcessThreadImpl(task_k tsk, bool isProc, OProcess * proce
     _isProc = isProc;
 
     memcpy(_name, task_get_comm(_tsk), THREAD_NAME_LEN);
-    _name[strnlen(_name, THREAD_NAME_LEN)] = 0;
+    _name[strnlen(_name, THREAD_NAME_LEN - 1)] = 0;
 }
 
 void OProcessThreadImpl::InvalidateImp()
