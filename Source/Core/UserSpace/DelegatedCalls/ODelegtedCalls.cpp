@@ -39,7 +39,8 @@ error_t AddKernelSymbol(const char * name, DelegatedCall_t fn)
 
     mutex_lock(symbol_mutex);
 
-    if (ERROR(er = dyn_list_append(delegated_fns, (void **)&inst)))
+    er = dyn_list_append(delegated_fns, (void **)&inst);
+    if (ERROR(er))
     {
         mutex_unlock(symbol_mutex);
         return er;

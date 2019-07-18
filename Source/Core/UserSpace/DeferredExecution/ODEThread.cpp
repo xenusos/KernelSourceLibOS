@@ -67,6 +67,7 @@ void ODEImplPIDThread::DestoryState()
 {
     DestoryStack();
     DestoryQueue();
+    _userState.hasPreviousTask = false;
 }
 
 void ODEImplPIDThread::DestoryQueue()

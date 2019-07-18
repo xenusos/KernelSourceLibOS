@@ -349,7 +349,8 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
 
     // TODO: on x86_64 and i think arm64, we could use the linear kernel map
     // iirc arm64 vaddr = page->vaddr;
-    if (!(map = vmap(page_array, pages, 0, protection.kprot)))
+    map = vmap(page_array, pages, 0, protection.kprot);
+    if (!map)
     {
         ret = kErrorInternalError;
         goto exit;
