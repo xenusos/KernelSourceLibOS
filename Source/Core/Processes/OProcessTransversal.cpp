@@ -1,4 +1,4 @@
-/*
+﻿/*
     Purpose: Generic process API built on top of linux
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson (See License.txt) (See License.txt)
@@ -12,26 +12,24 @@
 
 #include "../../Utils/RCU.hpp"
 
-static bool KernelTransverseThreads(task_k process, ThreadFoundCallback_f callback, void * data, bool onlyScanProcess = false);
+static bool KernelTransverseThreads(task_k process, task_k parent, ThreadFoundCallback_f callback, void * data, bool onlyScanProcess = false);
 
 static bool KernelIsThreadGroup(task_k task)
 {
     return ProcessesGetTgid(task) == ProcessesGetPid(task);
 }
 
-static bool KernelFoundTask(task_k task, ThreadFoundCallback_f callback, void * data)
+static bool KernelFoundTask(task_k task, task_k parent, ThreadFoundCallback_f callback, void * data)
 {
     ThreadFoundEntry thread;
-    task_k parent;
-    
-    parent = (task_k)task_get_group_leader_size_t(task);
 
     thread.task          = task;
     thread.isProcess     = KernelIsThreadGroup(task);
     thread.threadId      = ProcessesGetPid(task);
     thread.tgid          = ProcessesGetTgid(task);
-    thread.realProcessId = thread.isProcess ? ProcessesGetPid(parent) : thread.threadId;
-    thread.realProcess   = thread.isProcess ? parent : task;
+    thread.realProcessId = thread.isProcess ? parent ? ProcessesGetPid(parent) : 0 : thread.threadId;
+    thread.realProcess   = thread.isProcess ? parent ? parent  : nullptr : task;
+    thread.spawner       = parent;
 
     return callback(&thread, data);
 }
@@ -49,7 +47,7 @@ static bool KernelTransverseThreadGroup(task_k groupThread, ThreadFoundCallback_
         cur != groupThread;
         cur = KernelNextThreadGroup(cur))
     {
-        if (!KernelFoundTask(cur, callback, data))
+        if (!KernelFoundTask(cur, groupThread, callback, data))
             return false;
     }
     return true;
@@ -75,12 +73,12 @@ static bool KernelTransverseSiblings(task_k process, ThreadFoundCallback_f callb
 
         if (!onlyScanProcess)
         {
-            if (!KernelTransverseThreads(thread, callback, data))
+            if (!KernelTransverseThreads(thread, process, callback, data))
                 return false;
         }
         else
         {
-            if (!KernelFoundTask(thread, callback, data))
+            if (!KernelFoundTask(thread, process, callback, data))
                 return false;
         }
     }
@@ -88,9 +86,9 @@ static bool KernelTransverseSiblings(task_k process, ThreadFoundCallback_f callb
     return true;
 }
 
-static bool KernelTransverseThreads(task_k process, ThreadFoundCallback_f callback, void * data, bool onlyScanProcess)
+static bool KernelTransverseThreads(task_k process, task_k parent, ThreadFoundCallback_f callback, void * data, bool onlyScanProcess)
 {
-    if (!KernelFoundTask(process, callback, data))
+    if (!KernelFoundTask(process, parent, callback, data))
         return false;
     
     if (!KernelTransverseThreadGroup(process, callback, data))
@@ -106,7 +104,7 @@ bool LinuxTransverseAll(ThreadFoundCallback_f callback, void * data)
 {
     bool ret;
     RCU::ReadLock();
-    ret = KernelTransverseThreads(g_init_task, callback, data);
+    ret = KernelTransverseThreads(g_init_task, nullptr, callback, data);
     RCU::ReadUnlock();
     return ret;
 }
@@ -115,7 +113,7 @@ bool LinuxTransverseThreadsInProcess(task_k task, ThreadFoundCallback_f callback
 {
     bool ret;
     RCU::ReadLock();
-    ret = KernelTransverseThreads(task, callback, data, true);
+    ret = KernelTransverseThreads(task, nullptr, callback, data, true);
     RCU::ReadUnlock();
     return ret;
 }
@@ -124,7 +122,7 @@ bool LinuxTransverseThreadsEntireProcess(task_k task, ThreadFoundCallback_f call
 {
     bool ret;
     RCU::ReadLock();
-    ret = KernelTransverseThreads(task, callback, data, false);
+    ret = KernelTransverseThreads(task, nullptr, callback, data, false);
     RCU::ReadUnlock();
     return ret;
 }

@@ -8,6 +8,9 @@
 extern uint_t ProcessesGetTgid(task_k tsk);
 extern uint_t ProcessesGetPid(task_k tsk);
 
+extern task_k ProcessesGetGroupLeader(task_k task);
+extern task_k ProcessesGetProcess(task_k task);
+
 extern void ProcessesMMIncrementCounter(mm_struct_k mm);
 extern void ProcessesMMDecrementCounter(mm_struct_k mm);
 extern void ProcessesAcquireTaskFields(task_k tsk);

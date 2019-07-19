@@ -361,7 +361,7 @@ error_t GetDEThread(ODEImplPIDThread * & thread, task_k task)
     ODEImplProcess * proc;
     error_t err;
 
-    err = GetDEProcess(proc, (task_k)task_get_group_leader_size_t(task));
+    err = GetDEProcess(proc, ProcessesGetProcess(task));
     if (ERROR(err))
         return err;
 
@@ -377,7 +377,7 @@ error_t GetOrCreateDEThread(ODEImplPIDThread * & thread, task_k task)
     ODEImplProcess * proc;
     error_t err;
 
-    err = GetDEProcess(proc, (task_k)task_get_group_leader_size_t(task));
+    err = GetDEProcess(proc, ProcessesGetProcess(task));
     if (ERROR(err))
         return err;
 

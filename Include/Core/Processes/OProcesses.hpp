@@ -46,6 +46,7 @@ public:
 
 typedef bool(*ProcessIterator_cb)(OPtr<OProcess> thread, void * context);
 
+LIBLINUX_SYM  error_t GetProcessParentById(uint_t id, const OOutlivableRef<OProcess> process);
 LIBLINUX_SYM  error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> process);
 LIBLINUX_SYM  error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process);
 

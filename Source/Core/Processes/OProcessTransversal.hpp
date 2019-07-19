@@ -15,8 +15,9 @@ struct ThreadFoundEntry
         uint_t pid;
     };
     uint_t tgid;
-    uint_t realProcessId;
-    task_k realProcess;
+    uint_t realProcessId;   // effective group leader
+    task_k realProcess;     // effective group leader
+    task_k spawner;         // task that spawned the group leader (or group leader if sibling/thread)
 };
 
 typedef bool(*ThreadFoundCallback_f)(const ThreadFoundEntry * thread, void * data);

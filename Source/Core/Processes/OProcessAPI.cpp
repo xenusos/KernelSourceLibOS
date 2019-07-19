@@ -52,6 +52,57 @@ LIBLINUX_SYM error_t GetProcessById(uint_t id, const OOutlivableRef<OProcess> pr
     return temp.err;
 }
 
+
+struct TempProcessGetParentByIdData
+{
+    TempProcessGetParentByIdData(uint_t _search) : search(_search), err(kErrorProcessPidInvalid), thread(nullptr)
+    {
+
+    }
+
+    error_t err;
+    uint_t search;
+    OProcess * thread;
+};
+
+static bool ProcessParentGetByIdCallback(const ThreadFoundEntry * thread, void * data)
+{
+    TempProcessGetByIdData * priv = reinterpret_cast<TempProcessGetByIdData *>(data);
+    OProcessImpl * proc;
+
+    if (!thread->isProcess)
+        return true;
+
+    if (thread->threadId != priv->search)
+        return true;
+
+    if (!thread->spawner)
+    {
+        priv->err    = kErrorProcessPidInvalid;
+        priv->thread = nullptr;
+        return false;
+    }
+
+    proc = new OProcessImpl(thread->spawner);
+
+    priv->err = proc ? kStatusOkay : kErrorOutOfMemory;
+    priv->thread = proc;
+
+    return false;
+}
+
+LIBLINUX_SYM error_t GetProcessParentById(uint_t id, const OOutlivableRef<OProcess> process)
+{
+    TempProcessGetByIdData temp(id);
+
+    LinuxTransverseAll(ProcessParentGetByIdCallback, &temp);
+
+    if (NO_ERROR(temp.err))
+        process.PassOwnership(temp.thread);
+
+    return temp.err;
+}
+
 LIBLINUX_SYM error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
 {
     OProcess * proc;
@@ -59,7 +110,7 @@ LIBLINUX_SYM error_t GetProcessByCurrent(const OOutlivableRef<OProcess> process)
     task_k leader;
 
     me     = OSThread;
-    leader = (task_k)task_get_group_leader_size_t(me);
+    leader = ProcessesGetProcess(me);
 
     if (!process.PassOwnership(new OProcessImpl(leader ? leader : me)))
         return kErrorOutOfMemory;

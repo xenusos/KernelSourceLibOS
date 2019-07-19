@@ -182,9 +182,7 @@ static void ProcessesTryRegister(task_k tsk)
 
 void ProcessesTryRegisterLeader(task_k tsk)
 {
-    task_k leader;
-    leader = (task_k)task_get_group_leader_size_t(tsk);
-    ProcessesTryRegister(leader ? leader : tsk);
+    ProcessesTryRegister(ProcessesGetProcess(tsk));
 }
 
 

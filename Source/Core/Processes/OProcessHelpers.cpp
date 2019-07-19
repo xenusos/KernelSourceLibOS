@@ -111,3 +111,17 @@ uint_t ProcessesGetTgid(task_k tsk)
 {
     return ITask(tsk).GetVarTGID().GetUInt();
 }
+
+task_k ProcessesGetGroupLeader(task_k task)
+{
+    task_k leader = (task_k)task_get_group_leader_size_t(task);
+    return leader ? leader : task;
+}
+
+task_k ProcessesGetProcess(task_k task)
+{
+    // GetGroupLeader(task) should equal the return of this function
+    // https://elixir.bootlin.com/linux/v4.14.133/source/kernel/fork.c#L1840
+    // I'm just trying to be safe
+    return ProcessesGetPid(task) == ProcessesGetTgid(task) ? task : ProcessesGetGroupLeader(task);
+}
