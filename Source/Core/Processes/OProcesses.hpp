@@ -22,6 +22,8 @@ class OProcessImpl : public  OProcess
 public:
     OProcessImpl(task_k tsk);
 
+    void TryInitModName();
+    void TryInitPaths();
     void InitModName();
     void InitPaths();
     void InitSec();
@@ -56,5 +58,7 @@ private:
     char    _working[GENERIC_PATH];
     uint_t  _pid;
     task_k  _tsk;
+    bool    _initPaths;
+    bool    _initName;
     //ProcessSecurityLevel_e  _lvl;
 };

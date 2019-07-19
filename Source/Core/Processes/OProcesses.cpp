@@ -42,20 +42,35 @@ void ProcessesConvertPath(void * path, char * buf, size_t length)
     tpath->ToString(buf, length);
 }
 
-OProcessImpl::OProcessImpl(task_k tsk)
+OProcessImpl::OProcessImpl(task_k tsk) : _initPaths(false), _initName(false)
 {
     ProcessesTaskIncrementCounter(tsk);
     _tsk = tsk;
     _pid = ProcessesGetPid(tsk);
 
-    InitModName();
-    InitPaths();
     InitSec();
 }
 
 void OProcessImpl::InitSec()
 {
     
+}
+
+
+void OProcessImpl::TryInitModName()
+{
+    if (_initName)
+        return;
+    InitModName();
+    _initName = true;
+}
+
+void OProcessImpl::TryInitPaths()
+{
+    if (_initPaths)
+        return;
+    InitPaths();
+    _initPaths = true;
 }
 
 void OProcessImpl::InitModName()
@@ -105,6 +120,8 @@ error_t OProcessImpl::GetProcessName(const char ** name)
     if (!name)
         return kErrorIllegalBadArgument;
 
+    TryInitModName();
+
     *name = _name;
     return kStatusOkay;
 }
@@ -138,6 +155,8 @@ error_t OProcessImpl::GetModulePath(const char **path)
     if (!path)
         return kErrorIllegalBadArgument;
 
+    TryInitPaths();
+
     *path = _path;
     return kStatusOkay;
 }
@@ -149,6 +168,8 @@ error_t OProcessImpl::GetDrive(const char **mnt)
     if (!mnt)
         return kErrorIllegalBadArgument;
 
+    TryInitPaths();
+
     *mnt = _root;
     return kStatusOkay;
 }
@@ -159,6 +180,8 @@ error_t OProcessImpl::GetWorkingDirectory(const char **wd)
 
     if (!wd)
         return kErrorIllegalBadArgument;
+
+    TryInitPaths();
 
     *wd = _working;
     return kStatusOkay;
