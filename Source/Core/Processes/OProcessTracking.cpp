@@ -41,7 +41,7 @@ static void ProcessesExit(long exitcode)
     }
     mutex_unlock(tracking_mutex);
 
-    proc->Destory();
+    proc->Destroy();
 }
 
 static void ProcessesStart(task_k tsk)
@@ -63,7 +63,7 @@ static void ProcessesStart(task_k tsk)
     }
     mutex_unlock(tracking_mutex);
 
-    proc->Destory();
+    proc->Destroy();
 }
 
 error_t ProcessesAddExitHook(ProcessExitNtfy_cb cb)

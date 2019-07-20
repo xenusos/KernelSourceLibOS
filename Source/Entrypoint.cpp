@@ -23,20 +23,6 @@ XENUS_END_C
 
 static mod_global_data_t module;
 
-#pragma section(".CRT$XCA",long,read)
-__declspec(allocate(".CRT$XCA")) void(*__ctors_begin__[1])(void) = { 0 };
-#pragma section(".CRT$XCZ",long,read)
-__declspec(allocate(".CRT$XCZ")) void(*__ctors_end__[1])(void) = { 0 };
-
-static void libos_constructors_init()
-{
-    for (void(**ctor)(void) = __ctors_begin__ + 1;
-        ctor < __ctors_end__;
-        ctor++)
-    {
-        (*ctor)();
-    }
-}
 
 static int libos_start()
 {
@@ -45,7 +31,7 @@ static int libos_start()
 
 static c_bool libos_init(mod_dependency_list_p deps)
 {
-    libos_constructors_init();
+    RuntimeConstructors();
 
     LoggingInit();
     InitPseudoFiles();

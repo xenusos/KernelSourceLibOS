@@ -155,14 +155,14 @@ static error_t AllocateDEProcess(task_k task, size_t tgid, ODEImplProcess * & ou
     err = chain_allocate_link(tgid_map, tgid, sizeof(ODEImplProcess *), DeallocateProcessByHandle, &link, (void **)&handle);
     if (ERROR(err))
     {
-        chain_destory(chain);
+        chain_destroy(chain);
         return err;
     }
 
     proc = new ODEImplProcess(task, chain);
     if (!proc)
     {
-        chain_destory(chain);
+        chain_destroy(chain);
         return kErrorOutOfMemory;
     }
 

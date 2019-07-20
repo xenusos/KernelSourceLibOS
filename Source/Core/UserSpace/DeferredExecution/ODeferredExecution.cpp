@@ -105,7 +105,7 @@ void ODEWorkJobImpl::InvalidateImp()
         _worker->Fuckoff();
     mutex_unlock(work_watcher_mutex);
 
-    _workqueue->Destory();
+    _workqueue->Destroy();
 
     if (_task)
         ProcessesTaskDecrementCounter(_task);

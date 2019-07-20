@@ -35,7 +35,7 @@ T * OOutlivableRef<T>::PassOwnership(T * obj) const
     }
     if (!found)
     {
-        obj->Destory();
+        obj->Destroy();
     }
     return obj;
 }

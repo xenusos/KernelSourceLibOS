@@ -16,7 +16,7 @@ void OObject::Invalidate()
     _is_dead = true;
 }
 
-void OObject::Destory() 
+void OObject::Destroy() 
 {
     Invalidate();
     delete this;

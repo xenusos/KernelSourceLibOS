@@ -34,7 +34,7 @@ ODEImplPIDThread::ODEImplPIDThread(ODEImplProcess * parent)
 
 ODEImplPIDThread::~ODEImplPIDThread()
 {
-    DestoryState();
+    DestroyState();
 }
 
 error_t ODEImplPIDThread::Init(task_k task)
@@ -59,18 +59,18 @@ void ODEImplPIDThread::UpdatePidHandle(task_k task)
     if (_task == task)
         return;
  
-    DestoryState();
+    DestroyState();
     Init(task);
 }
 
-void ODEImplPIDThread::DestoryState()
+void ODEImplPIDThread::DestroyState()
 {
-    DestoryStack();
-    DestoryQueue();
+    DestroyStack();
+    DestroyQueue();
     _userState.hasPreviousTask = false;
 }
 
-void ODEImplPIDThread::DestoryQueue()
+void ODEImplPIDThread::DestroyQueue()
 {
     error_t err;
 
@@ -85,18 +85,18 @@ void ODEImplPIDThread::DestoryQueue()
     }, nullptr);
     ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
 
-    err = dyn_list_destory(_workPending);
+    err = dyn_list_destroy(_workPending);
     ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
 }
 
-void ODEImplPIDThread::DestoryStack()
+void ODEImplPIDThread::DestroyStack()
 {
     if (!_stack.pages)
         return;
 
     FreeLinuxPages(_stack.pages);
-    _stack.kernel.allocation->Destory();
-    _stack.user.allocation->Destory();
+    _stack.kernel.allocation->Destroy();
+    _stack.user.allocation->Destroy();
 }
 
 error_t ODEImplPIDThread::AppendWork(ODEWorkHandler * handler)
@@ -197,15 +197,15 @@ error_t ODEImplPIDThread::AllocateStack()
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't allocate descriptor, error 0x%zx", err);
-        krnAlloc->Destory();
+        krnAlloc->Destroy();
         return err;
     }
 
     _stack.pages = usrVas->AllocatePFNs(kPageNormal, APC_STACK_PAGES, false, OL_PAGE_ZERO);
     if (!_stack.pages)
     {
-        krnAlloc->Destory();
-        usrAlloc->Destory();
+        krnAlloc->Destroy();
+        usrAlloc->Destroy();
         return kErrorOutOfMemory;
     }
 
@@ -243,8 +243,8 @@ error_t ODEImplPIDThread::AllocateStack()
 
 error:
     usrVas->FreePages(_stack.pages);
-    krnAlloc->Destory();
-    usrAlloc->Destory();
+    krnAlloc->Destroy();
+    usrAlloc->Destroy();
     return err;
 }
 

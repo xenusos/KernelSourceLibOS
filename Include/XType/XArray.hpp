@@ -53,7 +53,7 @@ XArray<T>::~XArray()
 {
     if (_head)
     {
-        if (ERROR(dyn_list_destory(_head)))
+        if (ERROR(dyn_list_destroy(_head)))
         {
             printf("XArray<T>::~XArray failed to deallocate head!\n");
             // MAYBE (PANIC), should we panic? 

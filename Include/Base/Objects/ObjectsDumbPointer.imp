@@ -72,7 +72,7 @@ void ODumbPointer<T>::Collect()
     if (_ref_counter->Deference())
         return;
     
-    _os_obj->Destory();
+    _os_obj->Destroy();
     delete _ref_counter;
 }
 

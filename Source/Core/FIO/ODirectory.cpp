@@ -32,7 +32,7 @@ ODirectoryImp::ODirectoryImp(vfsmount_k mnt, dentry_k entry)
 
 void ODirectoryImp::InvalidateImp()
 {
-    _path->Destory();
+    _path->Destroy();
 }
 
 error_t ODirectoryImp::GetPath(const char ** path)

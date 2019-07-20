@@ -8,21 +8,21 @@ template<class T>
 OPtr<T>::OPtr(void * ahh)
 {
     _unk_obj = ahh;
-    _allow_destory = false;
+    _allow_destroy = false;
 }
 
 template<class T>
 OPtr<T>::OPtr(T * ahh)
 {
     _object = ahh;
-    _allow_destory = false;
+    _allow_destroy = false;
 }
 
 template<class T>
 OPtr<T>::OPtr()
 {
     _object = nullptr;
-    _allow_destory = false;
+    _allow_destroy = false;
 }
 
 template<class T>
@@ -38,16 +38,16 @@ OObject * OPtr<T>::GetObject()
 }
 
 template<class T>
-void *	OPtr<T>::SetObject(void * obj, bool allow_destory)
+void *	OPtr<T>::SetObject(void * obj, bool allow_destroy)
 {
-    _allow_destory = allow_destory;
+    _allow_destroy = allow_destroy;
     return this->_unk_obj = obj;
 }
 
 template<class T>
-T * OPtr<T>::SetObject(T * obj, bool allow_destory)
+T * OPtr<T>::SetObject(T * obj, bool allow_destroy)
 {
-    _allow_destory = allow_destory;
+    _allow_destroy = allow_destroy;
     return this->_object = obj;
 }
 

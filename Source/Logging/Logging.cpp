@@ -117,7 +117,7 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
 
     if (list->length < 20)
     {
-        linked_list_destory(list);
+        linked_list_destroy(list);
         return;
     }
 
@@ -145,7 +145,7 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
         file->Delete();
     }
 
-    linked_list_destory(list);
+    linked_list_destroy(list);
 }
 
 static void LoggingInitCreateFile()

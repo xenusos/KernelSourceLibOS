@@ -17,7 +17,7 @@ ODumbPointerReference<T>::~ODumbPointerReference()
 {
     if (_ref_counter->Deference())
         return;
-    _object->Destory();
+    _object->Destroy();
     delete _ref_counter;
 }
 
@@ -28,7 +28,7 @@ T* ODumbPointerReference<T>::GetObject()
 }
 
 template<class T>
-void ODumbPointerReference<T>::DestoryReference()
+void ODumbPointerReference<T>::DestroyReference()
 {
     delete this;
 }

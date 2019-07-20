@@ -9,7 +9,7 @@ class OObject
 {
 public:
     inline OObject();
-    inline void Destory();
+    inline void Destroy();
     inline bool IsDead();
     inline void Invalidate();
 protected:
@@ -35,23 +35,23 @@ public:
     inline T *       GetTypedObject();
     inline OObject * GetObject();
 
-    inline void *    SetObject(void * obj, bool allow_destory);
-    inline T *       SetObject(T * obj, bool allow_destory);
+    inline void *    SetObject(void * obj, bool allow_destroy);
+    inline T *       SetObject(T * obj, bool allow_destroy);
 
     inline T *       operator->();
 
-    void Destory()
+    void Destroy()
     {
-        if (_allow_destory)
+        if (_allow_destroy)
             if (_os_obj)
-                _os_obj->Destory();
+                _os_obj->Destroy();
             else
                 panic("OPtr destruction on null object");
         else
             panic("OPtr destruction isn't allowed. Check UncontrollableRefernce usage");
     }
 private:
-    bool _allow_destory;
+    bool _allow_destroy;
     union 
     {
         T * _object;
@@ -95,7 +95,7 @@ public:
 
     T* GetObject();
 
-    void DestoryReference();
+    void DestroyReference();
 private:
     OReferenceCounter * _ref_counter;
     T * _object;
@@ -118,7 +118,7 @@ public:
     inline ODumbPointer<T>& operator=(const ODumbPointer<T>& predecessor);
     inline ODumbPointer<T>& SwapValue(const ODumbPointer<T>& predecessor);
 
-    void Destory() { printf("Caught illegal destory call to a dumb pointer. Did you think this was an O(s)Object? Legacy code?\n"); }
+    void Destroy() { printf("Caught illegal Destroy call to a dumb pointer. Did you think this was an O(s)Object? Legacy code?\n"); }
 
     bool IsValid();
 

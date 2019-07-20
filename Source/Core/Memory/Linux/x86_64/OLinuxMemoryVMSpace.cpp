@@ -200,7 +200,7 @@ void OLMemoryAllocationImpl::InvalidateImp()
 {
     error_t err;
     
-    err = chain_destory(_entries);
+    err = chain_destroy(_entries);
     ASSERT(NO_ERROR(err), "fatal error %zx", err);
 
     if (_lingering)
@@ -226,7 +226,7 @@ error_t GetNewMemAllocation(bool kern, task_k task, size_t start, size_t pages, 
     ree = zalloc(sizeof(OLMemoryAllocationImpl));
     if (!ree)
     {
-        chain_destory(chain);
+        chain_destroy(chain);
         return kErrorOutOfMemory;
     }
 
@@ -239,7 +239,7 @@ error_t GetNewMemAllocation(bool kern, task_k task, size_t start, size_t pages, 
     if (ERROR(ret))
     {
         free(ree);
-        chain_destory(chain);
+        chain_destroy(chain);
         return ret;
     }
 

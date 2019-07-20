@@ -56,9 +56,9 @@ public:
 
 protected:
 
-    void DestoryState();
-    void DestoryQueue();
-    void DestoryStack();
+    void DestroyState();
+    void DestroyQueue();
+    void DestroyStack();
 
     error_t AllocateStack();
     error_t AllocatePendingWork();

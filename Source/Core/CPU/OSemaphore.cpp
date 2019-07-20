@@ -158,9 +158,9 @@ void OCountingSemaphoreImpl::InvalidateImp()
     err = dyn_list_entries(_list, &waiters);
     ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: 0x%zx)", err);
 
-    ASSERT(waiters == 0, "destoryed counting semaphore with items awaiting");
+    ASSERT(waiters == 0, "Destroyed counting semaphore with items awaiting");
 
-    dyn_list_destory(_list);
+    dyn_list_destroy(_list);
     mutex_destroy(_acquisition);
 }
 
@@ -182,13 +182,13 @@ error_t CreateCountingSemaphore(size_t count, const OOutlivableRef<OCountingSema
 
     if (!mutex)
     {
-        dyn_list_destory(list);
+        dyn_list_destroy(list);
         return kErrorOutOfMemory;
     }
 
     if (!out.PassOwnership(new OCountingSemaphoreImpl(count, mutex, list)))
     {
-        dyn_list_destory(list);
+        dyn_list_destroy(list);
         mutex_destroy(mutex);
         return kErrorOutOfMemory;
     }

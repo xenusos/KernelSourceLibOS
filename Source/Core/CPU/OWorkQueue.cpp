@@ -243,14 +243,14 @@ void OWorkQueueImpl::InvalidateImp()
 
     err = dyn_list_entries(_workers, &count);
     ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: 0x%zx)", err);
-    ASSERT(count == 0, "destoryed work queue with work threads waiting");
+    ASSERT(count == 0, "Destroyed work queue with work threads waiting");
 
     err = dyn_list_entries(_waiters, &count);
     ASSERT(NO_ERROR(err), "couldn't obtain length of job dispatchers (error: 0x%zx)", err);
-    ASSERT(count == 0, "destoryed work queue with job dispatcher threads waiting");
+    ASSERT(count == 0, "Destroyed work queue with job dispatcher threads waiting");
 
-    dyn_list_destory(_workers);
-    dyn_list_destory(_waiters);
+    dyn_list_destroy(_workers);
+    dyn_list_destroy(_waiters);
     mutex_destroy(_acquisition);
 }
 
@@ -273,7 +273,7 @@ error_t CreateWorkQueue(size_t cont, const OOutlivableRef<OWorkQueue> out)
 
     if (!mutex)
     {
-        dyn_list_destory(listPrimary);
+        dyn_list_destroy(listPrimary);
         return kErrorOutOfMemory;
     }
 
@@ -281,15 +281,15 @@ error_t CreateWorkQueue(size_t cont, const OOutlivableRef<OWorkQueue> out)
 
     if (!listSecondary)
     {
-        dyn_list_destory(listPrimary);
+        dyn_list_destroy(listPrimary);
         mutex_destroy(mutex);
         return kErrorOutOfMemory;
     }
 
     if (!out.PassOwnership(new OWorkQueueImpl(cont, mutex, listSecondary, listPrimary)))
     {
-        dyn_list_destory(listPrimary);
-        dyn_list_destory(listSecondary);
+        dyn_list_destroy(listPrimary);
+        dyn_list_destroy(listSecondary);
         mutex_destroy(mutex);
         return kErrorOutOfMemory;
     }

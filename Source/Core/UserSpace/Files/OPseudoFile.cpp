@@ -446,7 +446,7 @@ error_t CreateTempKernFile(const OOutlivableRef<OPseudoFile> & out)
 
     if (ERROR(er = CreateCharDev(file)))
     {
-        file->Destory();
+        file->Destroy();
         return er;
     }
 
