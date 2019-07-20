@@ -24,7 +24,7 @@ void InitProcesses()
     g_init_task = kallsyms_lookup_name("init_task");
 }
 
-void ProcessesConvertPath(void * path, char * buf, size_t length)
+static void ProcessesConvertPath(void * path, char * buf, size_t length)
 {
     ODumbPointer<OLinuxPathImpl> tpath;
     error_t er;
@@ -55,7 +55,6 @@ void OProcessImpl::InitSec()
 {
     
 }
-
 
 void OProcessImpl::TryInitModName()
 {
