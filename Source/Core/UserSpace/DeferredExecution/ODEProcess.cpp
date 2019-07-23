@@ -38,7 +38,7 @@ ODEImplPIDThread * ODEImplProcess::GetOrCreateThread(task_k task)
 
     pid = ProcessesGetPid(task);
 
-    err = chain_get(_pids, pid, NULL, (void **)&handle);
+    err = chain_get(_pids, pid, NULL, reinterpret_cast<void **>(&handle));
     ASSERT((NO_ERROR(err) || (err == kErrorLinkNotFound)), "Error: " PRINTF_ERROR, err);
 
     if (err == kErrorLinkNotFound)
@@ -81,10 +81,10 @@ void ODEImplProcess::MapReturnStub()
     OLPageEntry entry;
 
     err = g_memory_interface->GetUserAddressSpace(_task, OOutlivableRef<OLVirtualAddressSpace>(usrVas));
-    ASSERT(NO_ERROR(err), "Couldn't obtain user address space interface, error " PRINTF_ERROR, err);
+    ASSERT(NO_ERROR(err), "Couldn't obtain user address space interface, error: " PRINTF_ERROR, err);
 
     err = usrVas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(usrAlloc));
-    ASSERT(NO_ERROR(err), "Couldn't allocate descriptor, error " PRINTF_ERROR, err);
+    ASSERT(NO_ERROR(err), "Couldn't allocate descriptor, error: " PRINTF_ERROR, err);
 
     entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_EXECUTE, kCacheNoCache);
     entry.type = kPageEntryByPage;
@@ -99,8 +99,7 @@ void ODEImplProcess::MapReturnStub()
 
 static void DeallocateThreadByHandle(uint64_t hash, void * buffer)
 {
-    ODEImplPIDThread * thread = (ODEImplPIDThread *)buffer;
-    delete thread;
+    delete reinterpret_cast<ODEImplPIDThread *>(buffer);
 }
 
 static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplProcess * process, ODEImplPIDThread * & thread)
@@ -136,8 +135,7 @@ static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplP
 
 static void DeallocateProcessByHandle(uint64_t hash, void * buffer)
 {
-    ODEImplProcess * thread = (ODEImplProcess *)buffer;
-    delete thread;
+    delete reinterpret_cast<ODEImplProcess *>(buffer);
 }
 
 static error_t AllocateDEProcess(task_k task, size_t tgid, ODEImplProcess * & out)
@@ -152,7 +150,7 @@ static error_t AllocateDEProcess(task_k task, size_t tgid, ODEImplProcess * & ou
     if (ERROR(err))
         return err;
 
-    err = chain_allocate_link(tgid_map, tgid, sizeof(ODEImplProcess *), DeallocateProcessByHandle, &link, (void **)&handle);
+    err = chain_allocate_link(tgid_map, tgid, sizeof(ODEImplProcess *), DeallocateProcessByHandle, &link, reinterpret_cast<void **>(&handle));
     if (ERROR(err))
     {
         chain_destroy(chain);
@@ -183,7 +181,7 @@ error_t GetDEProcess(ODEImplProcess * & out, task_k task)
     if (pid != tgid)
         LogPrint(kLogWarning, "GetDEProcess called with a thread, not a group leader instance");
 
-    err = chain_get(tgid_map, tgid, NULL, (void **)&handle);
+    err = chain_get(tgid_map, tgid, NULL, reinterpret_cast<void **>(&handle));
 
     if (err == kErrorLinkNotFound)
         return AllocateDEProcess(task, tgid, out);
@@ -208,7 +206,7 @@ void FreeDEProcess(task_k task)
     if (pid != tgid)
         LogPrint(kLogWarning, "GetDEProcess called with a thread, not a group leader instance");
 
-    err = chain_get(tgid_map, tgid, &link, (void **)&handle);
+    err = chain_get(tgid_map, tgid, &link, reinterpret_cast<void **>(&handle));
     if (err == XENUS_ERROR_LINK_NOT_FOUND)
         return;
     ASSERT(NO_ERROR(err), "Couldn't free DE process object.        Error: " PRINTF_ERROR, err);
@@ -224,5 +222,5 @@ void InitDEProcesses()
     error_t err;
 
     err = chain_allocate(&tgid_map);
-    ASSERT(NO_ERROR(err), "couldn't allocate tgid map: %zx", err);
+    ASSERT(NO_ERROR(err), "couldn't allocate tgid map: " PRINTF_ERROR, err);
 }
