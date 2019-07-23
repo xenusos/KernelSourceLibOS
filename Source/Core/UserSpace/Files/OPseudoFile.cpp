@@ -350,6 +350,7 @@ static void FreeFileHandle(OPseudoFileImpl * out)
 
 void InitPseudoFiles()
 {
+    error_t er;
     lock_class_key temp;
 
     psudo_file_class = __class_create(0/* Lets just impersonate the linux kernel*/, "xenus", (lock_class_key_k)&temp);
@@ -359,9 +360,9 @@ void InitPseudoFiles()
         return;
     }
 
-    error_t er;
-    if (ERROR(er = chain_allocate(&pseudo_file_handles)))
-        panicf("couldn't allocate file handle chain: error code %lli", er);
+    er = chain_allocate(&pseudo_file_handles);
+    if (ERROR(er))
+        panicf("couldn't allocate file handle chain: error code " PRINTF_ERROR, er);
 
     pfns_mutex = mutex_allocate();
     ASSERT(pfns_mutex, "couldn't allocate file tracker mutex");
@@ -441,10 +442,12 @@ error_t CreateTempKernFile(const OOutlivableRef<OPseudoFile> & out)
     OPseudoFileImpl * file;
     error_t er;
 
-    if (ERROR(er = AllocateNewFileHandle(&file)))
+    er = AllocateNewFileHandle(&file);
+    if (ERROR(er))
         return er;
 
-    if (ERROR(er = CreateCharDev(file)))
+    er = CreateCharDev(file);
+    if (ERROR(er))
     {
         file->Destroy();
         return er;

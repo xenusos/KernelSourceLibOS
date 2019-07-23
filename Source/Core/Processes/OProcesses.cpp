@@ -36,7 +36,7 @@ static void ProcessesConvertPath(void * path, char * buf, size_t length)
     }
     
     er = OpenLinuxPath(OOutlivableRef<OLinuxPathImpl>(tpath), path);
-    ASSERT(NO_ERROR(er), "OpenLinuxPath failed, 0x%zx", er);
+    ASSERT(NO_ERROR(er), "OpenLinuxPath failed, " PRINTF_ERROR, er);
     
     memset(buf, 0, length);
     tpath->ToString(buf, length);

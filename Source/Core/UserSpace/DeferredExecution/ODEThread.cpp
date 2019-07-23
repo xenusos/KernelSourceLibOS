@@ -83,10 +83,10 @@ void ODEImplPIDThread::DestroyQueue()
         if (work)
             work->Die();
     }, nullptr);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
 
     err = dyn_list_destroy(_workPending);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
 }
 
 void ODEImplPIDThread::DestroyStack()
@@ -112,7 +112,7 @@ error_t ODEImplPIDThread::AppendWork(ODEWorkHandler * handler)
     *entry = handler;
 
     err = dyn_list_entries(_workPending, &count);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
 
     if (count == 1)
         PreemptExecutionForWork(handler, OSThread != _task /* we're going to return to userspace sooner or later, if this == requested*/);
@@ -175,28 +175,28 @@ error_t ODEImplPIDThread::AllocateStack()
     err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<OLVirtualAddressSpace>(krnVas));
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't obtain kernel address space interface, error 0x%zx", err);
+        LogPrint(kLogError, "Couldn't obtain kernel address space interface, error " PRINTF_ERROR, err);
         return err;
     }
 
     err = g_memory_interface->GetUserAddressSpace(_task, OOutlivableRef<OLVirtualAddressSpace>(usrVas));
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't obtain user address space interface, error 0x%zx", err);
+        LogPrint(kLogError, "Couldn't obtain user address space interface, error " PRINTF_ERROR, err);
         return err;
     }
 
     err = krnVas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<OLMemoryAllocation>(krnAlloc));
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't allocate descriptor, error 0x%zx", err);
+        LogPrint(kLogError, "Couldn't allocate descriptor, error " PRINTF_ERROR, err);
         return err;
     }
 
     err = usrVas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<OLMemoryAllocation>(usrAlloc));
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't allocate descriptor, error 0x%zx", err);
+        LogPrint(kLogError, "Couldn't allocate descriptor, error " PRINTF_ERROR, err);
         krnAlloc->Destroy();
         return err;
     }
@@ -220,14 +220,14 @@ error_t ODEImplPIDThread::AllocateStack()
         err = krnAlloc->PageInsert(i, entry);
         if (ERROR(err))
         {
-            LogPrint(kLogError, "Couldn't insert page into kernel address space 0x%zx", err);
+            LogPrint(kLogError, "Couldn't insert page into kernel address space " PRINTF_ERROR, err);
             goto error;
         }
 
         err = usrAlloc->PageInsert(i, entry);
         if (ERROR(err))
         {
-            LogPrint(kLogError, "Couldn't insert page into user address space 0x%zx", err);
+            LogPrint(kLogError, "Couldn't insert page into user address space " PRINTF_ERROR, err);
             goto error;
         }
     }
@@ -266,16 +266,16 @@ void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNe
 
     // get first entry
     err = dyn_list_get_by_index(_workPending, 0, (void **)&cur);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
     current = *cur;
 
     // remove first entry
     err = dyn_list_remove(_workPending, 0);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
 
     // get array length
     err = dyn_list_entries(_workPending, &length);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
 
     // find next work item
     hasNextJob = length != 0;
@@ -287,7 +287,7 @@ void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNe
 
     // get next job
     err = dyn_list_get_by_index(_workPending, 0, (void **)&cur);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
     nextJob = *cur;
 }
 

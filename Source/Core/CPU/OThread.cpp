@@ -399,7 +399,7 @@ static void RuntimeThreadPostContextSwitch()
     if (err == kErrorBSTNodeNotFound)
         return;
 
-    ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: 0x%zx)", err);
+    ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: " PRINTF_ERROR ")", err);
 
     if (!*exitSignal)
         return;
@@ -407,7 +407,7 @@ static void RuntimeThreadPostContextSwitch()
     *exitSignal = false;
 
     err = _thread_tls_get(TLS_TYPE_XGLOBAL, 2, NULL, (void **)&exitCode);
-    ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: 0x%zx)", err);
+    ASSERT(NO_ERROR(err), "Couldn't get task exit code TLS entry (error: " PRINTF_ERROR ")", err);
 
     _InterlockedDecrement(&closing_threads);
 
@@ -423,10 +423,10 @@ static void ThreadEPAllocateTLSEntries(OThreadImp * instance)
     error_t ret;
 
     ret = _thread_tls_allocate(TLS_TYPE_XGLOBAL, 1, sizeof(long), NULL, (void **)instance->DeathSignal());
-    ASSERT(NO_ERROR(ret), "couldn't create thread death signal. error code: 0x%zx", ret);
+    ASSERT(NO_ERROR(ret), "couldn't create thread death signal. error code: " PRINTF_ERROR, ret);
 
     ret = _thread_tls_allocate(TLS_TYPE_XGLOBAL, 2, sizeof(long), NULL, (void **)instance->DeathCode());
-    ASSERT(NO_ERROR(ret), "couldn't create thread death code. error code: 0x%zx", ret);
+    ASSERT(NO_ERROR(ret), "couldn't create thread death code. error code: " PRINTF_ERROR, ret);
 }
 
 static void ThreadEPHandleChains(uint32_t pid, OThreadImp * instance, OThreadEP_t ep)
@@ -438,11 +438,11 @@ static void ThreadEPHandleChains(uint32_t pid, OThreadImp * instance, OThreadEP_
     mutex_lock(thread_chain_mutex);
 
     ret = chain_allocate_link(thread_handle_chain, pid, sizeof(size_t), nullptr, nullptr, (void **)&handle);
-    ASSERT(NO_ERROR(ret), "couldn't create thread link. error code: 0x%zx", ret);
+    ASSERT(NO_ERROR(ret), "couldn't create thread link. error code: " PRINTF_ERROR, ret);
     *handle = instance;
 
     ret = chain_allocate_link(thread_ep_chain, pid, sizeof(size_t), nullptr, nullptr, (void **)&ep_tracker);
-    ASSERT(NO_ERROR(ret), "couldn't create thread link. error code: 0x%zx", ret);
+    ASSERT(NO_ERROR(ret), "couldn't create thread link. error code: " PRINTF_ERROR, ret);
     *ep_tracker = ep;
 
     mutex_unlock(thread_chain_mutex);

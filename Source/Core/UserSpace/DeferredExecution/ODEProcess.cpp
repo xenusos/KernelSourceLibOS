@@ -39,7 +39,7 @@ ODEImplPIDThread * ODEImplProcess::GetOrCreateThread(task_k task)
     pid = ProcessesGetPid(task);
 
     err = chain_get(_pids, pid, NULL, (void **)&handle);
-    ASSERT((NO_ERROR(err) || (err == kErrorLinkNotFound)), "Error: 0x%zx", err);
+    ASSERT((NO_ERROR(err) || (err == kErrorLinkNotFound)), "Error: " PRINTF_ERROR, err);
 
     if (err == kErrorLinkNotFound)
     {
@@ -81,17 +81,17 @@ void ODEImplProcess::MapReturnStub()
     OLPageEntry entry;
 
     err = g_memory_interface->GetUserAddressSpace(_task, OOutlivableRef<OLVirtualAddressSpace>(usrVas));
-    ASSERT(NO_ERROR(err), "Couldn't obtain user address space interface, error 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Couldn't obtain user address space interface, error " PRINTF_ERROR, err);
 
     err = usrVas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(usrAlloc));
-    ASSERT(NO_ERROR(err), "Couldn't allocate descriptor, error 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Couldn't allocate descriptor, error " PRINTF_ERROR, err);
 
     entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_EXECUTE, kCacheNoCache);
     entry.type = kPageEntryByPage;
     entry.page = DEGetReturnStub(!UtilityIsTask32Bit(_task));
     
     err = usrAlloc->PageInsert(0, entry);
-    ASSERT(NO_ERROR(err), "Couldn't insert page into user address space 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Couldn't insert page into user address space " PRINTF_ERROR, err);
 
     usrAlloc->ForceLinger();
     _returnAddress = usrAlloc->GetStart();
@@ -211,10 +211,10 @@ void FreeDEProcess(task_k task)
     err = chain_get(tgid_map, tgid, &link, (void **)&handle);
     if (err == XENUS_ERROR_LINK_NOT_FOUND)
         return;
-    ASSERT(NO_ERROR(err), "Couldn't free DE process object.        Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Couldn't free DE process object.        Error: " PRINTF_ERROR, err);
 
     err = chain_deallocate_handle(link);
-    ASSERT(NO_ERROR(err), "Couldn't free DE process object handle. Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Couldn't free DE process object handle. Error: " PRINTF_ERROR, err);
 
     delete (*handle);
 }

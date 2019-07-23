@@ -115,14 +115,14 @@ error_t OCountingSemaphoreImpl::ContExecution(uint32_t count, uint32_t & threads
         task_k thread;
 
         err = dyn_list_get_by_index(_list, 0, (void **)&entry);
-        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: 0x%zx)", err);
+        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: " PRINTF_ERROR ")", err);
 
         thread = (*entry)->thread;
         (*entry)->signal = true;
         LinuxPokeThread(thread);
 
         err = dyn_list_remove(_list, 0);
-        ASSERT(NO_ERROR(err), "couldn't remove thread by index (error: 0x%zx)", err);
+        ASSERT(NO_ERROR(err), "couldn't remove thread by index (error: " PRINTF_ERROR ")", err);
     }
 
     threadsCont = threads;
@@ -156,7 +156,7 @@ void OCountingSemaphoreImpl::InvalidateImp()
     size_t waiters;
 
     err = dyn_list_entries(_list, &waiters);
-    ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: 0x%zx)", err);
+    ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: " PRINTF_ERROR ")", err);
 
     ASSERT(waiters == 0, "Destroyed counting semaphore with items awaiting");
 

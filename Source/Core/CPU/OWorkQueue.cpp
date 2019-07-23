@@ -135,7 +135,7 @@ error_t OWorkQueueImpl::ContExecution(bool waiters)
         task_k thread;
 
         err = dyn_list_get_by_index(list, 0, (void **)&entry);
-        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: 0x%zx)", err);
+        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: " PRINTF_ERROR ")", err);
 
         thread = (*entry)->thread;
         (*entry)->signal = true;
@@ -143,7 +143,7 @@ error_t OWorkQueueImpl::ContExecution(bool waiters)
 
         // TODO: remove entry on spurious exit 
         err = dyn_list_remove(list, 0);
-        ASSERT(NO_ERROR(err), "couldn't remove thread by index (error: 0x%zx)", err);
+        ASSERT(NO_ERROR(err), "couldn't remove thread by index (error: " PRINTF_ERROR ")", err);
     }
     
     return kStatusOkay;
@@ -198,7 +198,7 @@ error_t OWorkQueueImpl::SpuriousWakeupOwners()
         task_k thread;
 
         err = dyn_list_get_by_index(_waiters, 0, (void **)&entry);
-        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: 0x%zx)", err);
+        ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: " PRINTF_ERROR ")", err);
 
         thread = (*entry)->thread;
         LinuxPokeThread(thread);
@@ -242,11 +242,11 @@ void OWorkQueueImpl::InvalidateImp()
     size_t count;
 
     err = dyn_list_entries(_workers, &count);
-    ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: 0x%zx)", err);
+    ASSERT(NO_ERROR(err), "couldn't obtain length of waiters (error: " PRINTF_ERROR ")", err);
     ASSERT(count == 0, "Destroyed work queue with work threads waiting");
 
     err = dyn_list_entries(_waiters, &count);
-    ASSERT(NO_ERROR(err), "couldn't obtain length of job dispatchers (error: 0x%zx)", err);
+    ASSERT(NO_ERROR(err), "couldn't obtain length of job dispatchers (error: " PRINTF_ERROR ")", err);
     ASSERT(count == 0, "Destroyed work queue with job dispatcher threads waiting");
 
     dyn_list_destroy(_workers);

@@ -231,7 +231,7 @@ static void APC_OnThreadExit(OPtr<OProcess> thread)
     EnterDECriticalSection();
 
     err = thread->GetOSHandle(&handle);
-    ASSERT(NO_ERROR(err), "Error: 0x%zx", err);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
 
     FreeDEProcess((task_k)handle);
     LeaveDECriticalSection();
@@ -247,7 +247,7 @@ void DeferredExecFinish(size_t ret)
     err = GetDEThread(thread, OSThread);
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't acquire DE thread instance... SYSCALL ABUSE? (error: 0x%zx)", err);
+        LogPrint(kLogError, "Couldn't acquire DE thread instance... SYSCALL ABUSE? (error: " PRINTF_ERROR ")", err);
         LeaveDECriticalSection();
         return;
     }
@@ -268,7 +268,7 @@ static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
     err = GetOrCreateDEThread(thread, tsk);
     if (ERROR(err))
     {
-        LogPrint(kLogError, "Couldn't create DE thread instance (error: 0x%zx)", err);
+        LogPrint(kLogError, "Couldn't create DE thread instance (error: " PRINTF_ERROR ")", err);
         LeaveDECriticalSection();
         return err;
     }
