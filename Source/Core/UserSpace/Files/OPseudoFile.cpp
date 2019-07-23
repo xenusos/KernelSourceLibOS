@@ -274,9 +274,9 @@ static error_t GetNextFileId(size_t & id)
     {
         error_t search;
         
-        search = chain_deallocate_search(pseudo_file_handles, i);
+        search = chain_get(pseudo_file_handles, i, NULL, NULL);
         
-        if (search == XENUS_ERROR_LINK_NOT_FOUND)
+        if (search == kErrorLinkNotFound)
         {
             id = i;
             return kStatusOkay;

@@ -44,21 +44,27 @@ OLMemoryAllocationImpl::OLMemoryAllocationImpl(chain_p chain, OLMemoryManager * 
     _lingering = false;
 }
 
-void    OLMemoryAllocationImpl::SetTrapHandler(OLTrapHandler_f cb, void * data)
+void OLMemoryAllocationImpl::SetTrapHandler(OLTrapHandler_f cb, void * data)
 {
     _inject->SetCallbackHandler(_region, cb, data);
 }
 
-bool    OLMemoryAllocationImpl::PageIsPresent(size_t idx)
+bool OLMemoryAllocationImpl::PageIsPresent(size_t idx)
 {
+    error_t err;
+
     if (idx >= _pages)
         return false;
 
-    if (ERROR(chain_get(_entries, idx, NULL, NULL)))
+    err = chain_get(_entries, idx, NULL, NULL);
+    if (err == kErrorLinkNotFound)
         return false;
+
+    ASSERT(NO_ERROR(err), "Couldn't check for page entry: " PRINTF_ERROR, err);
     
     return true;
 }
+
 error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
 {
     error_t err;
@@ -77,15 +83,13 @@ error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
 
     if (err == kErrorLinkNotFound)
     {
-        err = chain_allocate_link(_entries, idx, sizeof(TrackedPageEntry), CleanUpPageEntry, &link, (void **)&entry);
-    
+        err = chain_allocate_link(_entries, idx, sizeof(TrackedPageEntry), CleanUpPageEntry, &link, reinterpret_cast<void **>(&entry));
         if (ERROR(err))
             return err;
     }
     else
     {
         err = _inject->RemoveAt(entry->vm, entry->handle);
-
         if (ERROR(err))
             goto fatalErrorRemoveHandle;
     }
@@ -103,7 +107,7 @@ error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
 fatalErrorRemoveHandle:
     error_t realError = err;
     err = chain_deallocate_handle(link);
-    ASSERT(NO_ERROR(err), "couldn't clean up handle; fatal error: %zx", err);
+    ASSERT(NO_ERROR(err), "couldn't clean up handle; fatal error: " PRINTF_ERROR, err);
     return realError;
 }
 
@@ -112,12 +116,13 @@ error_t OLMemoryAllocationImpl::PagePhysAddr(size_t idx, phys_addr_t & addr)
     error_t err;
     OLPageEntry page;
 
-    addr = (void *)0xDEADBEEFDEADBEEF;
+    addr = reinterpret_cast<void *>(0xDEADBEEFDEADBEEF);
 
     if (idx >= _pages)
         return kErrorPageOutOfRange;
 
-    if (ERROR(err = PageGetMapping(idx, page)))
+    err = PageGetMapping(idx, page);
+    if (ERROR(err))
         return err;
 
     if (page.type == kPageEntryDummy)
@@ -211,16 +216,17 @@ void OLMemoryAllocationImpl::InvalidateImp()
 
 error_t GetNewMemAllocation(bool kern, task_k task, size_t start, size_t pages, OLMemoryAllocation * & out)
 {
-    error_t ret;
-    OLMemoryManager * mm;
     void * priv;
+    error_t ret;
+    size_t length;
+    chain_p chain;
     size_t trueEnd;
     size_t trueStart;
-    size_t length;
+    OLMemoryManager * mm;
     OLMemoryAllocationImpl *ree;
-    chain_p chain;
 
-    if (ERROR(ret = chain_allocate(&chain)))
+    ret = chain_allocate(&chain);
+    if (ERROR(ret))
         return ret;
 
     ree = reinterpret_cast<OLMemoryAllocationImpl *>(zalloc(sizeof(OLMemoryAllocationImpl)));
