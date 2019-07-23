@@ -4,12 +4,8 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
-
 #include "ODelegtedCalls.hpp"
-#include "../DeferredExecution/ODeferredExecution.hpp"
-#include "../../Processes/OProcesses.hpp"
-
-#include <Core/CPU/OThread.hpp>
+#include "../DeferredExecution/ODEThread.hpp"
 
 static mutex_k symbol_mutex;
 static dyn_list_head_p delegated_fns;
@@ -200,7 +196,7 @@ static size_t DelegatedCallsHandleCall(xenus_syscall_p atten, bool noBuf)
 
 static void DelegatedCallsHandleDeferredExec(xenus_syscall_p atten)
 {
-    DeferredExecFinish(atten->arg_alpha/*, atten->arg_bravo*/);
+    APC_OnThreadExecFinish(atten->arg_alpha/*, atten->arg_bravo*/);
 }
 
 void DelegatedCallsSysCallHandler(xenus_syscall_ref atten)

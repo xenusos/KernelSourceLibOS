@@ -72,6 +72,7 @@
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEReturn.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEThread.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEWork.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DelegatedCalls\ODelegtedCalls.hpp" />
     <ClInclude Include="Source\Core\UserSpace\Files\OPseudoFile.hpp" />
     <ClInclude Include="Source\Core\UserSpace\ORegistration.hpp" />
@@ -113,6 +114,7 @@
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEReturn.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEThread.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEWork.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DelegatedCalls\ODelegtedCalls.cpp" />
     <ClCompile Include="Source\Core\UserSpace\Files\OPseudoFile.cpp" />
     <ClCompile Include="Source\Core\UserSpace\ORegistration.cpp" />

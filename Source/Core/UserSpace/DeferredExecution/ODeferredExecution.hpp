@@ -4,7 +4,6 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #pragma once
-
 #include <Core/CPU/OWorkQueue.hpp> 
 #include <Core/UserSpace/ODeferredExecution.hpp>
 
@@ -32,8 +31,10 @@ public:
 
     void GetCallback(ODECompleteCallback_f & callback, void * & context);
     void Trigger(size_t response);
-    void Fuckoff();                                                
-                                                                   
+    void DeattachWorkObject();                                                
+    
+    ODEWorkHandler * GetWorkObject();
+
 protected:                                                         
     void InvalidateImp()                                           override;
                                                                    
@@ -55,27 +56,7 @@ private:
     } _callback                   = {0};
 };
 
-class ODEWorkHandler 
-{
-public:
-    ODEWorkHandler(task_k tsk, ODEWorkJobImpl * work);
-    ~ODEWorkHandler();
-
-    error_t SetWork(ODEWork & work);
-    error_t Schedule();
-    void Fuckoff();
-    void Hit(size_t response);
-    void Die();
-    void ParseRegisters(pt_regs & regs);
-
-private:
-    ODEWorkJobImpl * _parant = nullptr;
-    ODEWork          _work   = {0};
-    task_k           _tsk    = nullptr;
-    
-};
 
 LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkJobImpl> out);
 
-extern void DeferredExecFinish(size_t ret);
 extern void InitDeferredCalls();

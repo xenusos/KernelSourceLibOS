@@ -51,8 +51,8 @@ error_t ODirectoryImp::UpDir(const OOutlivableRef<ODirectory> & dir)
     error_t err;
     ODumbPointer<OLinuxPathImpl> parent;
 
-    err = _path->GetParent(OOutlivableRef<OLinuxPathImpl>(parent);
-    if (ERROR(err)))
+    err = _path->GetParent(OOutlivableRef<OLinuxPathImpl>(parent));
+    if (ERROR(err))
         return err;
 
     return OpenDirectory(dir, parent->GetMount(), parent->GetDEntry());

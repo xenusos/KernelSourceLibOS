@@ -4,8 +4,10 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
+#include "ODECriticalSection.hpp"
 #include "ODEThread.hpp"
 #include "ODEProcess.hpp"
+#include "ODEWork.hpp"
 #include "ODeferredExecution.hpp"
 #include "../../CPU/OThreadUtilities.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
@@ -21,6 +23,8 @@ struct linux_thread_info // TODO: portable structs. NEVER TRUST MSVC and GCC TO 
     pt_regs  previous_user;
     pt_regs  next_user;
 };
+
+static void APC_OnThreadExit(OPtr<OProcess> thread);
 
 static linux_thread_info * GetInfoForTask(task_k tsk)
 {
@@ -79,7 +83,7 @@ void ODEImplPIDThread::DestroyQueue()
 
     err = dyn_list_iterate(_workPending, [](void * buffer, void * context)
     {
-        ODEWorkHandler * work = *(ODEWorkHandler **)buffer;
+        ODEWorkHandler * work = *reinterpret_cast<ODEWorkHandler **>(buffer);
         if (work)
             work->Die();
     }, nullptr);
@@ -105,7 +109,7 @@ error_t ODEImplPIDThread::AppendWork(ODEWorkHandler * handler)
     size_t count;
     ODEWorkHandler ** entry;
 
-    err = dyn_list_append(_workPending, (void **)&entry);
+    err = dyn_list_append(_workPending, reinterpret_cast<void **>(&entry));
     if (ERROR(err))
         return err;
 
@@ -308,8 +312,10 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
     if (kick)
     {
         int state = task_get_state_int32(_task);
+        
         if (state == 1)
             wake_up_process(_task);
+
         if (!ez_linux_caller(kallsyms_lookup_name("wake_up_state"), (size_t)_task, TASK_INTERRUPTIBLE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         {
             kick_process(_task);
@@ -338,20 +344,8 @@ void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
 
     regs.rsp = ursp;
     
-    exec->ParseRegisters(regs);
-    
-    if (regs.rsp != ursp)
-    {
-        if ((regs.rsp < _stack.user.allocStart) || (regs.rsp > _stack.user.allocEnd))
-        {
-            LogPrint(kLogWarning, "On parse request, a DE handler opted to use a stack pointer that we didn't allocate. ");
-            LogPrint(kLogWarning, "Experimental calling convention?");
-        }
-        else
-        {
-            LogPrint(kLogVerbose, "A DE parse registers request altered the stack pointer (32 bit calling convention?)");
-        }
-    }
+    exec->SetupRegisters(regs);
+    exec->SetupStack(reinterpret_cast<size_t *>(krsp));
 
     PreemptExecution(&regs, kick);
 }
@@ -385,5 +379,66 @@ error_t GetOrCreateDEThread(ODEImplPIDThread * & thread, task_k task)
     if (!thread)
         return kErrorOutOfMemory;
 
+    return kStatusOkay;
+}
+
+void InitDEThreads()
+{
+    ProcessesAddExitHook(APC_OnThreadExit);
+}
+
+static void APC_OnThreadExit(OPtr<OProcess> thread)
+{
+    void * handle;
+    error_t err;
+
+    EnterDECriticalSection();
+
+    err = thread->GetOSHandle(&handle);
+    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
+
+    FreeDEProcess((task_k)handle);
+    LeaveDECriticalSection();
+}
+
+void APC_OnThreadExecFinish(size_t ret)
+{
+    error_t err;
+    ODEImplPIDThread * thread;
+
+    EnterDECriticalSection();
+
+    err = GetDEThread(thread, OSThread);
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't acquire DE thread instance... SYSCALL ABUSE? (error: " PRINTF_ERROR ")", err);
+        LeaveDECriticalSection();
+        return;
+    }
+
+    thread->NtfyJobFinished(ret);
+
+    LeaveDECriticalSection();
+}
+
+error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
+{
+    error_t err;
+    ODEImplPIDThread * thread;
+
+    EnterDECriticalSection();
+
+    thread = nullptr;
+    err = GetOrCreateDEThread(thread, tsk);
+    if (ERROR(err))
+    {
+        LogPrint(kLogError, "Couldn't create DE thread instance (error: " PRINTF_ERROR ")", err);
+        LeaveDECriticalSection();
+        return err;
+    }
+
+    thread->AppendWork(impl);
+
+    LeaveDECriticalSection();
     return kStatusOkay;
 }

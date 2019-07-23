@@ -5,18 +5,15 @@
 */
 #include <libos.hpp>
 #include <Core/CPU/OWorkQueue.hpp>
+#include <Core/Processes/OProcesses.hpp>
 #include "ODeferredExecution.hpp"
-
 #include "ODECriticalSection.hpp"
 #include "ODEReturn.hpp"
 #include "ODEProcess.hpp"
 #include "ODEThread.hpp"
-#include "../../Processes/OProcesses.hpp"
+#include "ODEWork.hpp"
+
 #include "../../Processes/OProcessHelpers.hpp"
-
-#include <Core/Memory/Linux/OLinuxStack.hpp>
-
-static mutex_k work_watcher_mutex;
 
 static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
 
@@ -98,12 +95,14 @@ error_t ODEWorkJobImpl::GetResponse(size_t & ret)
     return kStatusOkay;
 }
 
+ODEWorkHandler * ODEWorkJobImpl::GetWorkObject()
+{
+    return _worker;
+}
+
 void ODEWorkJobImpl::InvalidateImp()
 {
-    mutex_lock(work_watcher_mutex);
-    if (_worker)
-        _worker->Fuckoff();
-    mutex_unlock(work_watcher_mutex);
+    DestoryWorkHandler(this);
 
     _workqueue->Destroy();
 
@@ -111,7 +110,7 @@ void ODEWorkJobImpl::InvalidateImp()
         ProcessesTaskDecrementCounter(_task);
 }
 
-void ODEWorkJobImpl::Fuckoff()
+void ODEWorkJobImpl::DeattachWorkObject()
 {
     _worker = nullptr;
 }
@@ -128,167 +127,6 @@ void ODEWorkJobImpl::GetCallback(ODECompleteCallback_f & callback, void * & cont
 {
     callback = _callback.func;
     context  = _callback.data;
-}
-
-ODEWorkHandler::ODEWorkHandler(task_k tsk, ODEWorkJobImpl * worker)
-{
-     _tsk             = tsk;
-     _parant          = worker;
-     ProcessesTaskIncrementCounter(_tsk);
-}
-
-ODEWorkHandler::~ODEWorkHandler()
-{
-    if (_tsk)
-        ProcessesTaskDecrementCounter(_tsk);
-}
-
-void ODEWorkHandler::ParseRegisters(pt_regs & regs)
-{
-    regs.rip = _work.address;
-
-    if (_work.cc == kODESysV)
-    {
-        regs.rdi = _work.parameters.one;
-        regs.rsi = _work.parameters.two;
-        regs.rdx = _work.parameters.three;
-        regs.rcx = _work.parameters.four;
-    }
-    else if (_work.cc == kODEWin64)
-    {
-        regs.rcx = _work.parameters.one;
-        regs.rdx = _work.parameters.two;
-        regs.r8  = _work.parameters.three;
-        regs.r9  = _work.parameters.four;
-    }
-}
-
-void ODEWorkHandler::Fuckoff()
-{
-    _parant = nullptr;
-}
-
-void ODEWorkHandler::Hit(size_t response)
-{
-    ODECompleteCallback_f callback = nullptr;
-    void * context                 = nullptr;
-    
-    mutex_lock(work_watcher_mutex);
-    if (_parant)
-    {
-        _parant->Trigger(response);
-        _parant->GetCallback(callback, context);
-        _parant->Fuckoff();
-    }
-    mutex_unlock(work_watcher_mutex);
-
-    if (callback)
-        callback(context);
-
-    delete this;
-}
-
-void ODEWorkHandler::Die()
-{
-    mutex_lock(work_watcher_mutex);
-    if (_parant)
-    {
-        _parant->Fuckoff();
-    }
-    mutex_unlock(work_watcher_mutex);
-    delete this;
-}
-
-error_t ODEWorkHandler::SetWork(ODEWork & work)
-{
-    _work = work;
-    return kStatusOkay;
-}
-
-error_t ODEWorkHandler::Schedule()
-{
-    error_t err;
-
-    if (!_tsk)
-        return kErrorInternalError;
-
-    err = APC_AddPendingWork(_tsk, this);
-
-    if (ERROR(err))
-        return err;
-
-    //ProcessesTaskDecrementCounter(_tsk);
-    //_tsk = nullptr;
-    return kStatusOkay;
-}
-
-
-static void APC_OnThreadExit(OPtr<OProcess> thread)
-{
-    void * handle;
-    error_t err;
-
-    EnterDECriticalSection();
-
-    err = thread->GetOSHandle(&handle);
-    ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
-
-    FreeDEProcess((task_k)handle);
-    LeaveDECriticalSection();
-}
-
-void DeferredExecFinish(size_t ret)
-{
-    error_t err;
-    ODEImplPIDThread * thread;
-
-    EnterDECriticalSection();
-
-    err = GetDEThread(thread, OSThread);
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "Couldn't acquire DE thread instance... SYSCALL ABUSE? (error: " PRINTF_ERROR ")", err);
-        LeaveDECriticalSection();
-        return;
-    }
-    
-    thread->NtfyJobFinished(ret);
-
-    LeaveDECriticalSection();
-}
-
-static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl)
-{
-    error_t err;
-    ODEImplPIDThread * thread;
-
-    EnterDECriticalSection();
-
-    thread = nullptr;
-    err = GetOrCreateDEThread(thread, tsk);
-    if (ERROR(err))
-    {
-        LogPrint(kLogError, "Couldn't create DE thread instance (error: " PRINTF_ERROR ")", err);
-        LeaveDECriticalSection();
-        return err;
-    }
-
-    thread->AppendWork(impl);
-
-    LeaveDECriticalSection();
-    return kStatusOkay;
-}
-
-
-void InitDeferredCalls()
-{
-    ProcessesAddExitHook(APC_OnThreadExit);
-
-    InitDEReturn();
-    InitDECriticalSection();
-    InitDEProcesses();
-
-    work_watcher_mutex = mutex_create();
 }
 
 LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivableRef<ODEWorkJob> out)
@@ -312,4 +150,13 @@ LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivab
         return kErrorOutOfMemory;
 
     return kStatusOkay;
+}
+
+void InitDeferredCalls()
+{
+    InitDECriticalSection();
+    InitDEReturn();
+    InitDEProcesses();
+    InitDEThreads();
+    InitDEWorkHandlers();
 }

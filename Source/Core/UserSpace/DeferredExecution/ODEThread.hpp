@@ -80,3 +80,8 @@ private:
 
 extern error_t GetDEThread(ODEImplPIDThread * & thread, task_k task);
 extern error_t GetOrCreateDEThread(ODEImplPIDThread * & thread, task_k task);
+
+extern void InitDEThreads();
+
+extern void APC_OnThreadExecFinish(size_t ret);
+extern error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
