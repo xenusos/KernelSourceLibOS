@@ -10,12 +10,12 @@
 // Start & End is merely indicative of the virtual range 
 void * SafeStackGetStart(task_k tsk)
 {
-    return (void *)task_get_stack_size_t(tsk);
+    return reinterpret_cast<void *>(task_get_stack_size_t(tsk));
 }
 
 void * SafeStackGetEnd(task_k tsk)
 {
-    return (void *)(task_get_stack_size_t(tsk) + OS_THREAD_SIZE - 1);
+    return reinterpret_cast<void *>(task_get_stack_size_t(tsk) + OS_THREAD_SIZE);
 }
 
 bool SafeStackIsInRangeEx(task_k task, void * address, ssize_t length)
@@ -47,7 +47,7 @@ bool SafeStackIsInRangeEx(task_k task, void * address, ssize_t length)
     if (min < start)
         return false;
 
-    if (max > end)
+    if (max >= end)
         return false;
 
     return true;
@@ -58,7 +58,7 @@ bool SafeStackIsInRange(void * address, ssize_t length)
     return SafeStackIsInRangeEx(OSThread, address, length);
 }
 
-bool   SafeStackCanAlloc(size_t length)
+bool SafeStackCanAlloc(size_t length)
 {
     size_t a;
     return SafeStackIsInRangeEx(OSThread, &a, 0 - length - 512);

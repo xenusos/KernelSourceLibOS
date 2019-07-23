@@ -55,7 +55,7 @@ error_t OCountingSemaphoreImpl::Wait(uint32_t ms)
 
 static bool SemaphoreIsWaking(void * context)
 {
-    return ((SemaWaitingThreads *)context)->signal;
+    return reinterpret_cast<SemaWaitingThreads *>(context)->signal;
 }
 
 error_t OCountingSemaphoreImpl::NewThreadContext(SemaWaitingThreads * context)
@@ -66,7 +66,7 @@ error_t OCountingSemaphoreImpl::NewThreadContext(SemaWaitingThreads * context)
     context->thread = OSThread;
     context->signal = false;
 
-    err = dyn_list_append_ex(_list, (void **)&lentry, nullptr);
+    err = dyn_list_append_ex(_list, reinterpret_cast<void**>(&lentry), nullptr);
     if (ERROR(err))
         return err;
 
@@ -114,7 +114,7 @@ error_t OCountingSemaphoreImpl::ContExecution(uint32_t count, uint32_t & threads
     {
         task_k thread;
 
-        err = dyn_list_get_by_index(_list, 0, (void **)&entry);
+        err = dyn_list_get_by_index(_list, 0, reinterpret_cast<void**>(&entry));
         ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: " PRINTF_ERROR ")", err);
 
         thread = (*entry)->thread;

@@ -378,20 +378,20 @@ static void FreeCharDev(chardev_ref chardev)
 
 static error_t CreateCharDev(OPseudoFileImpl * file)
 {
-    l_int major;
     error_t ret;
-    file_operations_k k;
+    l_int major;
     chardev_p chardev;
+    file_operations_k k;
 
     chardev = file->GetCharDev();
     chardev->ops = k = file_operations_allocate();
     chardev->id = file->GetCharDevId();
 
-    snprintf((char *)chardev->name, MAX_CHARFS_NAME, CHARFS_PREFIX "%lli", uint64_t(chardev->id));
+    snprintf(chardev->name, MAX_CHARFS_NAME, CHARFS_PREFIX "%lli", static_cast<uint64_t>(chardev->id));
 
-#define ALLOCATE_DYNCB(function, args, sysv_out, handle_out)                                      \
-    ret = dyncb_allocate_stub(SYSV_FN(function), args, (void *)file, sysv_out, handle_out);       \
-    if (ERROR(ret))                                                                               \
+#define ALLOCATE_DYNCB(function, args, sysv_out, handle_out)                                                  \
+    ret = dyncb_allocate_stub(SYSV_FN(function), args, reinterpret_cast<void *>(file), sysv_out, handle_out); \
+    if (ERROR(ret))                                                                                           \
         return ret;
 
     ALLOCATE_DYNCB(fop_open, 4, &chardev->sysv_fops_open, &chardev->handle_fops_open);
@@ -408,7 +408,7 @@ static error_t CreateCharDev(OPseudoFileImpl * file)
 
     major = __register_chrdev(0, 0, 256, chardev->name, k);
 
-    chardev->major = (l_unsigned_int)major;
+    chardev->major = static_cast<l_unsigned_int>(major);
     chardev->minor = 0;
     chardev->dev = MKDEV(major, 0);
 

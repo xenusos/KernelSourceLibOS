@@ -31,7 +31,7 @@ error_t CreateMutex(const OOutlivableRef<OMutex> & out)
 {
     mutex_k mutex;
 
-    mutex = (mutex_k) mutex_init();
+    mutex = mutex_init();
 
     if (!mutex)
         return kErrorInternalError;

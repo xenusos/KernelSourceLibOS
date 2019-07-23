@@ -234,7 +234,7 @@ void InitMemmory()
     ASSERT(memory_kernelspace, "couldn't allocate static kernel VM memory interface");
 
 #if defined(AMD64)
-    __cachemode2pte_tbl = (uint16_t *)kallsyms_lookup_name("__cachemode2pte_tbl");
+    __cachemode2pte_tbl = reinterpret_cast<uint16_t *>(kallsyms_lookup_name("__cachemode2pte_tbl"));
     ASSERT(__cachemode2pte_tbl, "couldn't find x86 cache lookup table");
 #endif
 }

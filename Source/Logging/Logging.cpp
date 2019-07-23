@@ -144,7 +144,8 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
         strlcat(full, "/", 256);
         strlcat(full, path, 256);
 
-        if (ERROR(err = OpenFile(OOutlivableRef<OFile>(file), full, kFileReadOnly, 0700)))
+        err = OpenFile(OOutlivableRef<OFile>(file), full, kFileReadOnly, 0700);
+        if (ERROR(err))
             continue;
 
         file->Delete();
@@ -162,10 +163,9 @@ static void LoggingInitCreateFile()
     LoggingGetTs(timestamp);
     snprintf(filename, FN_LEN, LOG_DIR "/Log %s.txt", timestamp);
 
-    if (ERROR(err = OpenFile(OOutlivableRef<OFile>(log_file), filename, kFileAppend | kFileReadWrite | kFileCreate, 0700)))
-    {
-        printf("Couldn't create xenus log file %s %lli \n", filename, err);
-    }
+    err = OpenFile(OOutlivableRef<OFile>(log_file), filename, kFileAppend | kFileReadWrite | kFileCreate, 0700);
+    if (ERROR(err))
+        printf("Couldn't create xenus log file %s " PRINTF_ERROR "\n", filename, err);
 }
 
 void LoggingInit()
