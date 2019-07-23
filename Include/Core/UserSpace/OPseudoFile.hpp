@@ -12,10 +12,10 @@
 class OPseudoFile : public OObject
 {
 public:
-    typedef bool(*PseudofileUserRead_t) (OPtr<OPseudoFile> file, void * buffer,       size_t length, size_t off, size_t *bytesCopied);
-    typedef bool(*PseudofileUserWrite_t)(OPtr<OPseudoFile> file, const void * buffer, size_t length, size_t off, size_t *bytesRead);
-    typedef bool(*PseudofileOpen_t)     (OPtr<OPseudoFile> file);
-    typedef void(*PseudofileRelease_t)  (OPtr<OPseudoFile> file);
+    typedef bool(*PseudofileUserRead_t) (OPtr<OPseudoFile> file, void * context, void * buffer,       size_t length, size_t off, size_t *bytesCopied);
+    typedef bool(*PseudofileUserWrite_t)(OPtr<OPseudoFile> file, void * context, const void * buffer, size_t length, size_t off, size_t *bytesRead);
+    typedef bool(*PseudofileOpen_t)     (OPtr<OPseudoFile> file, void ** context);
+    typedef void(*PseudofileRelease_t)  (OPtr<OPseudoFile> file, void * context);
 
     virtual error_t GetIdentifierBlob(const void **, size_t &) = 0; // recommended
     virtual error_t GetPath(const char **)                     = 0; // unsafe

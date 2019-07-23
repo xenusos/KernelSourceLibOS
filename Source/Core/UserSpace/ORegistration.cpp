@@ -35,9 +35,10 @@ void InitRegistration()
     const PsudoFileInformation_p info = (const PsudoFileInformation_p)priv;
 
     ASSERT(info->pub.devfs.char_dev_id == 0, "Registration file couldn't be registered; someone beat us to id zero");
-    registration_file->OnOpen([](OPtr<OPseudoFile> file)
+    registration_file->OnOpen([](OPtr<OPseudoFile> file, void ** context)
     {
         RegisterCurrent();
+        *context = nullptr;
         return true;
     });
 }

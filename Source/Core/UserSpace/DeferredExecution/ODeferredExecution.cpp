@@ -12,6 +12,7 @@
 #include "ODEProcess.hpp"
 #include "ODEThread.hpp"
 #include "ODEWork.hpp"
+#include "CallingConventions/CCManager.hpp"
 
 #include "../../Processes/OProcessHelpers.hpp"
 
@@ -159,4 +160,5 @@ void InitDeferredCalls()
     InitDEProcesses();
     InitDEThreads();
     InitDEWorkHandlers();
+    ODEInitCallingConventions();
 }

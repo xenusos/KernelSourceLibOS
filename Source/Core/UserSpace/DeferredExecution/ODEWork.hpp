@@ -6,6 +6,7 @@
 #pragma once
 #include <Core/UserSpace/ODeferredExecution.hpp>
 
+class ICallingConvention;
 class ODEWorkJobImpl;
 class ODEWorkHandler
 {
@@ -19,14 +20,12 @@ public:
     void Hit(size_t response);
     void Die();
 
-    void SetupRegisters(pt_regs & regs);
-    void SetupStack(size_t * sp);
+    const ODEWork & GetWork();
 
 private:
-    ODEWorkJobImpl * _parant = nullptr;
-    ODEWork          _work = { 0 };
-    task_k           _tsk = nullptr;
-
+    ODEWorkJobImpl *     _parant = nullptr;
+    ODEWork              _work = { 0 };
+    task_k               _tsk = nullptr;
 };
 
 extern void DestoryWorkHandler(ODEWorkJobImpl * handler);

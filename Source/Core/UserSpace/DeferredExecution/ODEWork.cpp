@@ -24,31 +24,6 @@ ODEWorkHandler::~ODEWorkHandler()
         ProcessesTaskDecrementCounter(_tsk);
 }
 
-void ODEWorkHandler::SetupRegisters(pt_regs & regs)
-{
-    regs.rip = _work.address;
-
-    if (_work.cc == kODESysV)
-    {
-        regs.rdi = _work.parameters.one;
-        regs.rsi = _work.parameters.two;
-        regs.rdx = _work.parameters.three;
-        regs.rcx = _work.parameters.four;
-    }
-    else if (_work.cc == kODEWin64)
-    {
-        regs.rcx = _work.parameters.one;
-        regs.rdx = _work.parameters.two;
-        regs.r8 = _work.parameters.three;
-        regs.r9 = _work.parameters.four;
-    }
-}
-
-void ODEWorkHandler::SetupStack(size_t *stack)
-{
-
-}
-
 void ODEWorkHandler::DeattachWorkObject()
 {
     _parant = nullptr;
@@ -89,6 +64,11 @@ error_t ODEWorkHandler::SetWork(ODEWork & work)
 {
     _work = work;
     return kStatusOkay;
+}
+
+const ODEWork & ODEWorkHandler::GetWork()
+{
+    return _work;
 }
 
 error_t ODEWorkHandler::Schedule()

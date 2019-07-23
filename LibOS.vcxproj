@@ -67,6 +67,11 @@
     <ClInclude Include="Source\Core\Processes\OProcessTracking.hpp" />
     <ClInclude Include="Source\Core\Processes\OProcessTransversal.hpp" />
     <ClInclude Include="Source\Core\Processes\OThreadImpl.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCAmd64Microsoft.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCAmd64SystemV.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCIA32Cdecl.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCIA32Stdcall.hpp" />
+    <ClInclude Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCManager.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODECriticalSection.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODeferredExecution.hpp" />
     <ClInclude Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.hpp" />
@@ -109,6 +114,11 @@
     <ClCompile Include="Source\Core\Processes\OProcessHelpers.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcessTracking.cpp" />
     <ClCompile Include="Source\Core\Processes\OThreadImpl.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCAmd64Microsoft.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCAmd64SystemV.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCIA32Cdecl.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCIA32Stdcall.cpp" />
+    <ClCompile Include="Source\Core\UserSpace\DeferredExecution\CallingConventions\CCManager.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODECriticalSection.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODeferredExecution.cpp" />
     <ClCompile Include="Source\Core\UserSpace\DeferredExecution\ODEProcess.cpp" />

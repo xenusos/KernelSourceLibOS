@@ -5,6 +5,6 @@
 */  
 
 
-typedef void(* DelegatedCall_t)(xenus_attention_syscall_ref call);
+typedef void(* DelegatedCall_t)(const xenus_attention_syscall_ref call);
 
 LIBLINUX_SYM error_t AddKernelSymbol(const char * name, DelegatedCall_t fn);

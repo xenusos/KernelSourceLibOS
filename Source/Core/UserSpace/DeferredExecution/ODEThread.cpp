@@ -9,6 +9,7 @@
 #include "ODEProcess.hpp"
 #include "ODEWork.hpp"
 #include "ODeferredExecution.hpp"
+#include "CallingConventions/CCManager.hpp"
 #include "../../CPU/OThreadUtilities.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
 #include "../../Processes/OProcesses.hpp"
@@ -328,8 +329,14 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
 void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
 {
     pt_regs regs = { 0 };
-    size_t ursp, krsp = 0;
+    size_t ursp, krsp, kdif = 0;
+    size_t * hacked;
+    ICallingConvention * convention;
+    const ODEWork & work = exec->GetWork();
     bool bits = UtilityIsTask32Bit(_task);
+
+    convention = ODEGetConvention(work.cc);
+    ASSERT(convention, "couldn't locate calling convention");
 
     ursp = _stack.user.stackTop;
     krsp = _stack.kernel.stackTop;
@@ -344,8 +351,10 @@ void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
 
     regs.rsp = ursp;
     
-    exec->SetupRegisters(regs);
-    exec->SetupStack(reinterpret_cast<size_t *>(krsp));
+    convention->SetupRegisters(work, regs);
+    hacked = convention->SetupStack(work, reinterpret_cast<size_t *>(krsp));
+
+    ursp -= krsp - reinterpret_cast<size_t>(hacked);
 
     PreemptExecution(&regs, kick);
 }

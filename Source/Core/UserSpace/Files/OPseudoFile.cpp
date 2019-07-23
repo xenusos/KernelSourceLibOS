@@ -115,6 +115,7 @@ uint64_t arg_padding_2, // theres a 4 argument prerequisite
 DEFINE_SYSV_FUNCTON_END_DEF(fop_open, l_int)
 {
     l_int ret;
+    void * context = nullptr;
     OPseudoFileImpl::PseudofileOpen_t cb;
 
     cb = PSEUDOFILE_IMPL_THIS->open_cb;
@@ -124,7 +125,10 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_open, l_int)
         SYSV_FUNCTON_RETURN(0);
     }
 
-    ret = cb(PSEUDOFILE_IMPL_THIS) ? 0 : PSEUDOFILE_ERROR_CB_ERROR;
+    ret = cb(PSEUDOFILE_IMPL_THIS, &context) ? 0 : PSEUDOFILE_ERROR_CB_ERROR;
+
+    file_set_private_data_size_t(file, reinterpret_cast<size_t>(context));
+
     SYSV_FUNCTON_RETURN(ret)
 }
 DEFINE_SYSV_END
@@ -145,7 +149,7 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_release, l_int)
         SYSV_FUNCTON_RETURN(0);
     }
 
-    cb(PSEUDOFILE_IMPL_THIS);
+    cb(PSEUDOFILE_IMPL_THIS, reinterpret_cast<void *>(file_get_private_data_size_t(file)));
     SYSV_FUNCTON_RETURN(0)
 }
 DEFINE_SYSV_END
@@ -178,7 +182,7 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_read, ssize_t)
         SYSV_FUNCTON_RETURN(PSEUDOFILE_ERROR_MEM_ERROR)
     }
 
-    failed = cb(PSEUDOFILE_IMPL_THIS, buf, len, of, &written);
+    failed = cb(PSEUDOFILE_IMPL_THIS, reinterpret_cast<void *>(file_get_private_data_size_t(file)), buf, len, of, &written);
 
     if (!failed)
     {
@@ -223,7 +227,7 @@ DEFINE_SYSV_FUNCTON_END_DEF(fop_write, ssize_t)
 
     _copy_from_user(buf, buffer, len);
 
-    failed = cb(PSEUDOFILE_IMPL_THIS, buf, len, off ? *off : file_get_f_pos_int64(file), &read);
+    failed = cb(PSEUDOFILE_IMPL_THIS, reinterpret_cast<void *>(file_get_private_data_size_t(file)), buf, len, off ? *off : file_get_f_pos_int64(file), &read);
 
     if (!failed)
     {

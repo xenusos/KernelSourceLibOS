@@ -17,7 +17,10 @@ struct ODEParameters
 enum ODECallingConvention
 {
     kODESysV = 0,
-    kODEWin64
+    kODEWin64,
+    kODEIA32Cdecl,
+    kODEIA32Stdcall,
+    kODEEndConvention
 };
 
 struct ODEWork
