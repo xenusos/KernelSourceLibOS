@@ -93,7 +93,7 @@ static bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
         err = CreateDirectory(dir, LOG_DIR);
         if (ERROR(err))
         {
-            printf("COULDN'T CREATE LOG DIRECTORY - XENUS KERNEL");
+            printf("Couldn't create directory for Xenus Kernel Logging. Error: " PRINTF_ERROR, err);
             return false;
         }
     }
@@ -116,7 +116,7 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
         if (entry)
         {
             memset(entry->data, 0, 256);
-            memcpy(entry->data, path, MIN(strlen(path), 255));
+            memcpy(entry->data, path, strnlen(path, 255));
         }
     }, list);
 
@@ -131,15 +131,13 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
         ODumbPointer<OFile> file;
         const char * path;
         char full[256];
-        size_t len;
 
         path = (const char *)cur->data;
-        len = strlen(path);
 
         if (path[0] == '.')
             continue;
 
-        memset(full, 0, 256);
+        full[0] = 0;
         strlcat(full, LOG_DIR, 256);
         strlcat(full, "/", 256);
         strlcat(full, path, 256);
