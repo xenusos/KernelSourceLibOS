@@ -106,7 +106,7 @@ error_t OLinuxFileImp::Delete()
     if (ERROR(err))
         return err;
 
-    err = file_path->GetParent_1(dir_path);
+    err = file_path->GetParent(dir_path);
     if (ERROR(err))
         return err;
     

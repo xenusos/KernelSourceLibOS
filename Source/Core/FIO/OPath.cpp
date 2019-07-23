@@ -72,7 +72,7 @@ bool OLinuxPathImpl::IsEqualTo(const OPath * path)
     return ((OLinuxPathImpl *)path)->_dentry == this->_dentry;
 }
 
-error_t OLinuxPathImpl::GetParent_1(const OOutlivableRef<OLinuxPathImpl> & out)
+error_t OLinuxPathImpl::GetParent(const OOutlivableRef<OLinuxPathImpl> & out)
 {
     error_t err;
     dentry_k parent;

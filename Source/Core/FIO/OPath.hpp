@@ -23,7 +23,7 @@ public:
     inode_k     ToINode();
     void        ToPathPtr(path_k path);
 
-    error_t     GetParent_1(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with files -> dirs
+    error_t     GetParent(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with files -> dirs
    // error_t     GetParent_2(const OOutlivableRef<OLinuxPathImpl> & upper); // linux fio is a fucking pain. mostly used with dirs  -> dirs
 
 protected:

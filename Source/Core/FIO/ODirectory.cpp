@@ -48,11 +48,11 @@ error_t ODirectoryImp::GetPath(const char ** path)
 error_t ODirectoryImp::UpDir(const OOutlivableRef<ODirectory> & dir)
 {
     CHK_DEAD;
-
     error_t err;
     ODumbPointer<OLinuxPathImpl> parent;
 
-    if (ERROR(err = _path->GetParent_1(OOutlivableRef<OLinuxPathImpl>(parent))))
+    err = _path->GetParent(OOutlivableRef<OLinuxPathImpl>(parent);
+    if (ERROR(err)))
         return err;
 
     return OpenDirectory(dir, parent->GetMount(), parent->GetDEntry());
@@ -64,7 +64,7 @@ error_t ODirectoryImp::Delete()
     error_t err;
     ODumbPointer<OLinuxPathImpl> parent;
 
-    err = _path->GetParent_1(OOutlivableRef<OLinuxPathImpl>(parent));
+    err = _path->GetParent(OOutlivableRef<OLinuxPathImpl>(parent));
     if (ERROR(err))
         return err;
     
@@ -121,9 +121,10 @@ error_t ODirectoryImp::Iterate(void(* iterator)(ODirectory * directory, const ch
     if (ERROR(ret))
         return ret;
 
-    dir_context_set_actor_uint64(dctx, uint_t(stub));
+    dir_context_set_actor_size_t(dctx, size_t(stub));
 
-    if (ERROR(ret = GetPath(&path)))
+    ret = GetPath(&path);
+    if (ERROR(ret))
         return ret;
 
     dirfile = filp_open(path, kFileDirOnly, 0777);
