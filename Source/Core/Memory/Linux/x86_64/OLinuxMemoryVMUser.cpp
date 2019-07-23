@@ -44,11 +44,9 @@ DEFINE_SYSV_FUNCTON_START(special_map_fault, l_int)
     void * pad,
 DEFINE_SYSV_FUNCTON_END_DEF(special_map_fault, l_int)
 {
-    AddressSpaceUserPrivate * priv;
+    AddressSpaceUserPrivate * priv = reinterpret_cast<AddressSpaceUserPrivate *>(SYSV_GET_DATA);
     IVMFault fault(vmf);
     size_t address;
-    
-    priv = (AddressSpaceUserPrivate *)SYSV_GET_DATA;
 
     address = vm_fault_get_address_size_t(vmf);
 
@@ -236,7 +234,7 @@ error:
 
 error_t OLMemoryManagerUser::FreeZone(void * priv)
 {
-    AddressSpaceUserPrivate * context = (AddressSpaceUserPrivate *)priv;
+    auto context = reinterpret_cast<AddressSpaceUserPrivate *>(priv);
     UnmapSpecial(context);
     MappingFree(context);
     delete context;
@@ -257,9 +255,7 @@ void OLMemoryManagerUser::UnmapSpecial(AddressSpaceUserPrivate * context)
 
 void OLMemoryManagerUser::SetCallbackHandler(void * priv, OLTrapHandler_f cb, void * data)
 {
-    AddressSpaceUserPrivate * context;
-
-    context = (AddressSpaceUserPrivate *)priv;
+    auto context = reinterpret_cast<AddressSpaceUserPrivate *>(priv);
 
     context->fault_cb.callback = cb;
     context->fault_cb.context  = data;
@@ -328,7 +324,6 @@ static error_t UpdateMProtectAllowance(task_k task, size_t address, l_unsigned_l
     mm_struct_k mm;
     size_t flags;
 
-
     mm = ProcessesAcquireMM_Write(task);
     if (!mm)
         return kErrorInternalError;
@@ -375,14 +370,12 @@ static error_t UpdatePageEntry(AddressSpaceUserPrivate * context, size_t address
 
 error_t OLMemoryManagerUser::InsertAt(void * instance, size_t index, void ** map, OLPageEntry entry)
 {
+    auto context = reinterpret_cast<AddressSpaceUserPrivate *>(instance);
     size_t offset;
     size_t address;
     l_unsigned_long prot;
     l_int ret;
     error_t err;
-    AddressSpaceUserPrivate * context;
-
-    context = (AddressSpaceUserPrivate *)instance;
 
     prot    = GetMProtectProt(entry);
 

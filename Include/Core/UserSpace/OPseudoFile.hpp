@@ -30,5 +30,4 @@ public:
     virtual error_t Delete() = 0;
 };
 
-
 LIBLINUX_SYM error_t CreateTempKernFile(const OOutlivableRef<OPseudoFile> & out);

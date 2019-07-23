@@ -91,8 +91,7 @@ DEFINE_SYSV_FUNCTON_START(dir_iter, size_t)
     l_unsigned d_type,
 DEFINE_SYSV_FUNCTON_END_DEF(dir_iter, size_t)
 {
-    IterCtx_s * ahh;
-    ahh = (IterCtx_s *)SYSV_GET_DATA;
+    auto ahh = reinterpret_cast<IterCtx_s *>(SYSV_GET_DATA);
 
     ahh->iterator(ahh->dir, path, ahh->usrctx);
 

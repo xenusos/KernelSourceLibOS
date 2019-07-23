@@ -16,6 +16,8 @@
 #include "../FIO/OPath.hpp"
 #include "Core/CPU/OThread.hpp"
 
+#include <Core/Memory/Linux/OLinuxMemory.hpp>
+
 task_k g_init_task;
 //l_unsigned_long page_offset_base;
 void InitProcesses()
@@ -265,7 +267,7 @@ static bool ThreadIterateCallback(const ThreadFoundEntry * thread, void * data)
 
     new (priv->thread) OProcessThreadImpl(thread->task, thread->isProcess, priv->parent);
 
-    ret = priv->callback((OProcessThread *)priv->thread, priv->data);
+    ret = priv->callback(dynamic_cast<OProcessThread *>(priv->thread), priv->data);
 
     priv->thread->Invalidate();
 
@@ -279,7 +281,7 @@ error_t OProcessImpl::IterateThreads(ThreadIterator_cb callback, void * ctx)
     TempThreadIterationData temp;
     OProcessThreadImpl * proc;
 
-    proc = (OProcessThreadImpl *)zalloc(sizeof(OProcessThreadImpl));
+    proc = reinterpret_cast<OProcessThreadImpl *>(zalloc(sizeof(OProcessThreadImpl)));
     if (!proc)
         return kErrorOutOfMemory;
 
@@ -314,8 +316,6 @@ error_t OProcessImpl::Terminate(bool force)
     return kStatusOkay; // assume ok for now
 }
 
-#include <Core/Memory/Linux/OLinuxMemory.hpp>
-
 error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, size_t length, bool read)
 {
     CHK_DEAD;
@@ -348,7 +348,7 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
         return kErrorIllegalBadArgument;
 
     pages      = (length / OS_PAGE_SIZE) + 1;
-    page_array = (page_k *)zalloc(pages * sizeof(page_k));
+    page_array = reinterpret_cast<page_k *>(calloc(pages, sizeof(page_k)));
 
     if (!page_array)
         return kErrorInternalError;
@@ -360,9 +360,9 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     start = (user_addr_t)(size_t(address) & (OS_PAGE_MASK));
 
     if (OSThread == _tsk)
-        TODO = get_user_pages_fast((l_unsigned_long)start, pages, read ? 0 : 1, page_array);
+        TODO = get_user_pages_fast(reinterpret_cast<l_unsigned_long>(start), pages, read ? 0 : 1, page_array);
     else
-        TODO = get_user_pages_remote(_tsk, mm, (l_unsigned_long)start, pages, read ? 0 : FOLL_WRITE, page_array, NULL, NULL);
+        TODO = get_user_pages_remote(_tsk, mm, reinterpret_cast<l_unsigned_long>(start), pages, read ? 0 : FOLL_WRITE, page_array, NULL, NULL);
 
     if (TODO <= 0)
     {
@@ -381,9 +381,9 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
 
     pg_offset = size_t(address) - size_t(start);
     if (read)
-        memcpy(buffer, (void *)(size_t(map) + pg_offset), length);
+        memcpy(buffer, reinterpret_cast<void *>(reinterpret_cast<size_t>(map) + pg_offset), length);
     else
-        memcpy((void *)(size_t(map) + pg_offset), buffer, length);
+        memcpy(reinterpret_cast<void *>(reinterpret_cast<size_t>(map) + pg_offset), buffer, length);
 
     vunmap(map);
 
@@ -400,7 +400,7 @@ error_t OProcessImpl::ReadProcessMemory(user_addr_t address, void * buffer, size
 
 error_t OProcessImpl::WriteProcessMemory(user_addr_t address, const void * buffer, size_t length)
 {
-    return AccessProcessMemory(address, (/*AHHHH i know this is safe, but it seems scary*/void *)buffer, length, false);
+    return AccessProcessMemory(address, const_cast<void *>(buffer), length, false);
 }
 
 void OProcessImpl::InvalidateImp()

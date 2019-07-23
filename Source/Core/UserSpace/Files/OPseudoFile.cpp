@@ -105,7 +105,7 @@ void OPseudoFileImpl::InvalidateImp()
 }
 
 #define PSEUDOFILE_OPTR_THIS OPtr<OPseudoFile>(((OPseudoFile *)(SYSV_GET_DATA))))
-#define PSEUDOFILE_IMPL_THIS ((OPseudoFileImpl *)(SYSV_GET_DATA))
+#define PSEUDOFILE_IMPL_THIS (reinterpret_cast<OPseudoFileImpl *>(SYSV_GET_DATA))
 
 DEFINE_SYSV_FUNCTON_START(fop_open, l_int)
 inode_k node,
@@ -356,16 +356,22 @@ static void FreeCharDev(chardev_ref chardev)
 {
     __unregister_chrdev(chardev->major, chardev->minor, 256, chardev->name);
     device_destroy(psudo_file_class, chardev->dev);
+
     if (chardev->ops)
         free(chardev->ops);
+
     if (chardev->handle_fops_open)
         dyncb_free_stub(chardev->handle_fops_open);
+
     if (chardev->handle_fops_release)
         dyncb_free_stub(chardev->handle_fops_release);
+
     if (chardev->handle_fops_write)
         dyncb_free_stub(chardev->handle_fops_write);
+
     if (chardev->handle_fops_read)
         dyncb_free_stub(chardev->handle_fops_read);
+
     if (chardev->handle_fops_seek)
         dyncb_free_stub(chardev->handle_fops_seek);
 }

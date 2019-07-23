@@ -137,7 +137,7 @@ static bool ProcessIterateCallback(const ThreadFoundEntry * thread, void * data)
     new (priv->proc) OProcessImpl(thread->task);
     
     // callback user functionm
-    ret = priv->callback((OProcess *)priv->proc, priv->data);
+    ret = priv->callback(dynamic_cast<OProcess *>(priv->proc), priv->data);
     
     // reset process
     // lets hope that the overhead of memory allocation is less than memset
@@ -151,7 +151,7 @@ static error_t GetProcessesCommon(bool root, ProcessIterator_cb callback, void *
     TempProcessIterationData temp;
     OProcessImpl * proc;
 
-    proc = (OProcessImpl *)zalloc(sizeof(OProcessImpl));
+    proc = reinterpret_cast<OProcessImpl *>(zalloc(sizeof(OProcessImpl)));
     if (!proc)
         return kErrorOutOfMemory;
 

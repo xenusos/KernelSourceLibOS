@@ -23,13 +23,16 @@ static void RegisterCurrent()
 void InitRegistration()
 {
     error_t er;
-    PsudoFileInformation_p info;
+    const void * priv;
+    
     size_t we_lied; 
 
     er = CreateTempKernFile(OOutlivableRef<OPseudoFile>(registration_file));
     ASSERT(NO_ERROR(er), "delegated calls couldn't create file %lli", er);
 
-    registration_file->GetIdentifierBlob((const void **)&info, we_lied);
+    registration_file->GetIdentifierBlob(&priv, we_lied);
+
+    const PsudoFileInformation_p info = (const PsudoFileInformation_p)priv;
 
     ASSERT(info->pub.devfs.char_dev_id == 0, "Registration file couldn't be registered; someone beat us to id zero");
     registration_file->OnOpen([](OPtr<OPseudoFile> file)

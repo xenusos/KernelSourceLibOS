@@ -75,8 +75,8 @@ static void LoggingInitAllocations()
     logging_mutex = mutex_create();
     ASSERT(logging_mutex, "failed to create logging mutex");
 
-    logging_tline = (char *)malloc(PRINTF_MAX_STRING_LENGTH);
-    logging_tstr  = (char *)malloc(PRINTF_MAX_STRING_LENGTH);
+    logging_tline = reinterpret_cast<char *>(zalloc(PRINTF_MAX_STRING_LENGTH));
+    logging_tstr  = reinterpret_cast<char *>(zalloc(PRINTF_MAX_STRING_LENGTH));
 
     ASSERT(logging_tline, "couldn't allocate temp log line buffer");
     ASSERT(logging_tstr, "couldn't allocate temp log string buffer");
@@ -85,14 +85,19 @@ static void LoggingInitAllocations()
 static bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
 {
     error_t err;
-    if (ERROR(err = OpenDirectory(dir, LOG_DIR)))
+    
+    err = OpenDirectory(dir, LOG_DIR);
+
+    if (ERROR(err))
     {
-        if (ERROR(err = CreateDirectory(dir, LOG_DIR)))
+        err = CreateDirectory(dir, LOG_DIR);
+        if (ERROR(err))
         {
             printf("COULDN'T CREATE LOG DIRECTORY - XENUS KERNEL");
             return false;
         }
     }
+
     return true;
 }
 

@@ -19,11 +19,10 @@ struct TrackedPageEntry
 
 static void CleanUpPageEntry(uint64_t hash, void * buffer)
 {
-    TrackedPageEntry * entry;
+    TrackedPageEntry * entry = reinterpret_cast<TrackedPageEntry *>(buffer);
     OLMemoryAllocationImpl * requester;
     error_t err;
 
-    entry = (TrackedPageEntry *)buffer;
     requester = entry->requester;
 
     if (requester->IsLingering())
@@ -72,7 +71,8 @@ error_t OLMemoryAllocationImpl::PageInsert(size_t idx, OLPageEntry page)
 
     err = chain_get(_entries, idx, &link, (void **) &entry);
 
-    if ((ERROR(err)) && (err != kErrorLinkNotFound))
+    if ((ERROR(err)) &&
+        (err != kErrorLinkNotFound))
         return err;
 
     if (err == kErrorLinkNotFound)
@@ -217,13 +217,13 @@ error_t GetNewMemAllocation(bool kern, task_k task, size_t start, size_t pages, 
     size_t trueEnd;
     size_t trueStart;
     size_t length;
-    void *ree;
+    OLMemoryAllocationImpl *ree;
     chain_p chain;
 
     if (ERROR(ret = chain_allocate(&chain)))
         return ret;
 
-    ree = zalloc(sizeof(OLMemoryAllocationImpl));
+    ree = reinterpret_cast<OLMemoryAllocationImpl *>(zalloc(sizeof(OLMemoryAllocationImpl)));
     if (!ree)
     {
         chain_destroy(chain);
@@ -235,7 +235,7 @@ error_t GetNewMemAllocation(bool kern, task_k task, size_t start, size_t pages, 
     else
         mm = &g_usrvm_manager;
 
-    ret = mm->AllocateZone((OLMemoryAllocationImpl *)ree, start, task, pages, &priv, trueStart, trueEnd, length);
+    ret = mm->AllocateZone(ree, start, task, pages, &priv, trueStart, trueEnd, length);
     if (ERROR(ret))
     {
         free(ree);

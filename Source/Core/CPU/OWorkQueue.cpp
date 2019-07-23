@@ -70,7 +70,7 @@ error_t OWorkQueueImpl::WaitAndAddOwner(uint32_t ms, SpuriousWakeup_f wakeup)
 
 static bool WorkerThreadIsWaking(void * context)
 {
-    auto ctx = ((WorkWaitingThreads *)context);
+    auto ctx = reinterpret_cast <WorkWaitingThreads *>(context);
     return ctx->signal || (ctx->wakeup && ctx->wakeup(ctx->queue));
 }
 
@@ -134,7 +134,7 @@ error_t OWorkQueueImpl::ContExecution(bool waiters)
     {
         task_k thread;
 
-        err = dyn_list_get_by_index(list, 0, (void **)&entry);
+        err = dyn_list_get_by_index(list, 0, reinterpret_cast<void **>(&entry));
         ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: " PRINTF_ERROR ")", err);
 
         thread = (*entry)->thread;
@@ -197,7 +197,7 @@ error_t OWorkQueueImpl::SpuriousWakeupOwners()
     {
         task_k thread;
 
-        err = dyn_list_get_by_index(_waiters, 0, (void **)&entry);
+        err = dyn_list_get_by_index(_waiters, 0, reinterpret_cast<void **>(&entry));
         ASSERT(NO_ERROR(err), "couldn't obtain waiting thread by index (error: " PRINTF_ERROR ")", err);
 
         thread = (*entry)->thread;
