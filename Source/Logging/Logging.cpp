@@ -9,8 +9,8 @@
 #include <Utils\DateHelper.hpp>
 
 static mutex_k logging_mutex;
-static char * logging_tline;
-static char * logging_tstr;
+static char logging_tline[PRINTF_MAX_STRING_LENGTH];
+static char logging_tstr[PRINTF_MAX_STRING_LENGTH];
 static OFile * log_file;
 
 static const char * logging_levels[KInvalidLogLevel] = 
@@ -74,12 +74,6 @@ static void LoggingInitAllocations()
 
     logging_mutex = mutex_create();
     ASSERT(logging_mutex, "failed to create logging mutex");
-
-    logging_tline = reinterpret_cast<char *>(zalloc(PRINTF_MAX_STRING_LENGTH));
-    logging_tstr  = reinterpret_cast<char *>(zalloc(PRINTF_MAX_STRING_LENGTH));
-
-    ASSERT(logging_tline, "couldn't allocate temp log line buffer");
-    ASSERT(logging_tstr, "couldn't allocate temp log string buffer");
 }
 
 static bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
