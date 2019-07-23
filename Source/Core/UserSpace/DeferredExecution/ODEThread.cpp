@@ -269,7 +269,7 @@ void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNe
     ODEWorkHandler ** cur;
 
     // get first entry
-    err = dyn_list_get_by_index(_workPending, 0, (void **)&cur);
+    err = dyn_list_get_by_index(_workPending, 0, reinterpret_cast<void **>(&cur));
     ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
     current = *cur;
 
@@ -290,7 +290,7 @@ void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNe
     }
 
     // get next job
-    err = dyn_list_get_by_index(_workPending, 0, (void **)&cur);
+    err = dyn_list_get_by_index(_workPending, 0, reinterpret_cast<void **>(&cur));
     ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
     nextJob = *cur;
 }
