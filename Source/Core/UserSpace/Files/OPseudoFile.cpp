@@ -270,33 +270,23 @@ DEFINE_SYSV_END
 
 static error_t GetNextFileId(size_t & id)
 {
-    struct FileIterCtx_s
-    {
-        uint64_t i;
-        bool found;
-    } cur;
-
     for (size_t i = 0; i < SIZE_T_MAX; i++)
     {
-        cur.i = i;
-        cur.found = false;
-        chain_iterator(pseudo_file_handles, [](uint64_t hash, void * buffer, void * context)
+        error_t search;
+        
+        search = chain_deallocate_search(pseudo_file_handles, i);
+        
+        if (search == XENUS_ERROR_LINK_NOT_FOUND)
         {
-            FileIterCtx_s * ctx = (FileIterCtx_s *)context;
-            if (hash == ctx->i)
-                ctx->found = true;
-        }, &cur);
+            id = i;
+            return kStatusOkay;
+        }
 
-        if (!cur.found)
-            break;
+        if (ERROR(search))
+            return search;
     }
 
-    if (cur.found)
-        return kErrorOutOfUIDs;
-
-    id = cur.i;
-
-    return kStatusOkay;
+    return kErrorOutOfUIDs;
 }
 
 static error_t AllocateNewFileHandle(OPseudoFileImpl ** out)
@@ -307,22 +297,16 @@ static error_t AllocateNewFileHandle(OPseudoFileImpl ** out)
     OPseudoFileImpl ** handle_ref;
     PsudoFileInformation_t info;
 
-    mutex_lock(pfns_mutex);
-
-    if (ERROR(er = GetNextFileId(id)))
-    {
-        mutex_unlock(pfns_mutex);
+    er = GetNextFileId(id);
+    if (ERROR(er))
         return er;
-    }
 
     info.pub.devfs.char_dev_id = id;
     info.pub.type = PsuedoFileType_e::ksLinuxCharDev;
 
-    if (ERROR(er = chain_allocate_link(pseudo_file_handles, id, sizeof(size_t), NULL, &info.priv.file_handle, (void **)&handle_ref)))
-    {
-        mutex_unlock(pfns_mutex);
+    er = chain_allocate_link(pseudo_file_handles, id, sizeof(OPseudoFileImpl *), NULL, &info.priv.file_handle, (void **)&handle_ref);
+    if (ERROR(er))
         return er;
-    }
 
     file = new OPseudoFileImpl(info);
     if (!file)
@@ -334,17 +318,22 @@ static error_t AllocateNewFileHandle(OPseudoFileImpl ** out)
 
     *handle_ref = file;
     *out = file;
-
-    mutex_unlock(pfns_mutex);
     return kStatusOkay;
+}
+
+static error_t AllocateNewFileHandle_s(OPseudoFileImpl ** out)
+{
+    error_t ret;
+    mutex_lock(pfns_mutex);
+    ret = AllocateNewFileHandle(out);
+    mutex_unlock(pfns_mutex);
+    return ret;
 }
 
 static void FreeFileHandle(OPseudoFileImpl * out)
 {
     mutex_lock(pfns_mutex);
-
     chain_deallocate_handle(out->GetInfo()->priv.file_handle);
-
     mutex_unlock(pfns_mutex);
 }
 
@@ -354,15 +343,10 @@ void InitPseudoFiles()
     lock_class_key temp;
 
     psudo_file_class = __class_create(0/* Lets just impersonate the linux kernel*/, "xenus", (lock_class_key_k)&temp);
-    if (LINUX_PTR_ERROR(psudo_file_class))
-    {
-        panic("couldn't register pseudofile class");
-        return;
-    }
+    ASSERT(!LINUX_PTR_ERROR(psudo_file_class), "couldn't register pseudofile class");
 
     er = chain_allocate(&pseudo_file_handles);
-    if (ERROR(er))
-        panicf("couldn't allocate file handle chain: error code " PRINTF_ERROR, er);
+    ASSERT(NO_ERROR(er), "couldn't allocate file handle chain: error code " PRINTF_ERROR, er);
 
     pfns_mutex = mutex_allocate();
     ASSERT(pfns_mutex, "couldn't allocate file tracker mutex");
@@ -428,7 +412,8 @@ static error_t CreateCharDev(OPseudoFileImpl * file)
         return kErrorGenericFailure;
     }
 
-    if (LINUX_PTR_ERROR(chardev->device = device_create(psudo_file_class, NULL, chardev->dev, nullptr, chardev->name)))
+    chardev->device = device_create(psudo_file_class, NULL, chardev->dev, nullptr, chardev->name);
+    if (LINUX_PTR_ERROR(chardev->device))
     {
         LogPrint(kLogError, "Internal Linux Error - couldn't register device (%i, whatever that means... linux is awful)", chardev->device);
         return kErrorGenericFailure;
@@ -442,7 +427,7 @@ error_t CreateTempKernFile(const OOutlivableRef<OPseudoFile> & out)
     OPseudoFileImpl * file;
     error_t er;
 
-    er = AllocateNewFileHandle(&file);
+    er = AllocateNewFileHandle_s(&file);
     if (ERROR(er))
         return er;
 
