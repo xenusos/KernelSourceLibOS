@@ -21,4 +21,5 @@ void LeaveDECriticalSection()
 void InitDECriticalSection()
 {
     mutex = mutex_create();
+    ASSERT(mutex, "couldn't allocate mutex");
 }
