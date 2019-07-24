@@ -4,7 +4,7 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
-#include <Core/CPU/OMemoryCoherency.hpp>
+#include "OMemoryCoherency.hpp"
 
 void CPU::Memory::ReadWriteBarrier()
 {

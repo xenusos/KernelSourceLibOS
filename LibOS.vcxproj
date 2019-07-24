@@ -9,6 +9,7 @@
   <ItemGroup>
     <ClInclude Include="Include\Base\Logging\Logging.hpp" />
     <ClInclude Include="Include\Base\Objects\Objects.hpp" />
+    <ClInclude Include="Include\Core\Processes\OProcessTracking.hpp" />
     <ClInclude Include="Include\Core\Synchronization\OMutex.hpp" />
     <ClInclude Include="Include\Core\Synchronization\OSemaphore.hpp" />
     <ClInclude Include="Include\Core\CPU\OMemoryCoherency.hpp" />
@@ -38,6 +39,7 @@
     <ClInclude Include="Include\XType\XArray.hpp" />
     <ClInclude Include="Include\XType\XChain.h" />
     <ClInclude Include="Source\Core\CPU\OLinuxCurrent.hpp" />
+    <ClInclude Include="Source\Core\CPU\OMemoryCoherency.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\Kernel\Common.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\Kernel\KernelVMManager.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\Common.hpp" />

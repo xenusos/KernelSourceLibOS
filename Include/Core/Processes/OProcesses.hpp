@@ -54,14 +54,3 @@ LIBLINUX_SYM  error_t GetProcessesByAll(ProcessIterator_cb callback, void * data
 LIBLINUX_SYM  error_t GetProcessesAtRootLevel(ProcessIterator_cb callback, void * data);
 LIBLINUX_SYM  uint_t  GetProcessCurrentId();
 LIBLINUX_SYM  uint_t  GetProcessCurrentTid();
-
-
-
-typedef void(*ProcessStartNtfy_cb)(OPtr<OProcess> thread); 
-typedef void(*ProcessExitNtfy_cb)(OPtr<OProcess> thread); 
-
-LIBLINUX_SYM error_t ProcessesAddExitHook(ProcessExitNtfy_cb cb);
-LIBLINUX_SYM error_t ProcessesAddStartHook(ProcessStartNtfy_cb cb);
-
-LIBLINUX_SYM error_t ProcessesRemoveExitHook(ProcessExitNtfy_cb cb);
-LIBLINUX_SYM error_t ProcessesRemoveStartHook(ProcessStartNtfy_cb cb);

@@ -12,10 +12,12 @@
 #include "CallingConventions/CCManager.hpp"
 #include <Core/CPU/OMemoryCoherency.hpp>
 #include <Core/Utilities/OThreadUtilities.hpp>
-#include "../../Memory/Linux/OLinuxMemory.hpp"
-#include "../../Processes/OProcesses.hpp"
-#include "../../Processes/OProcessHelpers.hpp"
-#include "../../Memory/Linux/x86_64/OLinuxMemoryPages.hpp"
+#include <Core/Processes/OProcessTracking.hpp>
+// Internal apis:
+#include <Source/Core/Memory/Linux/OLinuxMemory.hpp>
+#include <Source/Core/Processes/OProcesses.hpp>
+#include <Source/Core/Processes/OProcessHelpers.hpp>
+#include <Source/Core/Memory/Linux/x86_64/OLinuxMemoryPages.hpp>
 
 struct linux_thread_info // TODO: portable structs. NEVER TRUST MSVC and GCC TO AGREE
 {

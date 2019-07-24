@@ -1,5 +1,5 @@
 /*
-    Purpose: hacky process tracking stuff
+    Purpose: hacky process tracking stuff (TODO: revisit this)
     Author: Reece W.
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
@@ -185,10 +185,6 @@ void ProcessesTryRegisterLeader(task_k tsk)
     ProcessesTryRegister(ProcessesGetProcess(tsk));
 }
 
-
-// TODO: 
-// consider implementing a thread that scans for new process using public OProcess apis
-// on change, check thread leader, and append handler
 void InitProcessTracking()
 {
     error_t err;
