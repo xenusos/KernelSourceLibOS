@@ -316,7 +316,7 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
         if (state == 1)
             wake_up_process(_task);
 
-        if (!ez_linux_caller(kallsyms_lookup_name("wake_up_state"), (size_t)_task, TASK_INTERRUPTIBLE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        if (!wake_up_state(_task, TASK_INTERRUPTIBLE))
         {
             kick_process(_task);
         }

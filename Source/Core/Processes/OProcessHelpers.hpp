@@ -22,6 +22,12 @@ extern mm_struct_k ProcessesAcquireMM(task_k tsk);
 extern mm_struct_k ProcessesAcquireMM_Read(task_k tsk);
 extern mm_struct_k ProcessesAcquireMM_Write(task_k tsk);
 
+
+extern void ProcessesAcquireMM_LockRead(mm_struct_k mm);
+extern void ProcessesAcquireMM_LockWrite(mm_struct_k mm);
+extern void ProcessesReleaseMM_UnlockRead(mm_struct_k mm);
+extern void ProcessesReleaseMM_UnlockWrite(mm_struct_k mm);
+
 #define ProcessesReleaseMM_NoLock ProcessesMMDecrementCounter
 extern void ProcessesReleaseMM_Read(mm_struct_k mm);
 extern void ProcessesReleaseMM_Write(mm_struct_k mm);

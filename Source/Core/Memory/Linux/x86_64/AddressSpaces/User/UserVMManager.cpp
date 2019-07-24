@@ -31,6 +31,7 @@ struct AddressSpaceUserPrivate
         void * context;
         OLTrapHandler_f callback;
     } fault_cb;
+    mm_struct_k mm;
     OLMemoryAllocation * space;
 };
 
@@ -106,6 +107,7 @@ error_t IVMManagerUser::AllocateZone(OLMemoryAllocation * space, size_t start, t
     context->space = space;
     context->pages = pages;
     context->task = tsk;
+    context->mm = ProcessesAcquireMM(tsk);
 
     err = MappingTryInsert(context);
 
@@ -241,19 +243,13 @@ error_t IVMManagerUser::FreeZoneMapping(void * priv)
 {
     auto context = reinterpret_cast<AddressSpaceUserPrivate *>(priv);
     UnmapSpecial(context);
+    ProcessesReleaseMM_NoLock(context->mm);
     return kStatusOkay;
 }
 
 void IVMManagerUser::UnmapSpecial(AddressSpaceUserPrivate * context)
 {
-    mm_struct_k mm;
-    
-    mm = ProcessesAcquireMM(context->task);
-    if (!mm)
-        return;
-
-    vm_munmap_ex(mm, context->address, context->length); //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
-    ProcessesMMDecrementCounter(mm);
+    vm_munmap_ex(context->mm, context->address, context->length); //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
 }
 
 void IVMManagerUser::SetCallbackHandler(void * priv, OLTrapHandler_f cb, void * data)
@@ -321,13 +317,12 @@ static bool InjectPage(AddressSpaceUserPrivate * context, mm_struct_k mm, vm_are
     return true;
 }
 
-static error_t UpdateMProtectAllowance(task_k task, size_t address, l_unsigned_long prot)
+static error_t UpdateMProtectAllowance(mm_struct_k mm, size_t address, l_unsigned_long prot)
 {
     vm_area_struct_k cur;
-    mm_struct_k mm;
     size_t flags;
 
-    mm = ProcessesAcquireMM_Write(task);
+    ProcessesAcquireMM_LockWrite(mm);
     if (!mm)
         return kErrorInternalError;
 
@@ -346,28 +341,26 @@ static error_t UpdateMProtectAllowance(task_k task, size_t address, l_unsigned_l
     flags |= prot & VM_EXEC  ? VM_MAYEXEC  : 0;
 
     vm_area_struct_set_vm_flags_size_t(cur, flags);
-    ProcessesReleaseMM_Write(mm);
+    ProcessesReleaseMM_UnlockWrite(mm);
     return kStatusOkay;
 }
 
 static error_t UpdatePageEntry(AddressSpaceUserPrivate * context, size_t address, l_unsigned_long prot, OLPageEntry entry)
 {
     vm_area_struct_k cur;
-    mm_struct_k mm;
+    mm_struct_k mm  = context->mm;
 
-    mm = ProcessesAcquireMM_Write(context->task);
-    if (!mm)
-        return kErrorInternalError;
+    ProcessesAcquireMM_LockWrite(mm);
 
     cur = find_vma(mm, address);
     if (!cur)
     {
-        ProcessesReleaseMM_Write(mm);
+        ProcessesReleaseMM_UnlockWrite(mm);
         return kErrorInternalError;
     }
 
     InjectPage(context, mm, cur, address, prot, entry);
-    ProcessesReleaseMM_Write(mm);
+    ProcessesReleaseMM_UnlockWrite(mm);
     return kStatusOkay;
 }
 
@@ -387,12 +380,12 @@ error_t IVMManagerUser::InsertAt(void * instance, size_t index, void ** map, OLP
 
     // this is kinda dangerous but this hack will do for now
     // also: we release the MM. this isn't atomically safe, but it's safe enough as we can't really be exploited here
-    err = UpdateMProtectAllowance(context->task, address, prot);
+    err = UpdateMProtectAllowance(context->mm, address, prot);
     if (ERROR(err))
         return err;
 
     // split/merge/update prot
-    ret = do_mprotect_pkey(context->task, address, OS_PAGE_SIZE, prot, -1);
+    ret = do_mprotect_pkey_ex(context->mm, context->task, address, OS_PAGE_SIZE, prot, -1);
     if (LINUX_INT_ERROR(ret))
     {
         LogPrint(kLogError, "mprotect failed! %x", ret);
@@ -413,6 +406,7 @@ error_t IVMManagerUser::RemoveAt(void * instance, void * map)
     size_t address;
     OLPageEntry entry;
     AddressSpaceUserPrivate * context;
+    error_t ree;
 
     address = (size_t)map;
     context = (AddressSpaceUserPrivate *)instance;

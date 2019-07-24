@@ -101,10 +101,7 @@ bool RequestMappIngType(task_k task)
 
 static va_kernel_pointer_t vm_unmapped_area(vm_unmapped_area_info * info)
 {
-    static sysv_fptr_t vm_unmapped_area_ptr = nullptr;
-    if (!vm_unmapped_area_ptr)
-        vm_unmapped_area_ptr = (sysv_fptr_t)kallsyms_lookup_name("unmapped_area");
-    return (va_kernel_pointer_t)ez_linux_caller(vm_unmapped_area_ptr, (size_t)info, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    return unmapped_area(info);
 }
 
 va_kernel_pointer_t RequestUnmappedArea(mm_struct_k mm, bool type, va_kernel_pointer_t addr, size_t length, bool bits32)

@@ -64,6 +64,26 @@ mm_struct_k ProcessesAcquireMM(task_k tsk)
     return mm;
 }
 
+void ProcessesAcquireMM_LockRead(mm_struct_k mm)
+{
+    down_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+}
+
+void ProcessesAcquireMM_LockWrite(mm_struct_k mm)
+{
+    down_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+}
+
+void ProcessesReleaseMM_UnlockRead(mm_struct_k mm)
+{
+    up_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+}
+
+void ProcessesReleaseMM_UnlockWrite(mm_struct_k mm)
+{
+    up_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+}
+
 mm_struct_k ProcessesAcquireMM_Read(task_k tsk)
 {
     mm_struct_k mm;
@@ -73,7 +93,7 @@ mm_struct_k ProcessesAcquireMM_Read(task_k tsk)
     if (!mm)
         return nullptr;
 
-    down_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    ProcessesAcquireMM_LockRead(mm);
     return mm;
 }
 
@@ -86,19 +106,19 @@ mm_struct_k ProcessesAcquireMM_Write(task_k tsk)
     if (!mm)
         return nullptr;
 
-    down_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    ProcessesAcquireMM_LockWrite(mm);
     return mm;
 }
 
 void ProcessesReleaseMM_Read(mm_struct_k mm)
 {
-    up_read((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    ProcessesReleaseMM_UnlockRead(mm);
     ProcessesMMDecrementCounter(mm);
 }
 
 void ProcessesReleaseMM_Write(mm_struct_k mm)
 {
-    up_write((rw_semaphore_k)mm_struct_get_mmap_sem(mm));
+    ProcessesReleaseMM_UnlockWrite(mm);
     ProcessesMMDecrementCounter(mm);
 }
 
