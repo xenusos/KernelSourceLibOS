@@ -11,7 +11,8 @@ class OLMemoryManagerUser : public OLMemoryManager
 {
 public:
     error_t AllocateZone(OLMemoryAllocation * space, size_t start, task_k requester, size_t pages, void ** priv, size_t & ostart, size_t & oend, size_t & length) override;
-    error_t FreeZone(void * priv) override;
+    error_t FreeZoneMapping(void * priv) override;
+    void FreeZoneContext(void  * priv) override;
     void SetCallbackHandler(void * priv, OLTrapHandler_f cb, void * context) override;
 
     error_t InsertAt(void * instance, size_t index, void ** map, OLPageEntry entry) override;

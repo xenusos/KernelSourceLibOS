@@ -56,12 +56,14 @@ error_t OLMemoryManagerKernel::AllocateZone(OLMemoryAllocation * space, size_t s
     return kStatusOkay;
 }
 
-error_t OLMemoryManagerKernel::FreeZone(void * priv)
+void OLMemoryManagerKernel::FreeZoneContext(void * priv)
 {
-    AddressSpaceKernelContext * context = (AddressSpaceKernelContext *)priv;
+    delete reinterpret_cast<AddressSpaceKernelContext *>(priv);
+}
 
-    vunmap((const void *)context->address);
-    delete context;
+error_t OLMemoryManagerKernel::FreeZoneMapping(void * priv)
+{
+    vunmap(reinterpret_cast<const void *>(reinterpret_cast<AddressSpaceKernelContext *>(priv)->address));
     return kStatusOkay;
 }
 

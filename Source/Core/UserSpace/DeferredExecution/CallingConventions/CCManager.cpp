@@ -11,7 +11,7 @@
 #include "CCIA32Cdecl.hpp"
 #include "CCIA32Stdcall.hpp"
 
-ICallingConvention * g_calling_conventions[kODEEndConvention];
+static ICallingConvention * g_calling_conventions[kODEEndConvention];
 
 void ODEInitCallingConventions()
 {

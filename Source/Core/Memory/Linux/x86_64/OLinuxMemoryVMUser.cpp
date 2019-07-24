@@ -232,12 +232,17 @@ error:
     return err;
 }
 
-error_t OLMemoryManagerUser::FreeZone(void * priv)
+
+void OLMemoryManagerUser::FreeZoneContext(void * priv)
+{
+    delete reinterpret_cast<AddressSpaceUserPrivate *>(priv);
+}
+
+error_t OLMemoryManagerUser::FreeZoneMapping(void * priv)
 {
     auto context = reinterpret_cast<AddressSpaceUserPrivate *>(priv);
     UnmapSpecial(context);
     MappingFree(context);
-    delete context;
     return kStatusOkay;
 }
 

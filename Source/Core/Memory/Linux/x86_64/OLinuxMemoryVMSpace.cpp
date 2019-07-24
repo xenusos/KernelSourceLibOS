@@ -208,10 +208,10 @@ void OLMemoryAllocationImpl::InvalidateImp()
     err = chain_destroy(_entries);
     ASSERT(NO_ERROR(err), "fatal error %zx", err);
 
-    if (_lingering)
-        return;
-
-    _inject->FreeZone(_region);
+    if (!_lingering)
+        _inject->FreeZoneMapping(_region);
+    
+    _inject->FreeZoneContext(_region);
 }
 
 error_t GetNewMemAllocation(bool kern, task_k task, size_t start, size_t pages, OLMemoryAllocation * & out)
