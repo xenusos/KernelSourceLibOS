@@ -19,26 +19,29 @@ static void ProcessesExit(long exitcode)
 {
     link_p link;
     linked_list_entry_p entry;
+    error_t err;
     OProcess * proc;
 
     proc = new OProcessImpl(OSThread);
-
-    mutex_lock(tracking_mutex);
-
-    if (chain_get(tracking_locked, thread_geti(), &link, NULL) == kStatusOkay)
-        chain_deallocate_handle(link);
-
     if (!proc)
     {
         LogPrint(kLogWarning, "Processes hack: out of memory - not ntfying process exit");
-        mutex_unlock(tracking_mutex);
         return;
     }
 
-    for (linked_list_entry_p cur = tracking_exit_cbs->bottom; cur != NULL; cur = cur->next)
+    mutex_lock(tracking_mutex);
+   
+    err = chain_get(tracking_locked, thread_geti(), &link, NULL);
+    if (NO_ERROR(err))
     {
-        (*(ProcessExitNtfy_cb*)(cur->data))(OPtr<OProcess>(proc));
+        chain_deallocate_handle(link);
+   
+        for (linked_list_entry_p cur = tracking_exit_cbs->bottom; cur != NULL; cur = cur->next)
+        {
+            (*(ProcessExitNtfy_cb*)(cur->data))(OPtr<OProcess>(proc));
+        }
     }
+   
     mutex_unlock(tracking_mutex);
 
     proc->Destroy();
@@ -159,11 +162,31 @@ exit:
     return ret;
 }
 
+static void ProcessTrackingInitExitHandler(task_k task)
+{
+    thread_exit_cb_t * cb_arr;
+    int cb_cnt;
+    int i = 0;
+
+    threading_get_exit_callbacks(&cb_arr, &cb_cnt);
+
+    while (cb_arr[i])
+    {
+        i++;
+        if (i >= cb_cnt)
+        {
+            panic("couldn't install thread exit callback for libos process tracking");
+        }
+    }
+
+    cb_arr[i] = ProcessesExit;
+}
+
 static void ProcessesRegisterTsk(task_k tsk)
 {
     ProcessesStart(tsk);
-
-    threading_ntfy_singleshot_exit(ProcessesGetPid(tsk), ProcessesExit);
+    ProcessTrackingInitExitHandler(tsk);
+    //threading_ntfy_singleshot_exit(ProcessesGetPid(tsk), ProcessesExit);
 }
 
 static void ProcessesTryRegister(task_k tsk)

@@ -107,7 +107,7 @@ void ODEImplProcess::MapReturnStub()
 
 static void DeallocateThreadByHandle(uint64_t hash, void * buffer)
 {
-    delete reinterpret_cast<ODEImplPIDThread *>(buffer);
+    delete *reinterpret_cast<ODEImplPIDThread **>(buffer);
 }
 
 static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplProcess * process, ODEImplPIDThread * & thread)
@@ -142,7 +142,7 @@ static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplP
 
 static void DeallocateProcessByHandle(uint64_t hash, void * buffer)
 {
-    delete reinterpret_cast<ODEImplProcess *>(buffer);
+    delete *reinterpret_cast<ODEImplProcess **>(buffer);
 }
 
 static error_t AllocateDEProcess(task_k task, size_t tgid, ODEImplProcess * & out)
@@ -221,7 +221,8 @@ void FreeDEProcess(task_k task)
     err = chain_deallocate_handle(link);
     ASSERT(NO_ERROR(err), "Couldn't free DE process object handle. Error: " PRINTF_ERROR, err);
 
-    delete (*handle);
+    //delete (*handle);
+    //deallocated by chain callback
 }
 
 void InitDEProcesses()

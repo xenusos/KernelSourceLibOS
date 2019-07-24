@@ -406,6 +406,7 @@ static void APC_OnThreadExit(OPtr<OProcess> thread)
     ASSERT(NO_ERROR(err), "Error: " PRINTF_ERROR, err);
 
     FreeDEProcess((task_k)handle);
+
     LeaveDECriticalSection();
 }
 
