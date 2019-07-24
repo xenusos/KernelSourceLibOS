@@ -26,11 +26,28 @@ static void CleanUpPageEntry(uint64_t hash, void * buffer)
 
     requester = entry->requester;
 
-    if (requester->IsLingering())
+    // BUG: surely ODE stacks should linger yet RemoteAt ASSERT was being trigger on process death
+    if (requester->IsLingering()) 
         return;
 
     err = requester->GetMM()->RemoveAt(entry->vm, entry->handle);
-    ASSERT(NO_ERROR(err), "couldn't remove VM entry %zx", err);
+    if (ERROR(err))
+    {
+        // TODO: could we hold a reference to MM to fix this?
+        LogPrint(kLogError, "There was an error in CleanUpPageEntry. (error: " PRINTF_ERROR ")... Process exiting?");
+        //LogPrint(kLogError, "TODO: reece, there was an error in CleanUpPageEntry. (error: " PRINTF_ERROR ")");
+        //LogPrint(kLogError, "This is probably because a process is exiting and we can't gain access to the memory struct and we have an ODE stack to clean up");
+        // Also relevant:
+        // UserVMManager.cpp#247
+        // void IVMManagerUser::UnmapSpecial(AddressSpaceUserPrivate * context)
+        // if (!mm) return;
+        // previous, that was an assert.
+        // This is an annoying issue. 
+        // WE REALLY need to fix this by finding out why we can't access MM.
+        // Who yeeted it?
+        // Could we call our exit callbacks sooner?
+    }
+    //ASSERT(NO_ERROR(err), "couldn't remove VM entry %zx", err);
 }
 
 OLMemoryAllocationImpl::OLMemoryAllocationImpl(chain_p chain, IVMManager * mngr, void * region, size_t start, size_t end, size_t size, size_t pages)
@@ -211,7 +228,7 @@ void OLMemoryAllocationImpl::InvalidateImp()
 
     if (!_lingering)
         _inject->FreeZoneMapping(_region);
-    
+
     _inject->FreeZoneContext(_region);
 }
 

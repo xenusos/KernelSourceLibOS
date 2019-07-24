@@ -216,7 +216,7 @@ error_t IVMManagerUser::MappingTryInsert(AddressSpaceUserPrivate * context)
         goto error;
 
     //| VM_DONTEXPAND
-    area = _install_special_mapping(mm, (l_unsigned_long)context->address, context->length, 0, context->special_map);
+    area = _install_special_mapping(mm, (l_unsigned_long)context->address, context->length, VM_MIXEDMAP, context->special_map);
     if (!area)
         goto error;
 
@@ -232,14 +232,15 @@ error:
 
 void IVMManagerUser::FreeZoneContext(void * priv)
 {
-    delete reinterpret_cast<AddressSpaceUserPrivate *>(priv);
+    auto context = reinterpret_cast<AddressSpaceUserPrivate *>(priv);
+    MappingFree(context);
+    delete context;
 }
 
 error_t IVMManagerUser::FreeZoneMapping(void * priv)
 {
     auto context = reinterpret_cast<AddressSpaceUserPrivate *>(priv);
     UnmapSpecial(context);
-    MappingFree(context);
     return kStatusOkay;
 }
 
@@ -248,10 +249,10 @@ void IVMManagerUser::UnmapSpecial(AddressSpaceUserPrivate * context)
     mm_struct_k mm;
     
     mm = ProcessesAcquireMM(context->task);
-    ASSERT(mm, "Couldn't unmap special map: no MM");
+    if (!mm)
+        return;
 
     vm_munmap_ex(mm, context->address, context->length); //vm_munmap_ex -> vm_munmap -> remove_vma_list -> remove_vma kmem_cache_free(vm_area_cachep, vma);
-
     ProcessesMMDecrementCounter(mm);
 }
 
