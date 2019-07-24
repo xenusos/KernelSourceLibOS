@@ -24,6 +24,14 @@ ODEImplProcess::ODEImplProcess(task_k task, chain_p pids)
     MapReturnStub();
 }
 
+ODEImplProcess::~ODEImplProcess()
+{
+    error_t err;
+
+    err = chain_destroy(_pids);
+    ASSERT(NO_ERROR(err), "Couldn't free process pid tree");
+}
+
 size_t ODEImplProcess::GetReturnAddress()
 {
     return _returnAddress;
@@ -131,7 +139,6 @@ static error_t AllocateDEThread(task_k task, chain_p chain, size_t pid, ODEImplP
 
     return kStatusOkay;
 }
-
 
 static void DeallocateProcessByHandle(uint64_t hash, void * buffer)
 {

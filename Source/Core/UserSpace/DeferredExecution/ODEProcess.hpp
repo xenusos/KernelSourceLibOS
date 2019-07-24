@@ -10,6 +10,7 @@ class ODEImplProcess
 {
 public:
     ODEImplProcess(task_k task, chain_p pids);
+    ~ODEImplProcess();
 
     size_t                GetReturnAddress();
     ODEImplPIDThread *    GetOrCreateThread(task_k task);
