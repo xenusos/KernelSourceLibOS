@@ -4,10 +4,8 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
-#include "ODECriticalSection.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
 #include "../DelegatedCalls/ODelegtedCalls.hpp"
-#include <Core/Memory/Linux/OLinuxStack.hpp>
 
 static page_k return_stub_x86_64;
 static page_k return_stub_x86_32;
@@ -16,25 +14,25 @@ static page_k DEAllocatePage(const void * buffer, size_t length)
 {
     size_t addr;
     error_t err;
-    OLVirtualAddressSpace * vas;
-    ODumbPointer<OLMemoryAllocation> alloc;
-    OLPageEntry entry;
-    PhysAllocationElem * allocation;
+    Memory::OLVirtualAddressSpace * vas;
+    ODumbPointer<Memory::OLMemoryAllocation> alloc;
+    Memory::OLPageEntry entry;
+    Memory::PhysAllocationElem * allocation;
     page_k page;
 
-    err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<OLVirtualAddressSpace>(vas));
+    err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<Memory::OLVirtualAddressSpace>(vas));
     ASSERT(NO_ERROR(err), "fatal error: couldn't get kernel address space interface: %zx", err);
 
-    err = vas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(alloc));
+    err = vas->NewDescriptor(0, 1, OOutlivableRef<Memory::OLMemoryAllocation>(alloc));
     ASSERT(NO_ERROR(err), "fatal error: couldn't allocate kernel address VM area: %zx", err);
 
-    allocation = vas->AllocatePages(OLPageLocation::kPageNormal, 1, true, OL_PAGE_ZERO);
+    allocation = vas->AllocatePages(Memory::OLPageLocation::kPageNormal, 1, true, Memory::OL_PAGE_ZERO);
     ASSERT(allocation, "fatal error: couldn't allocate return stub");
 
     page = allocation[0].page;
 
-    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
-    entry.type = kPageEntryByPage;
+    entry.meta = g_memory_interface->CreatePageEntry(Memory::OL_ACCESS_READ | Memory::OL_ACCESS_WRITE, Memory::kCacheNoCache);
+    entry.type = Memory::kPageEntryByPage;
     entry.page = page;
 
     err = alloc->PageInsert(0, entry);

@@ -4,7 +4,7 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #include <libos.hpp>
-#include <Core/CPU/OWorkQueue.hpp>
+#include <Core/Synchronization/OWorkQueue.hpp>
 #include <Core/Processes/OProcesses.hpp>
 #include "ODeferredExecution.hpp"
 #include "ODECriticalSection.hpp"
@@ -18,7 +18,7 @@
 
 static error_t APC_AddPendingWork(task_k tsk, ODEWorkHandler * impl);
 
-ODEWorkJobImpl::ODEWorkJobImpl(task_k task, OPtr<OWorkQueue> workqueue)
+ODEWorkJobImpl::ODEWorkJobImpl(task_k task, OPtr<Synchronization::OWorkQueue> workqueue)
 {
     _worker           = nullptr;
     _state.execd      = false;
@@ -134,12 +134,12 @@ LIBLINUX_SYM error_t CreateWorkItem(OPtr<OProcessThread> target, const OOutlivab
 {
     error_t err;
     task_k handle;
-    OPtr<OWorkQueue> wq;
+    OPtr<Synchronization::OWorkQueue> wq;
 
     if (!target.GetTypedObject())
         return kErrorIllegalBadArgument;
-
-    err = CreateWorkQueue(1, wq);
+    
+    err = Synchronization::CreateWorkQueue(1, wq);
     if (ERROR(err))
         return err;
 

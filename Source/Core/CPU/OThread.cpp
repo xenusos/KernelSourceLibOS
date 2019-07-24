@@ -4,16 +4,12 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */  
 #include <libos.hpp>
-
 #include "OThread.hpp"
-
+#include "../Processes/OProcesses.hpp"
+#include <Core/Synchronization/OSpinlock.hpp>
+#include <Core/Synchronization/OSemaphore.hpp>
 #include <ITypes/IThreadStruct.hpp>
 #include <ITypes/ITask.hpp>
-
-#include "../Processes/OProcesses.hpp"
-
-#include <Core/CPU/OSpinlock.hpp>
-#include <Core/CPU/OSemaphore.hpp>
 
 static void * thread_dealloc_mutex;
 static void * thread_chain_mutex;
@@ -23,7 +19,7 @@ static /*atomic*/ long closing_threads;
 
 typedef struct ThreadPrivData_s
 {
-    OThreadEP_t entrypoint;
+    CPU::Threading::OThreadEP_t entrypoint;
     void * data;
     const char * name;
 } ThreadPrivData_t, *ThreadPrivData_p;
@@ -31,86 +27,9 @@ typedef struct ThreadPrivData_s
 struct 
 {
     mutex_k mutex;
-    OCountingSemaphore * semaphore;
-
+    Synchronization::OCountingSemaphore * semaphore;
     OThreadImp * instance;
 } sync_thread_create;
-
-LinuxCurrent::LinuxCurrent() 
-{
-    _task        = OSThread;
-    _addr_pushed = false;
-    _addr_limit  = 0;
-    _task_i      = new ITask(_task); 
-}
-
-void LinuxCurrent::SetCPUAffinity(cpumask mask)
-{
-
-}
-
-void LinuxCurrent::GetCPUAffinity(cpumask & mask)
-{
-
-}
-
-void LinuxCurrent::PushAddressLimit()
-{
-    ASSERT(!_addr_pushed, "illegal address limit state");
-    _addr_pushed = true;
-    _addr_limit = _task_i->SwapAddressLimit(0 /* DS_KERNEL */);
-}
-
-void LinuxCurrent::PopAddressLimit()
-{
-    _task_i->SetAddressLimitUnsafe(_addr_limit);
-    _addr_pushed = false;
-}
-
-void LinuxCurrent::SnoozeMS(uint64_t ms)
-{
-    msleep(ms);
-}
-
-void LinuxCurrent::SnoozeNanoRange(uint64_t u, uint64_t mu)
-{
-    usleep_range(u, mu);
-}
-
-l_int LinuxCurrent::GetRealPRIO()
-{
-    return  _task_i->GetPRIO();
-}
-
-l_int LinuxCurrent::GetPrio()
-{
-    return  _task_i->GetStaticPRIO();
-}
-
-l_uint LinuxCurrent::GetCPU()
-{
-    return xenus_util_get_cpuid();
-}
-
-void LinuxCurrent::StopPreemption()
-{
-    ThreadingNoPreempt();
-}
-
-void LinuxCurrent::StartPreemption()
-{
-    ThreadingAllowPreempt();
-}
-
-int32_t LinuxCurrent::GetNice()
-{
-    return PRIO_TO_NICE(_task_i->GetStaticPRIO());
-}
-
-void LinuxCurrent::SetNice(int32_t ahh)
-{
-    set_user_nice(_task, ahh);
-}
 
 OThreadImp::OThreadImp(task_k tsk, uint32_t id, const char * name, const void * data)
 {
@@ -118,10 +37,11 @@ OThreadImp::OThreadImp(task_k tsk, uint32_t id, const char * name, const void * 
     this->_id   = id;
     this->_data = data;
     memset(this->_name, 0, sizeof(this->_name));
+
     if (name)
         memcpy(this->_name, name, MIN(strlen(name), sizeof(this->_name) - 1));
+
     this->_try_kill = false;
-    SpinLock_Init(&this->_task_holder);
 }
 
 error_t OThreadImp::GetExitCode(int64_t & code)
@@ -276,13 +196,13 @@ error_t OThreadImp::TryMurder(long exitcode)
 
 void OThreadImp::Lock()
 {
-    SpinLock_Lock(&this->_task_holder);
+    _task_holder.Lock();
 }
 
 
 void OThreadImp::Unlock()
 {
-    SpinLock_Unlock(&this->_task_holder);
+    _task_holder.Unlock();
 }
 
 void OThreadImp::InvalidateImp()
@@ -330,7 +250,7 @@ void InitThreading()
 static void ThreadExitNtfyEP(uint32_t pid, long exitcode)
 {
     error_t ret;
-    OThreadEP_t * ep_tracker;
+    CPU::Threading::OThreadEP_t * ep_tracker;
     link_p link;
 
     ret = chain_get(thread_ep_chain, pid, &link, (void **)&ep_tracker);
@@ -339,8 +259,8 @@ static void ThreadExitNtfyEP(uint32_t pid, long exitcode)
 
     // ntfy thread exit
     {
-        ThreadMsg_t msg;
-        msg.type = kMsgThreadExit;
+        CPU::Threading::ThreadMsg_t msg;
+        msg.type = CPU::Threading::kMsgThreadExit;
         msg.exit.thread_id = thread_geti();
         msg.exit.code = exitcode;
         (*ep_tracker)(&msg);
@@ -429,11 +349,11 @@ static void ThreadEPAllocateTLSEntries(OThreadImp * instance)
     ASSERT(NO_ERROR(ret), "couldn't create thread death code. error code: " PRINTF_ERROR, ret);
 }
 
-static void ThreadEPHandleChains(uint32_t pid, OThreadImp * instance, OThreadEP_t ep)
+static void ThreadEPHandleChains(uint32_t pid, OThreadImp * instance, CPU::Threading::OThreadEP_t ep)
 {
     error_t ret;
     OThreadImp ** handle;
-    OThreadEP_t * ep_tracker;
+    CPU::Threading::OThreadEP_t * ep_tracker;
 
     mutex_lock(thread_chain_mutex);
 
@@ -481,8 +401,8 @@ static int RuntimeThreadEP(void * data)
     OThreadImp * instance;
     task_k task;
     ThreadPrivData_p priv;
-    OThreadEP_t ep_stub;
-    const void * ep_data;
+    CPU::Threading::OThreadEP_t ep_stub;
+    void * ep_data;
     const char * th_name;
     uint32_t pid;
     int exitcode;
@@ -515,10 +435,10 @@ static int RuntimeThreadEP(void * data)
 
     // ntfy thread create
     {
-        ThreadMsg_t msg;
+        CPU::Threading::ThreadMsg_t msg;
         
-        msg.type = kMsgThreadCreate;
-        msg.create.data      = (void *)ep_data;
+        msg.type = CPU::Threading::kMsgThreadCreate;
+        msg.create.data      = reinterpret_cast<void *>(ep_data);
         msg.create.thread_id = pid;
         msg.create.thread    = instance;
 
@@ -530,10 +450,10 @@ static int RuntimeThreadEP(void * data)
 
     // ntfy thread start
     {
-        ThreadMsg_t msg;
+        CPU::Threading::ThreadMsg_t msg;
         
-        msg.type       = kMsgThreadStart;
-        msg.start.data = (void *)ep_data;
+        msg.type       = CPU::Threading::kMsgThreadStart;
+        msg.start.data = reinterpret_cast<void *>(ep_data);
         msg.start.code = 0;
         ep_stub(&msg);
 
@@ -543,7 +463,7 @@ static int RuntimeThreadEP(void * data)
     return exitcode;
 }
 
-error_t SpawnOThread(const OOutlivableRef<OThread> & thread, OThreadEP_t entrypoint, const char * name, void * data)
+error_t CPU::Threading::SpawnOThread(const OOutlivableRef<CPU::Threading::OThread> & thread, CPU::Threading::OThreadEP_t entrypoint, const char * name, void * data)
 {
     error_t err;
     task_k task;

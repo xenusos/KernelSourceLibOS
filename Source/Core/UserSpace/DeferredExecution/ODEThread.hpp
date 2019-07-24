@@ -6,9 +6,12 @@
 #pragma once
 class ODEWorkHandler;
 class ODEImplProcess;
-class OLMemoryAllocation;
 
-union PhysAllocationElem;
+namespace Memory
+{
+    union PhysAllocationElem;
+    class OLMemoryAllocation;
+}
 
 struct DERestoreThread
 {
@@ -30,12 +33,12 @@ struct DEStackMapping
         size_t stackTop;
         size_t allocEnd;
     };
-    OPtr<OLMemoryAllocation> allocation;
+    OPtr<Memory::OLMemoryAllocation> allocation;
 };
 
 struct DEStack
 {
-    PhysAllocationElem * pages;
+    Memory::PhysAllocationElem * pages;
     DEStackMapping user;
     DEStackMapping kernel;
 };

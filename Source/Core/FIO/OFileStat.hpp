@@ -7,7 +7,7 @@
 #include <Core\FIO\OFileStat.hpp>
 #include <ITypes\IKStat.hpp>
 
-class OFileStatImp : public OFileStat
+class OFileStatImp : public IO::OFileStat
 {
 public:
     OFileStatImp(uint64_t modified_time, uint64_t creation_time, uint64_t accessed_time, uint64_t file_length, uint64_t UNIX_mode, uint64_t user_id);

@@ -9,12 +9,12 @@
 #include <ITypes\IDEntry.hpp>
 #include <ITypes\IPath.hpp>
 
-class OLinuxPathImpl : public OPath
+class OLinuxPathImpl : public IO::OPath
 {
 public:
     OLinuxPathImpl(vfsmount_k mnt, dentry_k dentry);
 
-    bool        IsEqualTo(const OPath * path)        override;
+    bool        IsEqualTo(const IO::OPath * path)        override;
     uint_t      ToString(char * str, uint_t length) override;
 
     dentry_k    GetDEntry();

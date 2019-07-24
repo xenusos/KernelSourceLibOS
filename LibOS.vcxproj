@@ -9,16 +9,12 @@
   <ItemGroup>
     <ClInclude Include="Include\Base\Logging\Logging.hpp" />
     <ClInclude Include="Include\Base\Objects\Objects.hpp" />
-    <ClInclude Include="Include\Core\CPU\OCPU.hpp" />
-    <ClInclude Include="Include\Core\CPU\OMutex.hpp" />
-    <ClInclude Include="Include\Core\CPU\OSemaphore.hpp" />
-    <ClInclude Include="Include\Core\CPU\OThread_CPU.hpp" />
-    <ClInclude Include="Include\Core\CPU\OThread_Linux.hpp" />
-    <ClInclude Include="Include\Core\CPU\OThread_Nice.h" />
-    <ClInclude Include="Include\Core\CPU\OThread_Preemption.hpp" />
-    <ClInclude Include="Include\Core\CPU\OSpinlock.hpp" />
-    <ClInclude Include="Include\Core\CPU\OThread_Timing.hpp" />
-    <ClInclude Include="Include\Core\CPU\OWorkQueue.hpp" />
+    <ClInclude Include="Include\Core\Synchronization\OMutex.hpp" />
+    <ClInclude Include="Include\Core\Synchronization\OSemaphore.hpp" />
+    <ClInclude Include="Include\Core\CPU\OMemoryCoherency.hpp" />
+    <ClInclude Include="Include\Core\CPU\OLinuxCurrent.hpp" />
+    <ClInclude Include="Include\Core\Synchronization\OSpinlock.hpp" />
+    <ClInclude Include="Include\Core\Synchronization\OWorkQueue.hpp" />
     <ClInclude Include="Include\Core\Memory\Linux\OLinuxMemory.hpp" />
     <ClInclude Include="Include\Core\Memory\Linux\OLinuxStack.hpp" />
     <ClInclude Include="Include\Core\Net\_NetCommon.hpp" />
@@ -26,6 +22,8 @@
     <ClInclude Include="Include\Core\UserSpace\ODeferredExecution.hpp" />
     <ClInclude Include="Include\Core\UserSpace\ODelegatedCalls.hpp" />
     <ClInclude Include="Include\Core\UserSpace\OPseudoFile.hpp" />
+    <ClInclude Include="Include\Core\Utilities\ONiceUtilities.hpp" />
+    <ClInclude Include="Include\Core\Utilities\OThreadUtilities.hpp" />
     <ClInclude Include="Include\libos.hpp" />
     <ClInclude Include="Include\Core\CPU\OCpuMask.hpp" />
     <ClInclude Include="Include\Core\CPU\OThread.hpp" />
@@ -39,26 +37,33 @@
     <ClInclude Include="Include\Utils\ThreadHelper.hpp" />
     <ClInclude Include="Include\XType\XArray.hpp" />
     <ClInclude Include="Include\XType\XChain.h" />
-    <ClInclude Include="Source\Core\CPU\LinuxSleeping.hpp" />
-    <ClInclude Include="Source\Core\CPU\OMutex.hpp" />
-    <ClInclude Include="Source\Core\CPU\OSemaphore.hpp" />
+    <ClInclude Include="Source\Core\CPU\OLinuxCurrent.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\Kernel\Common.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\Kernel\KernelVMManager.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\Common.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\UserAddressSpace.hpp" />
+    <ClInclude Include="Source\Core\Synchronization\LinuxSleeping.hpp" />
+    <ClInclude Include="Source\Core\Synchronization\OMutex.hpp" />
+    <ClInclude Include="Source\Core\Synchronization\OSemaphore.hpp" />
     <ClInclude Include="Source\Core\CPU\OThread.hpp" />
-    <ClInclude Include="Include\Core\CPU\OThread_Spawning.hpp" />
-    <ClInclude Include="Source\Core\CPU\OThreadUtilities.hpp" />
-    <ClInclude Include="Source\Core\CPU\OWorkQueue.hpp" />
+    <ClInclude Include="Source\Core\Synchronization\OSpinlock.hpp" />
+    <ClInclude Include="Source\Core\Synchronization\OWorkQueue.hpp" />
     <ClInclude Include="Source\Core\FIO\ODirectory.hpp" />
     <ClInclude Include="Source\Core\FIO\OFile.hpp" />
     <ClInclude Include="Source\Core\FIO\OFileStat.hpp" />
     <ClInclude Include="Source\Core\FIO\OPath.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\x86_64\Addresses\FindFreeUserVMA.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\FindFreeUserVMA.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryPages.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMSpace.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMKernel.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\VMAllocation.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\Kernel\KernelAddressSpace.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\OLinuxMemory.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryMM.hpp" />
-    <ClInclude Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMUser.hpp" />
+    <ClInclude Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\UserVMManager.hpp" />
     <ClInclude Include="Source\Core\Memory\Linux\OLinuxStack.hpp" />
     <ClInclude Include="Source\Core\Net\OTCPNetworking.hpp" />
+    <ClCompile Include="Source\Core\CPU\OLinuxCurrent.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\Kernel\KernelVMManager.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\UserAddressSpace.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcessAPI.cpp">
       <FileType>CppHeader</FileType>
     </ClCompile>
@@ -81,6 +86,9 @@
     <ClInclude Include="Source\Core\UserSpace\DelegatedCalls\ODelegtedCalls.hpp" />
     <ClInclude Include="Source\Core\UserSpace\Files\OPseudoFile.hpp" />
     <ClInclude Include="Source\Core\UserSpace\ORegistration.hpp" />
+    <ClInclude Include="Source\Core\Utilities\NiceVals.h" />
+    <ClInclude Include="Source\Core\Utilities\ONiceUtilities.hpp" />
+    <ClInclude Include="Source\Core\Utilities\OThreadUtilities.hpp" />
     <ClInclude Include="Source\Logging\Logging.hpp" />
     <ClInclude Include="Source\Utils\DateHelper.hpp" />
     <ClInclude Include="Source\Utils\FileIOHelper.hpp" />
@@ -90,24 +98,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\Core\Net\OTCPNetworking.hpp" />
-    <ClCompile Include="Source\Core\CPU\CPU_Mem.cpp" />
-    <ClCompile Include="Source\Core\CPU\CPU_Nice.c">
+    <ClCompile Include="Source\Core\CPU\OMemoryCoherency.cpp" />
+    <ClCompile Include="Source\Core\Utilities\NiceVals.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Development|x64'">CompileAsC</CompileAs>
     </ClCompile>
-    <ClCompile Include="Source\Core\CPU\CPU_Preemption.cpp" />
-    <ClCompile Include="Source\Core\CPU\CPU_Spinlocks.cpp" />
-    <ClCompile Include="Source\Core\CPU\LinuxSleeping.cpp" />
-    <ClCompile Include="Source\Core\CPU\OMutex.cpp" />
-    <ClCompile Include="Source\Core\CPU\OSemaphore.cpp" />
-    <ClCompile Include="Source\Core\CPU\OThreadUtilities.cpp" />
-    <ClCompile Include="Source\Core\CPU\OWorkQueue.cpp" />
+    <ClCompile Include="Source\Core\Synchronization\OSpinlock.cpp" />
+    <ClCompile Include="Source\Core\Synchronization\LinuxSleeping.cpp" />
+    <ClCompile Include="Source\Core\Synchronization\OMutex.cpp" />
+    <ClCompile Include="Source\Core\Synchronization\OSemaphore.cpp" />
+    <ClCompile Include="Source\Core\Synchronization\OWorkQueue.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\OLinuxMemory.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\x86_64\Addresses\FindFreeUserVMA.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\FindFreeUserVMA.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryPages.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMSpace.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMKernel.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\VMAllocation.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\Kernel\KernelAddressSpace.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryMM.cpp" />
-    <ClCompile Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVMUser.cpp" />
+    <ClCompile Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\User\UserVMManager.cpp" />
     <ClCompile Include="Source\Core\Memory\Linux\OLinuxStack.cpp" />
     <ClCompile Include="Source\Core\Net\OTCPNetworking.cpp" />
     <ClCompile Include="Source\Core\Processes\OProcesses.cpp" />
@@ -128,6 +134,8 @@
     <ClCompile Include="Source\Core\UserSpace\DelegatedCalls\ODelegtedCalls.cpp" />
     <ClCompile Include="Source\Core\UserSpace\Files\OPseudoFile.cpp" />
     <ClCompile Include="Source\Core\UserSpace\ORegistration.cpp" />
+    <ClCompile Include="Source\Core\Utilities\ONiceUtilities.cpp" />
+    <ClCompile Include="Source\Core\Utilities\OThreadUtilities.cpp" />
     <ClCompile Include="Source\Entrypoint.cpp" />
     <ClCompile Include="Source\Core\FIO\ODirectory.cpp" />
     <ClCompile Include="Source\Core\FIO\OFile.cpp" />
@@ -152,7 +160,7 @@
     <None Include="Include\Base\Objects\ObjectsReferenceCounter.imp" />
     <None Include="Include\Base\Objects\ObjectsDumbPointer.imp" />
     <None Include="Include\Base\Objects\ODumbPointerReference.imp" />
-    <None Include="Source\Core\Memory\Linux\x86_64\OLinuxMemoryVM.hpp" />
+    <None Include="Source\Core\Memory\Linux\x86_64\AddressSpaces\IVMManager.hpp" />
     <ClCompile Include="Source\Core\Processes\OProcessTransversal.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -200,7 +208,7 @@
       </SDLCheck>
       <PreprocessorDefinitions>LIBLINUX_BUILDING;%(PreprocessorDefinitions);XENUS_BUILD</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\CommonKernel\Headers\;Include\;..\LibOSTypes\Include\;..\LibCompiler\Include\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\CommonKernel\Headers\;Include\;..\LibOSTypes\Include\;..\LibCompiler\Include\;.</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <TreatWarningAsError>false</TreatWarningAsError>
       <ControlFlowGuard>false</ControlFlowGuard>

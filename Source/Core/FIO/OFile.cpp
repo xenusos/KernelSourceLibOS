@@ -147,7 +147,7 @@ error_t OLinuxFileImp::UnlockAll()
     return kErrorNotImplemented;
 }
 
-error_t OLinuxFileImp::GoUp(const OOutlivableRef<ODirectory> & dir)
+error_t OLinuxFileImp::GoUp(const OOutlivableRef<IO::ODirectory> & dir)
 {
     char dir_path[256];
     
@@ -161,7 +161,7 @@ error_t OLinuxFileImp::GoUp(const OOutlivableRef<ODirectory> & dir)
     return OpenDirectory(dir, dir_path);
 }
 
-error_t OLinuxFileImp::GetPath(const OOutlivableRef<OPath> & path)
+error_t OLinuxFileImp::GetPath(const OOutlivableRef<IO::OPath> & path)
 {
     if (ERROR(_error))
         return _error;
@@ -169,7 +169,7 @@ error_t OLinuxFileImp::GetPath(const OOutlivableRef<OPath> & path)
     return OpenLinuxPath((OOutlivableRef<OLinuxPathImpl>&)path, _fili.GetPath());
 }
 
-error_t OLinuxFileImp::Stat(const OOutlivableRef<OFileStat> & filestat)
+error_t OLinuxFileImp::Stat(const OOutlivableRef<IO::OFileStat> & filestat)
 {
     kstat_k stat;
     l_int code;
@@ -198,7 +198,7 @@ uint64_t OLinuxFileImp::KernelError()
     return _linux_error;
 }
 
-error_t OpenFile(const OOutlivableRef<OFile>& ofile, const char * file, uint64_t flags, umode_t mode)
+error_t IO::OpenFile(const OOutlivableRef<IO::OFile>& ofile, const char * file, uint64_t flags, umode_t mode)
 {
     if (!file)
         return kErrorIllegalBadArgument;

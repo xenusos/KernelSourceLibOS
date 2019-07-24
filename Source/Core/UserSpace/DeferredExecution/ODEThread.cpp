@@ -10,7 +10,8 @@
 #include "ODEWork.hpp"
 #include "ODeferredExecution.hpp"
 #include "CallingConventions/CCManager.hpp"
-#include "../../CPU/OThreadUtilities.hpp"
+#include <Core/CPU/OMemoryCoherency.hpp>
+#include <Core/Utilities/OThreadUtilities.hpp>
 #include "../../Memory/Linux/OLinuxMemory.hpp"
 #include "../../Processes/OProcesses.hpp"
 #include "../../Processes/OProcessHelpers.hpp"
@@ -172,33 +173,33 @@ DEStack * ODEImplPIDThread::GetStack()
 error_t ODEImplPIDThread::AllocateStack()
 {
     error_t err;
-    OLVirtualAddressSpace * krnVas;
-    ODumbPointer<OLVirtualAddressSpace> usrVas;
-    OPtr<OLMemoryAllocation> usrAlloc;
-    OPtr<OLMemoryAllocation> krnAlloc;
+    Memory::OLVirtualAddressSpace * krnVas;
+    ODumbPointer<Memory::OLVirtualAddressSpace> usrVas;
+    OPtr<Memory::OLMemoryAllocation> usrAlloc;
+    OPtr<Memory::OLMemoryAllocation> krnAlloc;
 
-    err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<OLVirtualAddressSpace>(krnVas));
+    err = g_memory_interface->GetKernelAddressSpace(OUncontrollableRef<Memory::OLVirtualAddressSpace>(krnVas));
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't obtain kernel address space interface, error " PRINTF_ERROR, err);
         return err;
     }
 
-    err = g_memory_interface->GetUserAddressSpace(_task, OOutlivableRef<OLVirtualAddressSpace>(usrVas));
+    err = g_memory_interface->GetUserAddressSpace(_task, OOutlivableRef<Memory::OLVirtualAddressSpace>(usrVas));
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't obtain user address space interface, error " PRINTF_ERROR, err);
         return err;
     }
 
-    err = krnVas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<OLMemoryAllocation>(krnAlloc));
+    err = krnVas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<Memory::OLMemoryAllocation>(krnAlloc));
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't allocate descriptor, error " PRINTF_ERROR, err);
         return err;
     }
 
-    err = usrVas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<OLMemoryAllocation>(usrAlloc));
+    err = usrVas->NewDescriptor(0, APC_STACK_PAGES, OOutlivableRef<Memory::OLMemoryAllocation>(usrAlloc));
     if (ERROR(err))
     {
         LogPrint(kLogError, "Couldn't allocate descriptor, error " PRINTF_ERROR, err);
@@ -206,7 +207,7 @@ error_t ODEImplPIDThread::AllocateStack()
         return err;
     }
 
-    _stack.pages = usrVas->AllocatePFNs(kPageNormal, APC_STACK_PAGES, false, OL_PAGE_ZERO);
+    _stack.pages = usrVas->AllocatePFNs(Memory::kPageNormal, APC_STACK_PAGES, false, Memory::OL_PAGE_ZERO);
     if (!_stack.pages)
     {
         krnAlloc->Destroy();
@@ -216,10 +217,10 @@ error_t ODEImplPIDThread::AllocateStack()
 
     for (size_t i = 0; i < APC_STACK_PAGES; i++)
     {
-        OLPageEntry entry;
+        Memory::OLPageEntry entry;
 
-        entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
-        entry.type = kPageEntryByPFN;
+        entry.meta = g_memory_interface->CreatePageEntry(Memory::OL_ACCESS_READ | Memory::OL_ACCESS_WRITE, Memory::kCacheNoCache);
+        entry.type = Memory::kPageEntryByPFN;
         entry.pfn = _stack.pages[i].pfn;
 
         err = krnAlloc->PageInsert(i, entry);
@@ -296,9 +297,6 @@ void ODEImplPIDThread::PopCompletedTask(ODEWorkHandler * & current, bool & hasNe
     nextJob = *cur;
 }
 
-
-#include <Core/CPU/OThread.hpp>
-
 void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
 {
     linux_thread_info * info;
@@ -307,8 +305,7 @@ void ODEImplPIDThread::PreemptExecution(pt_regs * registers, bool kick)
     info->next_user = *registers;
     info->swap_bool.counter = 1;
 
-    ThreadingMemoryFlush();
-    
+    CPU::Memory::ReadWriteBarrier();
 
     if (kick)
     {
@@ -333,7 +330,7 @@ void ODEImplPIDThread::PreemptExecutionForWork(ODEWorkHandler * exec, bool kick)
     size_t * hacked;
     ICallingConvention * convention;
     const ODEWork & work = exec->GetWork();
-    bool bits = UtilityIsTask32Bit(_task);
+    bool bits = Utilities::Tasks::IsTask32Bit(_task);
 
     convention = ODEGetConvention(work.cc);
     ASSERT(convention, "couldn't locate calling convention");

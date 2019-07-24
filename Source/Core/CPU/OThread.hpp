@@ -5,10 +5,9 @@
 */  
 #pragma once
 #include <Core/CPU/OThread.hpp>
+#include <Core/Synchronization/OSpinlock.hpp>
 
-#include "Core/CPU/OSpinlock.hpp"
-
-class OThreadImp : public OThread
+class OThreadImp : public CPU::Threading::OThread
 {
 public:
     OThreadImp(task_k tsk, uint32_t id, const char * name, const void * data);
@@ -48,7 +47,7 @@ protected:
     long _exit_code;
     bool _try_kill;
 
-    los_spinlock_t _task_holder;
+    Synchronization::Spinlock _task_holder;
 
     void Lock();
     void Unlock();
@@ -57,4 +56,6 @@ protected:
     long * _death_signal;
 };
 
-void InitThreading();
+extern void InitThreading();
+
+LIBLINUX_SYM error_t CPU::Threading::SpawnOThread(const OOutlivableRef<CPU::Threading::OThread> & thread, CPU::Threading::OThreadEP_t entrypoint, const char * name, void * data);

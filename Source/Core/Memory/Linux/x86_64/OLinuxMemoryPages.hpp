@@ -6,5 +6,5 @@
 #pragma once
 #include <Core/Memory/Linux/OLinuxMemory.hpp>
 
-extern PhysAllocationElem   * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool contig, bool pfns, size_t uflags = 0);
-extern void                   FreeLinuxPages(PhysAllocationElem * pages);
+extern Memory::PhysAllocationElem   * AllocateLinuxPages(Memory::OLPageLocation location, size_t cnt, bool user, bool contig, bool pfns, size_t uflags = 0);
+extern void                           FreeLinuxPages(Memory::PhysAllocationElem * pages);

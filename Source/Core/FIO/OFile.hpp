@@ -6,7 +6,7 @@
 #pragma once
 #include <Core\FIO\OFile.hpp>
 
-class OLinuxFileImp : public OFile
+class OLinuxFileImp : public IO::OFile
 {
 public:
     OLinuxFileImp(const char * file, uint64_t flags, umode_t mode);
@@ -16,9 +16,9 @@ public:
     error_t Write(const char * string, loff_t offset = 0)                           override;
     error_t Read(void * buffer, size_t length, size_t & read, loff_t offset = 0)    override;
     error_t Delete()                                                                override;
-    error_t GoUp(const OOutlivableRef<ODirectory> & dir)                            override;
-    error_t GetPath(const OOutlivableRef<OPath> & path)                             override;
-    error_t Stat(const OOutlivableRef<OFileStat> & stat)                            override;
+    error_t GoUp(const OOutlivableRef<IO::ODirectory> & dir)                        override;
+    error_t GetPath(const OOutlivableRef<IO::OPath> & path)                         override;
+    error_t Stat(const OOutlivableRef<IO::OFileStat> & stat)                        override;
     error_t Rename(const char * path)                                               override;
     error_t LockWrite()                                                             override;
     error_t UnlockWrite()                                                           override;
@@ -40,3 +40,5 @@ private:
     umode_t  _mode;
     uint64_t _linux_error;
 };
+
+LIBLINUX_SYM error_t IO::OpenFile(const OOutlivableRef<IO::OFile>& ofile, const char * file, uint64_t flags, umode_t mode);

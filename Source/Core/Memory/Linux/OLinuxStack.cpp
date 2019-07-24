@@ -8,17 +8,17 @@
 
 // Do note that the following to functions do not imply how the stack grows or where the original stack pointer pointed to
 // Start & End is merely indicative of the virtual range 
-void * SafeStackGetStart(task_k tsk)
+void * Memory::Stack::GetStart(task_k tsk)
 {
     return reinterpret_cast<void *>(task_get_stack_size_t(tsk));
 }
 
-void * SafeStackGetEnd(task_k tsk)
+void * Memory::Stack::GetEnd(task_k tsk)
 {
     return reinterpret_cast<void *>(task_get_stack_size_t(tsk) + OS_THREAD_SIZE);
 }
 
-bool SafeStackIsInRangeEx(task_k task, void * address, ssize_t length)
+bool Memory::Stack::IsInRangeEx(task_k task, void * address, ssize_t length)
 {
     size_t start;
     size_t end;
@@ -26,8 +26,8 @@ bool SafeStackIsInRangeEx(task_k task, void * address, ssize_t length)
     size_t min;
     size_t max;
 
-    start = (size_t)SafeStackGetStart(task);
-    end   = (size_t)SafeStackGetEnd(task);
+    start = (size_t)Memory::Stack::GetStart(task);
+    end   = (size_t)Memory::Stack::GetEnd(task);
 
     addr  = (size_t)address;
 
@@ -53,33 +53,33 @@ bool SafeStackIsInRangeEx(task_k task, void * address, ssize_t length)
     return true;
 }
 
-bool SafeStackIsInRange(void * address, ssize_t length)
+bool Memory::Stack::IsInRange(void * address, ssize_t length)
 {
-    return SafeStackIsInRangeEx(OSThread, address, length);
+    return Memory::Stack::IsInRangeEx(OSThread, address, length);
 }
 
-bool SafeStackCanAlloc(size_t length)
+bool Memory::Stack::CanAlloc(size_t length)
 {
     size_t a;
-    return SafeStackIsInRangeEx(OSThread, &a, 0 - length - 512);
+    return Memory::Stack::IsInRangeEx(OSThread, &a, 0 - length - 512);
 }
 
-size_t SafeStackGetApproxUsed()
+size_t Memory::Stack::GetApproxUsed()
 {
     size_t a;
-    return size_t(SafeStackGetEnd(OSThread)) - size_t(&a);
+    return size_t(Memory::Stack::GetEnd(OSThread)) - size_t(&a);
 }
 
-size_t SafeStackGetApproxFree()
+size_t Memory::Stack::GetApproxFree()
 {
     size_t a;
-    return size_t(&a) - size_t(SafeStackGetStart(OSThread)); 
+    return size_t(&a) - size_t(Memory::Stack::GetStart(OSThread));
 }
 
-void   SafeStackCheckState()
+void   Memory::Stack::CheckState()
 {
     size_t a;
 
-    if (!SafeStackIsInRange(&a, 1))
+    if (!Memory::Stack::IsInRange(&a, 1))
         panic("Stack Buffer Overflow Detected!");
 }

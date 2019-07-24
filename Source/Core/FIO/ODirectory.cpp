@@ -77,7 +77,7 @@ error_t ODirectoryImp::Delete()
 
 struct IterCtx_s
 {
-    void(*iterator)(ODirectory * directory, const char * file, void * data);
+    void(*iterator)(IO::ODirectory * directory, const char * file, void * data);
     void * usrctx;
     ODirectoryImp * dir;
 };
@@ -127,7 +127,7 @@ error_t ODirectoryImp::Iterate(void(* iterator)(ODirectory * directory, const ch
     if (ERROR(ret))
         return ret;
 
-    dirfile = filp_open(path, kFileDirOnly, 0777);
+    dirfile = filp_open(path, IO::kFileDirOnly, 0777);
     
     if (LINUX_PTR_ERROR(dirfile))
         return kErrorInternalError;
@@ -140,7 +140,7 @@ error_t ODirectoryImp::Iterate(void(* iterator)(ODirectory * directory, const ch
     return kStatusOkay;
 }
 
-error_t ODirectoryImp::Stat(const OOutlivableRef<OFileStat> & filestat)
+error_t ODirectoryImp::Stat(const OOutlivableRef<IO::OFileStat> & filestat)
 {
     CHK_DEAD;
     path_k path;
@@ -178,7 +178,7 @@ error_t ODirectoryImp::LockState(bool & state)
     return kStatusOkay;
 }
 
-error_t   OpenDirectory(const OOutlivableRef<ODirectory> & dir, vfsmount_k mnt, dentry_k entry)
+error_t   IO::OpenDirectory(const OOutlivableRef<IO::ODirectory> & dir, vfsmount_k mnt, dentry_k entry)
 {
     file_k filp;
 
@@ -193,7 +193,7 @@ error_t   OpenDirectory(const OOutlivableRef<ODirectory> & dir, vfsmount_k mnt, 
     return kStatusOkay;
 }
 
-error_t   OpenDirectory(const OOutlivableRef<ODirectory> & dir, const char * path)
+error_t   IO::OpenDirectory(const OOutlivableRef<IO::ODirectory> & dir, const char * path)
 {
     error_t err;
     file_k filp;
@@ -214,7 +214,7 @@ error_t   OpenDirectory(const OOutlivableRef<ODirectory> & dir, const char * pat
     return err;
 }
 
-error_t CreateDirectory(const OOutlivableRef<ODirectory> & dir, const char * path, umode_t mode)
+error_t IO::CreateDirectory(const OOutlivableRef<IO::ODirectory> & dir, const char * path, umode_t mode)
 {
     error_t ret;
     dentry_k entry;

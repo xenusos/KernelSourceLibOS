@@ -6,10 +6,17 @@
 #define DANGEROUS_PAGE_LOGIC
 #include <libos.hpp>
 #include "OLinuxMemory.hpp"
+
 #if defined(AMD64)
-#include "x86_64/OLinuxMemoryVM.hpp"
-#include "x86_64/OLinuxMemoryMM.hpp"
+    #include "x86_64/AddressSpaces/IVMManager.hpp"
+    #include "x86_64/AddressSpaces/Kernel/KernelVMManager.hpp"
+    #include "x86_64/AddressSpaces/Kernel/KernelAddressSpace.hpp"
+    #include "x86_64/AddressSpaces/User/UserVMManager.hpp"
+    #include "x86_64/AddressSpaces/User/UserAddressSpace.hpp"
+    #include "x86_64/OLinuxMemoryMM.hpp"
 #endif
+
+using namespace Memory;
 
 struct LinuxPageEntry 
 {
@@ -49,11 +56,9 @@ static pgprot_t CacheTypeToCacheModeToProt(OLCacheType cache)
     pgprot_t prot;
     prot.pgprot_ = cachemode2protval(GetCacheModeFromCacheType(cache));
 #else
-    pgprot_noncached(vm_page_prot)
-        pgprot_writecombine(vm_page_prot)
-        pgprot_dmacoherent(vm_page_prot)
+    NOT IMPLEMENTED
 #endif
-        return prot;
+    return prot;
 }
 
 void OLMemoryInterfaceImpl::UpdatePageEntryCache(OLPageEntryMeta &entry, OLCacheType cache)
@@ -212,12 +217,11 @@ error_t OLMemoryInterfaceImpl::GetUserAddressSpace(task_k task, const OOutlivabl
     return kErrorNotImplemented;
 }
 
-error_t GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> interface)
+error_t Memory::GetLinuxMemoryInterface(const OUncontrollableRef<OLMemoryInterface> interface)
 {
     interface.SetObject(g_memory_interface);
     return g_memory_interface == nullptr ? kErrorInternalError : kStatusOkay;
 }
-
 
 void InitMemmory()
 {

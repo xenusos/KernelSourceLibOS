@@ -1,7 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;    Purpose: not a copy/paste of osGetIP                             ;;
+;;    Purpose:                                                         ;;
 ;;    Author: Reece W.                                                 ;;
-;;    License: All Rights Reserved J. Reece Wilson (See License.txt)    (sorry nvidya )  ;;
+;;    License: All Rights Reserved J. Reece Wilson (See License.txt)   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 PUBLIC ?GetIP@ThreadHelpers@@YAPEAXXZ

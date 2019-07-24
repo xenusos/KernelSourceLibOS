@@ -14,8 +14,8 @@
 
 // Other parts of LibOS
 #include "../FIO/OPath.hpp"
-#include "Core/CPU/OThread.hpp"
 
+#include <Core/Utilities/OThreadUtilities.hpp>
 #include <Core/Memory/Linux/OLinuxMemory.hpp>
 
 task_k g_init_task;
@@ -298,7 +298,7 @@ error_t OProcessImpl::IterateThreads(ThreadIterator_cb callback, void * ctx)
 
 bool OProcessImpl::Is32Bits()
 {
-    return UtilityIsTask32Bit(_tsk);
+    return Utilities::Tasks::IsTask32Bit(_tsk);
 }
 
 error_t OProcessImpl::Terminate(bool force)
@@ -329,14 +329,14 @@ error_t OProcessImpl::AccessProcessMemory(user_addr_t address, void * buffer, si
     size_t pg_offset;
     void * map;
     error_t ret;
-    OLMemoryInterface * lm;
-    OLPageEntryMeta protection;
+    Memory::OLMemoryInterface * lm;
+    Memory::OLPageEntryMeta protection;
 
-    ret = GetLinuxMemoryInterface(lm);
+    ret = Memory::GetLinuxMemoryInterface(lm);
     if (ERROR(ret))
         return ret;
 
-    protection = lm->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_WRITE, kCacheNoCache);
+    protection = lm->CreatePageEntry(Memory::OL_ACCESS_READ | Memory::OL_ACCESS_WRITE, Memory::kCacheNoCache);
 
     if (length == 0)
         return kErrorIllegalArgLength;

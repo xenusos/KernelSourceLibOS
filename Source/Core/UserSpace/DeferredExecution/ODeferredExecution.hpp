@@ -4,7 +4,7 @@
     License: All Rights Reserved J. Reece Wilson (See License.txt)
 */
 #pragma once
-#include <Core/CPU/OWorkQueue.hpp> 
+#include <Core/Synchronization/OWorkQueue.hpp> 
 #include <Core/UserSpace/ODeferredExecution.hpp>
 
 #define APC_STACK_PAGES CONFIG_APC_STACK_PAGES
@@ -15,7 +15,7 @@ class ODEWorkHandler;
 class ODEWorkJobImpl : public ODEWorkJob
 {
 public:
-    ODEWorkJobImpl(task_k task, OPtr<OWorkQueue> workqueue);
+    ODEWorkJobImpl(task_k task, OPtr<Synchronization::OWorkQueue> workqueue);
                                                                    
     error_t SetWork(ODEWork &)                                     override;
                                                                    
@@ -39,7 +39,7 @@ protected:
     void InvalidateImp()                                           override;
                                                                    
 private:
-    OPtr<OWorkQueue> _workqueue;
+    OPtr<Synchronization::OWorkQueue> _workqueue;
     task_k           _task        = {0};
     ODEWorkHandler * _worker      = nullptr;
     ODEWork          _work        = {0};

@@ -10,7 +10,7 @@
 #include "../../Processes/OProcesses.hpp"
 #include "../../Processes/OProcessHelpers.hpp"
 #include "../../Memory/Linux/OLinuxMemory.hpp"
-#include "../../CPU/OThreadUtilities.hpp"
+#include <Core/Utilities/OThreadUtilities.hpp>
 
 static chain_p tgid_map;
 
@@ -84,19 +84,19 @@ error_t ODEImplProcess::GetThread(task_k task, ODEImplPIDThread * & thread)
 void ODEImplProcess::MapReturnStub()
 {
     error_t err;
-    ODumbPointer<OLVirtualAddressSpace> usrVas;
-    OPtr<OLMemoryAllocation> usrAlloc;
-    OLPageEntry entry;
+    ODumbPointer<Memory::OLVirtualAddressSpace> usrVas;
+    OPtr<Memory::OLMemoryAllocation> usrAlloc;
+    Memory::OLPageEntry entry;
 
-    err = g_memory_interface->GetUserAddressSpace(_task, OOutlivableRef<OLVirtualAddressSpace>(usrVas));
+    err = g_memory_interface->GetUserAddressSpace(_task, OOutlivableRef<Memory::OLVirtualAddressSpace>(usrVas));
     ASSERT(NO_ERROR(err), "Couldn't obtain user address space interface, error: " PRINTF_ERROR, err);
 
-    err = usrVas->NewDescriptor(0, 1, OOutlivableRef<OLMemoryAllocation>(usrAlloc));
+    err = usrVas->NewDescriptor(0, 1, OOutlivableRef<Memory::OLMemoryAllocation>(usrAlloc));
     ASSERT(NO_ERROR(err), "Couldn't allocate descriptor, error: " PRINTF_ERROR, err);
 
-    entry.meta = g_memory_interface->CreatePageEntry(OL_ACCESS_READ | OL_ACCESS_EXECUTE, kCacheNoCache);
-    entry.type = kPageEntryByPage;
-    entry.page = DEGetReturnStub(!UtilityIsTask32Bit(_task));
+    entry.meta = g_memory_interface->CreatePageEntry(Memory::OL_ACCESS_READ | Memory::OL_ACCESS_EXECUTE, Memory::kCacheNoCache);
+    entry.type = Memory::kPageEntryByPage;
+    entry.page = DEGetReturnStub(!Utilities::Tasks::IsTask32Bit(_task));
     
     err = usrAlloc->PageInsert(0, entry);
     ASSERT(NO_ERROR(err), "Couldn't insert page into user address space " PRINTF_ERROR, err);

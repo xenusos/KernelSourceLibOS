@@ -27,7 +27,7 @@ LIBLINUX_SYM pfn_t            phys_to_pfn(phys_addr_t address);    // NOTE: UP_P
 LIBLINUX_SYM kernel_pointer_t phys_to_virt(phys_addr_t addr);
 
 
-extern enum page_cache_mode   GetCacheModeFromCacheType(OLCacheType type);
+extern enum page_cache_mode   GetCacheModeFromCacheType(Memory::OLCacheType type);
 
 
 extern void InitMMIOHelper();

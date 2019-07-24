@@ -11,6 +11,7 @@
 
 static l_unsigned_long page_offset_base = 0;
 static uint64_t        phys_base        = 0;
+static page_cache_mode cache_mapping[Memory::kCacheMax];
 
 static inline phys_addr_t __phys_addr_nodebug(kernel_pointer_t x)
 {
@@ -66,39 +67,27 @@ page_k virt_to_page(kernel_pointer_t address)
     return pfn_to_page(virt_to_pfn(address));
 }
 
-page_cache_mode GetCacheModeFromCacheType(OLCacheType type)
+page_cache_mode GetCacheModeFromCacheType(Memory::OLCacheType type)
 {
-    switch (type)
-    {
-    case kCacheCache:
-    {
-        return _PAGE_CACHE_MODE_WB;
-    }
-    case kCacheNoCache:
-    {
-        return _PAGE_CACHE_MODE_UC_MINUS;
-    }
-    case kCacheWriteCombined:
-    {
-        return _PAGE_CACHE_MODE_WC;
-    }
-    case kCacheWriteThrough:
-    {
-        return _PAGE_CACHE_MODE_WT;
-    }
-    case kCacheWriteProtected:
-    {
-        return _PAGE_CACHE_MODE_WP;
-    }
-    default:
-    {
+    if (type >= Memory::kCacheMax)
         panicf("Bad protection id %i", type);
-    }
-    }
+
+    return cache_mapping[type];
+}
+
+static void CacheTypeMapping()
+{
+    cache_mapping[Memory::kCacheCache]          = _PAGE_CACHE_MODE_WB;
+    cache_mapping[Memory::kCacheNoCache]        = _PAGE_CACHE_MODE_UC_MINUS;
+    cache_mapping[Memory::kCacheWriteCombined]  = _PAGE_CACHE_MODE_WC;
+    cache_mapping[Memory::kCacheWriteThrough]   = _PAGE_CACHE_MODE_WT;
+    cache_mapping[Memory::kCacheWriteProtected] = _PAGE_CACHE_MODE_WP;
 }
 
 void InitMMIOHelper()
 {
     phys_base           = *(uint64_t *)       kallsyms_lookup_name("phys_base");
     page_offset_base    = *(l_unsigned_long*) kallsyms_lookup_name("page_offset_base");
+
+    CacheTypeMapping();
 }

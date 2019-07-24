@@ -11,7 +11,7 @@
 static mutex_k logging_mutex;
 static char logging_tline[PRINTF_MAX_STRING_LENGTH];
 static char logging_tstr[PRINTF_MAX_STRING_LENGTH];
-static OFile * log_file;
+static IO::OFile * log_file;
 
 static const char * logging_levels[KInvalidLogLevel] = 
 {
@@ -76,15 +76,15 @@ static void LoggingInitAllocations()
     ASSERT(logging_mutex, "failed to create logging mutex");
 }
 
-static bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
+static bool LoggingInitTryCreateDir(const OOutlivableRef<IO::ODirectory> & dir)
 {
     error_t err;
     
-    err = OpenDirectory(dir, LOG_DIR);
+    err = IO::OpenDirectory(dir, LOG_DIR);
 
     if (ERROR(err))
     {
-        err = CreateDirectory(dir, LOG_DIR);
+        err = IO::CreateDirectory(dir, LOG_DIR);
         if (ERROR(err))
         {
             printf("Couldn't create directory for Xenus Kernel Logging. Error: " PRINTF_ERROR, err);
@@ -95,7 +95,7 @@ static bool LoggingInitTryCreateDir(const OOutlivableRef<ODirectory> & dir)
     return true;
 }
 
-static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
+static void LoggingInitResetDir(ODumbPointer<IO::ODirectory> dir)
 {
     error_t err;
     linked_list_head_p list;
@@ -103,7 +103,7 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
     list = linked_list_create();
     ASSERT(list, "out of memory");
 
-    dir->Iterate([](ODirectory * dir, const char * path, void * ctx)
+    dir->Iterate([](IO::ODirectory * dir, const char * path, void * ctx)
     {
         linked_list_head_p list = (linked_list_head_p)ctx;
         linked_list_entry_p entry = linked_list_append(list, 256);
@@ -122,7 +122,7 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
 
     for (linked_list_entry_p cur = list->bottom; cur != NULL; cur = cur->next)
     {
-        ODumbPointer<OFile> file;
+        ODumbPointer<IO::OFile> file;
         const char * path;
         char full[256];
 
@@ -136,7 +136,7 @@ static void LoggingInitResetDir(ODumbPointer<ODirectory> dir)
         strlcat(full, "/", 256);
         strlcat(full, path, 256);
 
-        err = OpenFile(OOutlivableRef<OFile>(file), full, kFileReadOnly, 0700);
+        err = IO::OpenFile(OOutlivableRef<IO::OFile>(file), full, IO::kFileReadOnly, 0700);
         if (ERROR(err))
             continue;
 
@@ -155,18 +155,18 @@ static void LoggingInitCreateFile()
     LoggingGetTs(timestamp);
     snprintf(filename, FN_LEN, LOG_DIR "/Log %s.txt", timestamp);
 
-    err = OpenFile(OOutlivableRef<OFile>(log_file), filename, kFileAppend | kFileReadWrite | kFileCreate, 0700);
+    err = OpenFile(OOutlivableRef<IO::OFile>(log_file), filename, IO::kFileAppend | IO::kFileReadWrite | IO::kFileCreate, 0700);
     if (ERROR(err))
         printf("Couldn't create xenus log file %s " PRINTF_ERROR "\n", filename, err);
 }
 
 void LoggingInit()
 {
-    ODumbPointer<ODirectory> dir;
+    ODumbPointer<IO::ODirectory> dir;
 
     LoggingInitAllocations();
 
-    if (!LoggingInitTryCreateDir(OOutlivableRef<ODirectory>(dir)))
+    if (!LoggingInitTryCreateDir(OOutlivableRef<IO::ODirectory>(dir)))
         return;
 
     LoggingInitResetDir(dir);

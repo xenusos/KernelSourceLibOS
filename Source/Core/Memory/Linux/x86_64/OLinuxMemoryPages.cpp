@@ -8,7 +8,6 @@
 #include "OLinuxMemoryPages.hpp"
 #include "OLinuxMemoryMM.hpp"
 
-
 static int PagesToOrder(int count, int & order)
 {
     if (count == 1)
@@ -32,7 +31,7 @@ static int PagesToOrder(int count, int & order)
 }
 
 
-static bool LinuxAllocateContigArray(PhysAllocationElem * arry, size_t cnt, size_t flags, bool isPfn)
+static bool LinuxAllocateContigArray(Memory::PhysAllocationElem * arry, size_t cnt, size_t flags, bool isPfn)
 {
     page_k page;
     int order;
@@ -71,7 +70,15 @@ static bool LinuxAllocateContigArray(PhysAllocationElem * arry, size_t cnt, size
     return true;
 }
 
-static bool LinuxAllocatePages(PhysAllocationElem * arry, size_t cnt, size_t flags, bool isPfn)
+static void TranslatePageArrayToPFNs(Memory::PhysAllocationElem * arry, size_t cnt)
+{
+    for (size_t i = 0; i < cnt; i++)
+    {
+        arry[i].pfn = page_to_pfn(arry[i].page);
+    }
+}
+
+static bool LinuxAllocatePages(Memory::PhysAllocationElem * arry, size_t cnt, size_t flags, bool isPfn)
 {
     page_k page;
 
@@ -86,12 +93,7 @@ static bool LinuxAllocatePages(PhysAllocationElem * arry, size_t cnt, size_t fla
     }
 
     if (isPfn)
-    {
-        for (size_t i = 0; i < cnt; i++)
-        {
-            arry[i].pfn = page_to_pfn(arry[i].page);
-        }
-    }
+        TranslatePageArrayToPFNs(arry, cnt);
 
     return true;
 
@@ -133,16 +135,16 @@ struct EncodedArrayMeta // Why do bitwise hackery when the compiler can do it fo
 #pragma pack(pop)
 
 
-PhysAllocationElem * AllocateLinuxPages(OLPageLocation location, size_t cnt, bool user, bool contig, bool byPfn, size_t uflags)
+Memory::PhysAllocationElem * AllocateLinuxPages(Memory::OLPageLocation location, size_t cnt, bool user, bool contig, bool byPfn, size_t uflags)
 {
     size_t flags;
-    PhysAllocationElem * arry;
+    Memory::PhysAllocationElem * arry;
     EncodedArrayMeta meta;
     bool ret;
 
-    ASSERT(location != kPageInvalid, "invalid page region");
+    ASSERT(location != Memory::kPageInvalid, "invalid page region");
 
-    arry = (PhysAllocationElem *)calloc(cnt + 2, sizeof(PhysAllocationElem));
+    arry = reinterpret_cast<Memory::PhysAllocationElem *>(calloc(cnt + 2, sizeof(Memory::PhysAllocationElem)));
     
     if (!arry)
         return nullptr;
@@ -164,19 +166,19 @@ PhysAllocationElem * AllocateLinuxPages(OLPageLocation location, size_t cnt, boo
     else
         flags |= GFP_KERNEL /*user differs with the addition of __GFP_HARDWALL. afaik this does NOT matter*/;
 
-    if (uflags & OL_PAGE_ZERO)
+    if (uflags & Memory::OL_PAGE_ZERO)
         flags |= __GFP_ZERO;
 
     switch (location)
     {
-    case kPageNormal:
+    case Memory::kPageNormal:
         // if 32 bit, GFP_HIGHUSER
         // ZONE_NORMAL is defacto
         break;
-    case kPageDMAVeryLow:
+    case Memory::kPageDMAVeryLow:
         flags |= GFP_DMA;
         break;
-    case kPageDMA4GB:
+    case Memory::kPageDMA4GB:
         flags |= GFP_DMA32;
         break;
     default:
@@ -197,7 +199,7 @@ PhysAllocationElem * AllocateLinuxPages(OLPageLocation location, size_t cnt, boo
     return arry;
 }
 
-void FreeLinuxPages(PhysAllocationElem * pages)
+void FreeLinuxPages(Memory::PhysAllocationElem * pages)
 {
     int order;
     EncodedArrayMeta meta;
